@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { QrCode, Utensils, Hotel, ArrowRight } from "lucide-react";
+import { QrCode, Utensils, Hotel, ArrowRight, Settings } from "lucide-react";
 
 export default function Home() {
   return (
@@ -10,7 +10,7 @@ export default function Home() {
       <div className="absolute top-[-20%] left-[-10%] w-[50%] h-[50%] bg-primary/10 rounded-full blur-[120px] pointer-events-none" />
       <div className="absolute bottom-[-10%] right-[-10%] w-[50%] h-[50%] bg-accent/15 rounded-full blur-[120px] pointer-events-none" />
 
-      <div className="max-w-4xl w-full text-center z-10 flex flex-col items-center">
+      <div className="max-w-5xl w-full text-center z-10 flex flex-col items-center">
         {/* Logo Icon */}
         <div className="h-16 w-16 bg-gradient-to-tr from-primary to-accent rounded-2xl flex items-center justify-center shadow-lg shadow-primary/20 mb-8 animate-pulse">
           <QrCode className="h-9 w-9 text-white" />
@@ -24,7 +24,7 @@ export default function Home() {
         </p>
 
         {/* Demo Cards Section */}
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-6 w-full max-w-2xl mb-12">
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-6 w-full max-w-4xl mb-12">
           {/* Restaurant Demo */}
           <div className="bg-card border border-muted p-6 rounded-2xl flex flex-col justify-between items-start text-left hover:border-primary/50 transition-all group duration-300">
             <div>
@@ -60,6 +60,25 @@ export default function Home() {
               className="flex items-center text-accent font-semibold text-sm group-hover:translate-x-1 transition-transform"
             >
               Oda Servisini Gör <ArrowRight className="ml-2 h-4 w-4" />
+            </Link>
+          </div>
+
+          {/* Admin Dashboard Demo */}
+          <div className="bg-card border border-muted p-6 rounded-2xl flex flex-col justify-between items-start text-left hover:border-primary/50 transition-all group duration-300">
+            <div>
+              <div className="h-10 w-10 bg-primary/10 rounded-xl flex items-center justify-center mb-4 group-hover:bg-primary/20 transition-colors">
+                <Settings className="h-5 w-5 text-primary" />
+              </div>
+              <h3 className="text-xl font-bold mb-2 text-foreground">Yönetici Paneli</h3>
+              <p className="text-sm text-muted-foreground mb-6">
+                Menü listesi, stok durumu ve masa QR kodlarını yönettiğiniz admin paneli demosu.
+              </p>
+            </div>
+            <Link 
+              href="/admin"
+              className="flex items-center text-primary font-semibold text-sm group-hover:translate-x-1 transition-transform"
+            >
+              Paneli Aç <ArrowRight className="ml-2 h-4 w-4" />
             </Link>
           </div>
         </div>
