@@ -197,8 +197,8 @@ export default function MenuPage() {
     async function fetchMenu() {
       try {
         setLoading(true);
-        // Try fetching from FastAPI server
-        const res = await fetch(`http://localhost:8000/api/menu/${token}`);
+        const apiUrl = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000";
+        const res = await fetch(`${apiUrl}/api/menu/${token}`);
         if (!res.ok) {
           throw new Error("API Offline or Token Invalid. Falling back to local data.");
         }

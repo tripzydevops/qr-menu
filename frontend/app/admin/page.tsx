@@ -69,8 +69,8 @@ export default function AdminPage() {
     async function fetchAdminData() {
       try {
         setLoading(true);
-        // Attempt to fetch from k4 (Karaköy Merkez) as the default admin venue query
-        const res = await fetch("http://localhost:8000/api/menu/k4");
+        const apiUrl = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000";
+        const res = await fetch(`${apiUrl}/api/menu/k4`);
         if (!res.ok) throw new Error("Offline. Falling back.");
         const json = await res.json();
         setData({
