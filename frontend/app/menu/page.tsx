@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState, useRef } from "react";
+import { useEffect, useState, useRef, Suspense } from "react";
 import { useSearchParams } from "next/navigation";
 import { Globe, ShieldAlert, Info, Coffee, ArrowLeft } from "lucide-react";
 import Link from "next/link";
@@ -181,7 +181,7 @@ const MOCK_DATA: Record<string, MenuData> = {
   }
 };
 
-export default function MenuPage() {
+function MenuContent() {
   const searchParams = useSearchParams();
   const token = searchParams.get("token") || "k4"; // Default to k4 (Karaköy Lokantası Masa 4)
 
@@ -449,5 +449,18 @@ export default function MenuPage() {
         </div>
       )}
     </div>
+  );
+}
+
+export default function MenuPage() {
+  return (
+    <Suspense fallback={
+      <div className="flex-1 flex flex-col items-center justify-center bg-background text-foreground">
+        <div className="animate-spin rounded-full h-10 w-10 border-t-2 border-primary mb-4"></div>
+        <p className="text-muted-foreground text-sm font-medium">Menü yükleniyor / Loading Menu...</p>
+      </div>
+    }>
+      <MenuContent />
+    </Suspense>
   );
 }
