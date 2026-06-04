@@ -1,0 +1,67 @@
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+model Organization {
+  id        String   @id @default(uuid())
+  name      String
+  logoUrl   String?
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  venues    Venue[]
+}
+
+model Venue {
+  id             String       @id @default(uuid())
+  name           String
+  address        String?
+  organizationId String
+  organization   Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  tables         Table[]
+  categories     Category[]
+  createdAt      DateTime     @default(now())
+  updatedAt      DateTime     @updatedAt
+}
+
+model Table {
+  id        String   @id @default(uuid())
+  name      String   // e.g. "Table 1", "Room 304", "Poolside Cabana 2"
+  qrToken   String   @unique // The unique token in the QR code url
+  venueId   String
+  venue     Venue    @relation(fields: [venueId], references: [id], onDelete: Cascade)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+model Category {
+  id        String     @id @default(uuid())
+  nameTr    String     // Turkish category name
+  nameEn    String     // English category name
+  sortOrder Int        @default(0)
+  venueId   String
+  venue     Venue      @relation(fields: [venueId], references: [id], onDelete: Cascade)
+  items     MenuItem[]
+  createdAt DateTime   @default(now())
+  updatedAt DateTime   @updatedAt
+}
+
+model MenuItem {
+  id            String   @id @default(uuid())
+  nameTr        String
+  nameEn        String
+  descriptionTr String?
+  descriptionEn String?
+  price         Decimal  // TRY price (using Decimal for precise currency calculation)
+  imageUrl      String?
+  allergens     String[] // e.g. ["gluten", "nuts", "dairy"]
+  isAvailable   Boolean  @default(true)
+  categoryId    String
+  category      Category @relation(fields: [categoryId], references: [id], onDelete: Cascade)
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+}
