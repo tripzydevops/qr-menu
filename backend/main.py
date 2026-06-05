@@ -6,6 +6,7 @@ from typing import List, Optional, Dict, Any
 import uuid
 import datetime
 import os
+import sqlalchemy
 
 # Relative imports within backend package
 try:
@@ -437,4 +438,174 @@ def get_venue_analytics(venueId: str, db: Session = Depends(get_db)):
         return get_analytics_summary(db, venueId)
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
+
+# --- Super Admin Endpoints ---
+
+# Platform statistics
+@app.get("/api/super-admin/stats", response_model=schemas.SuperAdminStatsResponse)
+def get_super_admin_stats(db: Session = Depends(get_db)):
+    try:
+        total_orgs = db.query(models.Organization).count()
+        active_orgs = db.query(models.Organization).filter(models.Organization.status == "active").count()
+        total_venues = db.query(models.Venue).count()
+        total_tables = db.query(models.Table).count()
+        total_views = db.query(models.AnalyticsEvent).count()
+        
+        # Views by locale
+        views_by_locale = {}
+        locale_query = db.query(models.AnalyticsEvent.locale, sqlalchemy.func.count(models.AnalyticsEvent.id)).group_by(models.AnalyticsEvent.locale).all()
+        for loc, cnt in locale_query:
+            if loc:
+                views_by_locale[loc] = cnt
+
+        # Organization plan distribution
+        plan_dist = {"free": 0, "pro": 0, "premium": 0}
+        plan_query = db.query(models.Organization.subscriptionTier, sqlalchemy.func.count(models.Organization.id)).group_by(models.Organization.subscriptionTier).all()
+        for plan, cnt in plan_query:
+            if plan:
+                plan_dist[plan] = cnt
+            else:
+                plan_dist["free"] += cnt
+
+        # Views by day (dummy data or real query)
+        views_by_day = {}
+        day_query = db.query(sqlalchemy.func.date(models.AnalyticsEvent.createdAt), sqlalchemy.func.count(models.AnalyticsEvent.id)).group_by(sqlalchemy.func.date(models.AnalyticsEvent.createdAt)).order_by(sqlalchemy.func.date(models.AnalyticsEvent.createdAt).desc()).limit(7).all()
+        for day, cnt in day_query:
+            if day:
+                views_by_day[str(day)] = cnt
+
+        return {
+            "totalOrganizations": total_orgs,
+            "activeOrganizations": active_orgs,
+            "totalVenues": total_venues,
+            "totalTables": total_tables,
+            "totalViews": total_views,
+            "viewsByLocale": views_by_locale,
+            "viewsByDay": views_by_day,
+            "organizationPlanDistribution": plan_dist
+        }
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+# List all organizations
+@app.get("/api/super-admin/organizations", response_model=List[schemas.OrganizationSchema])
+def list_organizations(db: Session = Depends(get_db)):
+    return db.query(models.Organization).order_by(models.Organization.createdAt.desc()).all()
+
+# Onboard a new organization
+@app.post("/api/super-admin/organizations", response_model=schemas.OrganizationSchema)
+def onboard_organization(org_in: schemas.OrganizationOnboard, db: Session = Depends(get_db)):
+    try:
+        # Check if admin user already exists
+        existing_user = db.query(models.User).filter(models.User.id == org_in.adminUserId).first()
+        if existing_user:
+            raise HTTPException(status_code=400, detail="User already registered")
+
+        # 1. Create Organization
+        org_id = "org-" + str(uuid.uuid4())[:8]
+        db_org = models.Organization(
+            id=org_id,
+            name=org_in.name,
+            subscriptionTier=org_in.subscriptionTier or "free",
+            status="active"
+        )
+        db.add(db_org)
+        
+        # 2. Create standard venue for this org
+        venue_id = "venue-" + str(uuid.uuid4())[:8]
+        db_venue = models.Venue(
+            id=venue_id,
+            name=f"{org_in.name} Main",
+            organizationId=org_id,
+            currency="TRY",
+            defaultLocale="tr",
+            supportedLocales=["tr", "en"]
+        )
+        db.add(db_venue)
+        
+        # 3. Create Admin User
+        db_user = models.User(
+            id=org_in.adminUserId,
+            email=org_in.adminEmail,
+            firstName=org_in.adminFirstName,
+            lastName=org_in.adminLastName,
+            role="ORGANIZATION_ADMIN",
+            organizationId=org_id,
+            isActive=True
+        )
+        db.add(db_user)
+        
+        db.commit()
+        db.refresh(db_org)
+        return db_org
+    except Exception as e:
+        db.rollback()
+        raise HTTPException(status_code=500, detail=str(e))
+
+# Update organization status
+@app.put("/api/super-admin/organizations/{id}/status", response_model=schemas.OrganizationSchema)
+def update_organization_status(id: str, status_data: Dict[str, str], db: Session = Depends(get_db)):
+    org = db.query(models.Organization).filter(models.Organization.id == id).first()
+    if not org:
+        raise HTTPException(status_code=404, detail="Organization not found")
+    new_status = status_data.get("status")
+    if new_status not in ["active", "suspended", "onboarding"]:
+        raise HTTPException(status_code=400, detail="Invalid status")
+    org.status = new_status
+    db.commit()
+    db.refresh(org)
+    return org
+
+# Update organization plan
+@app.put("/api/super-admin/organizations/{id}/plan", response_model=schemas.OrganizationSchema)
+def update_organization_plan(id: str, plan_data: Dict[str, str], db: Session = Depends(get_db)):
+    org = db.query(models.Organization).filter(models.Organization.id == id).first()
+    if not org:
+        raise HTTPException(status_code=404, detail="Organization not found")
+    new_plan = plan_data.get("subscriptionTier")
+    if new_plan not in ["free", "pro", "premium", "enterprise"]:
+         raise HTTPException(status_code=400, detail="Invalid subscription tier")
+    org.subscriptionTier = new_plan
+    db.commit()
+    db.refresh(org)
+    return org
+
+# List all users
+@app.get("/api/super-admin/users", response_model=List[schemas.UserSchema])
+def list_users(db: Session = Depends(get_db)):
+    return db.query(models.User).order_by(models.User.createdAt.desc()).all()
+
+# Create user profile (post auth signup webhook/trigger)
+@app.post("/api/super-admin/users", response_model=schemas.UserSchema)
+def create_user_profile(user_in: schemas.UserCreate, db: Session = Depends(get_db)):
+    existing = db.query(models.User).filter(models.User.id == user_in.id).first()
+    if existing:
+        return existing
+    db_user = models.User(
+        id=user_in.id,
+        email=user_in.email,
+        firstName=user_in.firstName,
+        lastName=user_in.lastName,
+        role=user_in.role,
+        organizationId=user_in.organizationId,
+        isActive=user_in.isActive
+    )
+    db.add(db_user)
+    db.commit()
+    db.refresh(db_user)
+    return db_user
+
+# Manage user role
+@app.put("/api/super-admin/users/{id}/role", response_model=schemas.UserSchema)
+def update_user_role(id: str, role_data: Dict[str, str], db: Session = Depends(get_db)):
+    user = db.query(models.User).filter(models.User.id == id).first()
+    if not user:
+        raise HTTPException(status_code=404, detail="User not found")
+    new_role = role_data.get("role")
+    if new_role not in ["SUPER_ADMIN", "ORGANIZATION_ADMIN", "VENUE_MANAGER"]:
+         raise HTTPException(status_code=400, detail="Invalid user role")
+    user.role = new_role
+    db.commit()
+    db.refresh(user)
+    return user
 

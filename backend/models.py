@@ -22,10 +22,12 @@ class Organization(Base):
     logoUrl = Column(String, nullable=True)
     brandColor = Column(String, nullable=True)
     subscriptionTier = Column(String, default="free")
+    status = Column(String, default="active") # "active", "suspended", "onboarding"
     createdAt = Column(DateTime, default=datetime.datetime.utcnow)
     updatedAt = Column(DateTime, default=datetime.datetime.utcnow, onupdate=datetime.datetime.utcnow)
 
     venues = relationship("Venue", back_populates="organization", cascade="all, delete-orphan")
+    users = relationship("User", back_populates="organization", cascade="all, delete-orphan")
 
 class Venue(Base):
     __tablename__ = "Venue"
@@ -47,6 +49,7 @@ class Venue(Base):
     tables = relationship("Table", back_populates="venue", cascade="all, delete-orphan")
     categories = relationship("Category", back_populates="venue", cascade="all, delete-orphan")
     menus = relationship("Menu", back_populates="venue", cascade="all, delete-orphan")
+    staff = relationship("VenueStaff", back_populates="venue", cascade="all, delete-orphan")
 
 class Table(Base):
     __tablename__ = "Table"
@@ -176,4 +179,30 @@ class AnalyticsEvent(Base):
     path = Column(String, nullable=True)
     userAgent = Column(String, nullable=True)
     createdAt = Column(DateTime, default=datetime.datetime.utcnow)
+
+class User(Base):
+    __tablename__ = "User"
+
+    id = Column(String, primary_key=True, index=True)
+    email = Column(String, unique=True, index=True, nullable=False)
+    firstName = Column(String, nullable=True)
+    lastName = Column(String, nullable=True)
+    role = Column(String, default="VENUE_MANAGER")
+    organizationId = Column(String, ForeignKey("Organization.id", ondelete="CASCADE"), nullable=True)
+    isActive = Column(Boolean, default=True)
+    createdAt = Column(DateTime, default=datetime.datetime.utcnow)
+    updatedAt = Column(DateTime, default=datetime.datetime.utcnow, onupdate=datetime.datetime.utcnow)
+
+    organization = relationship("Organization", back_populates="users")
+    venues = relationship("VenueStaff", back_populates="user", cascade="all, delete-orphan")
+
+class VenueStaff(Base):
+    __tablename__ = "VenueStaff"
+
+    userId = Column(String, ForeignKey("User.id", ondelete="CASCADE"), primary_key=True)
+    venueId = Column(String, ForeignKey("Venue.id", ondelete="CASCADE"), primary_key=True)
+    createdAt = Column(DateTime, default=datetime.datetime.utcnow)
+
+    user = relationship("User", back_populates="venues")
+    venue = relationship("Venue", back_populates="staff")
 

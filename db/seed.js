@@ -13,7 +13,9 @@ async function main() {
   await prisma.category.deleteMany({});
   await prisma.menu.deleteMany({});
   await prisma.table.deleteMany({});
+  await prisma.venueStaff.deleteMany({});
   await prisma.venue.deleteMany({});
+  await prisma.user.deleteMany({});
   await prisma.organization.deleteMany({});
   await prisma.dietaryLabel.deleteMany({});
 
@@ -286,6 +288,55 @@ async function main() {
       }
     });
   }
+
+  // 8. Create users and assign roles
+  console.log("Seeding platform users and assigning roles...");
+  
+  // Super Admin
+  const superAdmin = await prisma.user.create({
+    data: {
+      id: "user-super-admin",
+      email: "superadmin@tripzy.travel",
+      firstName: "Super",
+      lastName: "Admin",
+      role: "SUPER_ADMIN",
+      isActive: true
+    }
+  });
+
+  // Org Admin (Karaköy Lokantası owner)
+  const orgAdmin = await prisma.user.create({
+    data: {
+      id: "user-org-admin-karakoy",
+      email: "admin@karakoylokantasi.com",
+      firstName: "Ahmet",
+      lastName: "Yılmaz",
+      role: "ORGANIZATION_ADMIN",
+      organizationId: org.id,
+      isActive: true
+    }
+  });
+
+  // Venue Manager
+  const venueManager = await prisma.user.create({
+    data: {
+      id: "user-venue-manager-karakoy",
+      email: "manager@karakoylokantasi.com",
+      firstName: "Mehmet",
+      lastName: "Demir",
+      role: "VENUE_MANAGER",
+      organizationId: org.id,
+      isActive: true
+    }
+  });
+
+  // Link Venue Manager to Karaköy Venue
+  await prisma.venueStaff.create({
+    data: {
+      userId: venueManager.id,
+      venueId: venue.id
+    }
+  });
 
   console.log("🎉 Database seeding completed successfully!");
 }

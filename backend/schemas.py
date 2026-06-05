@@ -188,6 +188,7 @@ class OrganizationBase(BaseModel):
     logoUrl: Optional[str] = None
     brandColor: Optional[str] = None
     subscriptionTier: Optional[str] = "free"
+    status: Optional[str] = "active"
 
 class OrganizationCreate(OrganizationBase):
     pass
@@ -234,4 +235,59 @@ class GuestMenuResponse(BaseModel):
     logoUrl: Optional[str] = None
     brandColor: Optional[str] = None
     categories: List[CategorySchema]
+
+# User Schemas
+class UserBase(BaseModel):
+    email: str
+    firstName: Optional[str] = None
+    lastName: Optional[str] = None
+    role: str = "VENUE_MANAGER"
+    organizationId: Optional[str] = None
+    isActive: bool = True
+
+class UserCreate(UserBase):
+    id: str
+
+class UserUpdate(BaseModel):
+    firstName: Optional[str] = None
+    lastName: Optional[str] = None
+    role: Optional[str] = None
+    organizationId: Optional[str] = None
+    isActive: Optional[bool] = None
+
+class UserSchema(UserBase):
+    id: str
+    createdAt: datetime
+    updatedAt: datetime
+
+    class Config:
+        from_attributes = True
+
+class VenueStaffSchema(BaseModel):
+    userId: str
+    venueId: str
+    createdAt: datetime
+
+    class Config:
+        from_attributes = True
+
+# Super Admin Stats Schemas
+class SuperAdminStatsResponse(BaseModel):
+    totalOrganizations: int
+    activeOrganizations: int
+    totalVenues: int
+    totalTables: int
+    totalViews: int
+    viewsByLocale: Dict[str, int]
+    viewsByDay: Dict[str, int]
+    organizationPlanDistribution: Dict[str, int]
+
+# Organization Onboarding Schema
+class OrganizationOnboard(BaseModel):
+    name: str
+    adminEmail: str
+    adminFirstName: Optional[str] = None
+    adminLastName: Optional[str] = None
+    adminUserId: str
+    subscriptionTier: Optional[str] = "free"
 

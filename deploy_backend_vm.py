@@ -15,7 +15,7 @@ REMOTE_DIR = "/home/elif/qr-menu-backend"
 def run_cmd(args, msg=None):
     if msg:
         print(f"--> {msg}...")
-    result = subprocess.run(args, capture_output=True, text=True)
+    result = subprocess.run(args, capture_output=True, text=True, stdin=subprocess.DEVNULL)
     if result.returncode != 0:
         print(f"Error executing command: {' '.join(args)}")
         print(f"Stderr: {result.stderr}")
@@ -30,14 +30,14 @@ def main():
 
     # 2. Package and copy backend files
     print("--> Packaging and copying backend source files to VM...")
-    subprocess.run(["tar", "-czf", "backend.tar.gz", "-C", "backend", "."], check=True)
+    subprocess.run(["tar", "--exclude=.venv", "--exclude=__pycache__", "-czf", "backend.tar.gz", "-C", "backend", "."], check=True)
     subprocess.run(["scp", "backend.tar.gz", f"{VM}:{REMOTE_DIR}/backend.tar.gz"], check=True)
     run_cmd(["ssh", VM, f"tar -xzf {REMOTE_DIR}/backend.tar.gz -C {REMOTE_DIR}"], "Extracting backend package on VM")
 
     # Clean up tarballs
     if os.path.exists("backend.tar.gz"):
         os.remove("backend.tar.gz")
-    subprocess.run(["ssh", VM, f"rm {REMOTE_DIR}/backend.tar.gz"], capture_output=True)
+    subprocess.run(["ssh", VM, f"rm {REMOTE_DIR}/backend.tar.gz"], capture_output=True, stdin=subprocess.DEVNULL)
 
     # Copy env configuration
     if os.path.exists(".env"):
@@ -58,12 +58,12 @@ def main():
 
     # 4. Stop any existing uvicorn processes running on port 8080 to prevent conflicts
     print("--> Stopping any active uvicorn instances on port 8080...")
-    subprocess.run(["ssh", VM, "pkill -f uvicorn"], capture_output=True)
+    subprocess.run(["ssh", VM, "pkill -f uvicorn"], capture_output=True, stdin=subprocess.DEVNULL)
 
     # 5. Start the FastAPI server using nohup to run persistently in the background
     start_cmd = (
         f"cd {REMOTE_DIR} && "
-        f"nohup venv/bin/uvicorn main:app --host 0.0.0.0 --port 8080 > uvicorn.log 2>&1 &"
+        f"nohup venv/bin/uvicorn main:app --host 0.0.0.0 --port 8080 > uvicorn.log 2>&1 < /dev/null &"
     )
     run_cmd(["ssh", VM, start_cmd], "Starting FastAPI backend server on VM (Port 8080)")
 
