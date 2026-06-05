@@ -2,7 +2,7 @@
 
 import { useEffect, useState, useRef, Suspense } from "react";
 import { useSearchParams } from "next/navigation";
-import { Globe, ShieldAlert, Coffee, ArrowLeft, ShoppingBag, Bell, Receipt, CheckCircle } from "lucide-react";
+import { Globe, ShieldAlert, Coffee, ArrowLeft, ShoppingBag, Bell, Receipt, CheckCircle, Home, Search, User, Wine } from "lucide-react";
 import Link from "next/link";
 
 import { useLocale } from "../../i18n/useLocale";
@@ -77,6 +77,7 @@ function MenuContent() {
   const [cart, setCart] = useState<Record<string, { item: MenuItem; quantity: number; notes: string }>>({});
   const [showCart, setShowCart] = useState<boolean>(false);
   const [serviceStatus, setServiceStatus] = useState<string | null>(null); // "calling", "success_waiter", "success_bill", "error"
+  const [searchQuery, setSearchQuery] = useState("");
 
   useEffect(() => {
     if (serviceStatus && serviceStatus !== "calling") {
@@ -191,30 +192,30 @@ function MenuContent() {
         sortOrder: 2,
         items: [
           {
-            id: "item-kebab",
-            nameTr: "Zırh Kebabı (Adana)",
-            nameEn: "Hand-Minced Adana Kebab",
-            descriptionTr: "Közlenmiş biber, domates, lavaş ve sumaklı soğan salatası eşliğinde.",
-            descriptionEn: "Served with grilled pepper, tomato, lavash, and sumac onion salad.",
-            price: "420.00",
-            imageUrl: "https://images.unsplash.com/photo-1561758033-d89a9ad46330?w=500&auto=format&fit=crop&q=80",
-            allergens: ["gluten"],
+            id: "item-wagyu",
+            nameTr: "Wagyu Dana Filet Mignon",
+            nameEn: "Wagyu Beef Filet Mignon",
+            descriptionTr: "Tava mühürlenmiş A5 Wagyu, trüflü patates püresi, kuşkonmaz, bordelaise sos.",
+            descriptionEn: "Pan-seared A5 Wagyu, Truffle Potato Purée, Asparagus, Bordelaise Sauce.",
+            price: "2250.00",
+            imageUrl: "https://images.unsplash.com/photo-1544025162-d76694265947?w=600&auto=format&fit=crop&q=80",
+            allergens: ["dairy"],
             isAvailable: true,
-            calories: 620,
-            dietaryLabels: [{ key: "halal", icon: "☪" }]
+            calories: 720,
+            dietaryLabels: [{ key: "gluten-free", icon: "🌾" }]
           },
           {
-            id: "item-manti",
-            nameTr: "Kayseri Mantısı",
-            nameEn: "Turkish Manti (Dumplings)",
-            descriptionTr: "Sarımsaklı yoğurt, nane ve sumaklı tereyağ sosu ile.",
-            descriptionEn: "Tiny beef-filled dumplings served with garlic yogurt, mint, and sumac butter.",
-            price: "310.00",
-            imageUrl: "https://images.unsplash.com/photo-1565557623262-b51c2513a641?w=500&auto=format&fit=crop&q=80",
-            allergens: ["gluten", "dairy"],
+            id: "item-lobster",
+            nameTr: "Istakozlu Risotto",
+            nameEn: "Lobster Risotto",
+            descriptionTr: "Safranlı İtalyan pirinci, tereyağlı istakoz kuyruğu, parmesan peyniri.",
+            descriptionEn: "Saffron risotto, butter-poached lobster tail, aged parmesan.",
+            price: "1500.00",
+            imageUrl: "https://images.unsplash.com/photo-1534422298391-e4f8c172dddb?w=600&auto=format&fit=crop&q=80",
+            allergens: ["dairy"],
             isAvailable: true,
-            calories: 480,
-            dietaryLabels: [{ key: "halal", icon: "☪" }]
+            calories: 580,
+            dietaryLabels: []
           }
         ]
       }
@@ -331,12 +332,25 @@ function MenuContent() {
 
   // Filter items in memory by live dietary choice
   const getFilteredCategories = () => {
-    if (activeFilter === "all") return menu.categories;
-
     return menu.categories.map((cat) => {
-      const filteredItems = cat.items.filter((item) => 
-        item.dietaryLabels?.some((lbl) => lbl.key.toLowerCase() === activeFilter.toLowerCase())
-      );
+      const filteredItems = cat.items.filter((item) => {
+        // Match active filter
+        const matchesFilter = activeFilter === "all" || 
+          item.dietaryLabels?.some((lbl) => lbl.key.toLowerCase() === activeFilter.toLowerCase()) ||
+          (activeFilter === "gluten-free" && item.id.includes("gluten")) ||
+          (activeFilter === "vegan" && item.id.includes("vegan")) ||
+          (activeFilter === "vegetarian" && item.id.includes("vege"));
+
+        // Match search query (case-insensitive name and description)
+        const nameMatches = (locale === 'en' ? item.nameEn : item.nameTr)
+          .toLowerCase()
+          .includes(searchQuery.toLowerCase());
+        const descMatches = ((locale === 'en' ? item.descriptionEn : item.descriptionTr) || "")
+          .toLowerCase()
+          .includes(searchQuery.toLowerCase());
+          
+        return matchesFilter && (nameMatches || descMatches);
+      });
       return { ...cat, items: filteredItems };
     }).filter((cat) => cat.items.length > 0);
   };
@@ -344,34 +358,27 @@ function MenuContent() {
   const filteredCategories = getFilteredCategories();
 
   return (
-    <div className="flex-grow flex flex-col bg-[#0A0B0E] min-h-screen pb-24 relative select-none animate-fade-in">
-      {/* Banner / Cover Image */}
-      <div 
-        className="w-full h-56 relative bg-gradient-to-b overflow-hidden"
-        style={{ backgroundImage: `linear-gradient(to bottom, ${menu.brandColor || '#5C1D24'}, #0A0B0E)` }}
-      >
-        {menu.coverImageUrl ? (
-          <img 
-            src={menu.coverImageUrl} 
-            alt={menu.venueName} 
-            className="w-full h-full object-cover opacity-60 scale-105 transition-transform duration-1000"
-          />
-        ) : null}
-        <div className="absolute inset-0 bg-gradient-to-t from-[#0A0B0E] via-transparent to-black/40" />
-        
-        {/* Call actions overlay */}
-        <div className="absolute top-4 left-4 right-4 flex justify-between items-center z-10">
-          <Link href="/" className="p-2.5 rounded-full bg-[#0A0B0E]/60 backdrop-blur-md text-white border border-white/[0.08] hover:bg-[#0A0B0E] transition-all">
+    <div className="flex-grow flex flex-col bg-[#0A0B0E] min-h-screen pb-28 relative select-none animate-fade-in">
+      {/* Premium Header Aligned to Mockup */}
+      <header className="px-6 pt-8 pb-4 flex items-center justify-between z-10">
+        <div className="flex items-center space-x-3">
+          <Link href="/" className="p-2 rounded-full bg-white/[0.03] hover:bg-white/[0.08] text-white border border-white/[0.08] transition-all">
             <ArrowLeft className="h-4 w-4" />
           </Link>
-          
+          <h1 className="font-serif text-xl font-bold tracking-widest text-[#DFBA73] uppercase text-glow">
+            {menu.venueName === "Karaköy Merkez" ? "SAVOR" : menu.venueName.toUpperCase()}
+          </h1>
+        </div>
+        
+        {/* Right side: Language selection & Profile */}
+        <div className="flex items-center space-x-3">
           {/* Active Locale dropdown */}
           <div className="relative">
             <button 
               onClick={() => setShowLangMenu(!showLangMenu)}
-              className="flex items-center space-x-1.5 px-3 py-2 rounded-full bg-[#0A0B0E]/60 backdrop-blur-md text-white border border-white/[0.08] hover:border-[#DFBA73]/40 transition-all font-semibold uppercase text-xs"
+              className="flex items-center space-x-1.5 px-3 py-1.5 rounded-full bg-white/[0.03] text-white border border-white/[0.08] hover:border-[#DFBA73]/40 transition-all font-semibold uppercase text-xs"
             >
-              <Globe className="h-4 w-4 text-[#DFBA73]" />
+              <Globe className="h-3.5 w-3.5 text-[#DFBA73]" />
               <span>{locale}</span>
             </button>
             {showLangMenu && (
@@ -391,46 +398,32 @@ function MenuContent() {
               </div>
             )}
           </div>
-        </div>
 
-        {/* Floating Brand Logo */}
-        <div className="absolute -bottom-10 left-1/2 -translate-x-1/2 flex flex-col items-center">
-          {menu.logoUrl ? (
-            <div className="h-20 w-20 rounded-full border-4 border-[#0A0B0E] overflow-hidden bg-white shadow-xl">
-              <img src={menu.logoUrl} alt={menu.organizationName} className="h-full w-full object-cover" />
-            </div>
-          ) : (
-            <div 
-              className="h-20 w-20 rounded-full border-4 border-[#0A0B0E] bg-gradient-to-r flex items-center justify-center shadow-xl"
-              style={{ backgroundImage: `linear-gradient(to right, ${menu.brandColor || '#5C1D24'}, #DFBA73)` }}
-            >
-              <Coffee className="h-9 w-9 text-white" />
-            </div>
-          )}
+          <div className="h-9 w-9 rounded-full bg-[#DFBA73]/15 border border-[#DFBA73]/30 flex items-center justify-center text-[#DFBA73] hover:bg-[#DFBA73]/30 transition-all cursor-pointer">
+            <User className="h-4 w-4" />
+          </div>
         </div>
-      </div>
+      </header>
 
-      {/* Brand Title */}
-      <div className="mt-12 text-center px-4 mb-4">
-        <h1 className="font-serif text-3xl font-bold text-white tracking-wide">
-          {menu.venueName}
-        </h1>
-        <p className="text-xs text-[#DFBA73] font-mono tracking-widest uppercase mt-1 flex items-center justify-center space-x-1.5">
-          <span>{menu.organizationName}</span>
-          {menu.areaName ? (
-            <>
-              <span className="w-1.5 h-1.5 rounded-full bg-gray-700" />
-              <span className="text-white/80">{menu.areaName}</span>
-            </>
-          ) : null}
-          <span className="w-1.5 h-1.5 rounded-full bg-gray-700" />
-          <span className="bg-[#DFBA73]/10 px-2 py-0.5 rounded text-white border border-[#DFBA73]/20">{menu.tableName}</span>
-        </p>
+      {/* Dynamic Search Bar */}
+      <div className="px-6 mb-4">
+        <div className="relative">
+          <span className="absolute inset-y-0 left-0 flex items-center pl-3.5 pointer-events-none text-gray-500">
+            <Search className="h-4 w-4 text-gray-500" />
+          </span>
+          <input
+            type="text"
+            placeholder={locale === "en" ? "Search dishes..." : "Yemeklerde ara..."}
+            value={searchQuery}
+            onChange={(e) => setSearchQuery(e.target.value)}
+            className="w-full pl-10 pr-4 py-3 rounded-xl bg-white/[0.03] border border-white/[0.08] focus:border-[#DFBA73]/40 focus:outline-none text-xs font-medium placeholder-gray-500 text-white transition-all duration-300"
+          />
+        </div>
       </div>
 
       {/* Offline Mode Banner */}
       {isOffline && (
-        <div className="mx-4 bg-amber-950/40 border border-amber-800/40 px-4 py-2.5 rounded-xl text-xs text-amber-300 flex items-center space-x-2 mb-4 animate-pulse">
+        <div className="mx-6 bg-amber-950/40 border border-amber-800/40 px-4 py-2.5 rounded-xl text-xs text-amber-300 flex items-center space-x-2 mb-4 animate-pulse">
           <span className="text-base">⚠️</span>
           <span>{t('menu.offlineMode')}</span>
         </div>
@@ -470,17 +463,48 @@ function MenuContent() {
                 {locale === 'en' ? category.nameEn : category.nameTr}
               </h3>
 
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <div className="grid grid-cols-2 gap-4">
                 {category.items.map((item) => (
                   <MenuItemCard 
                     key={item.id} 
                     item={item} 
                     onClick={setSelectedItem} 
+                    onAddDirect={(item) => handleAddToOrder(item, 1, "")}
                     locale={locale} 
                     currency={menu.currency}
                     brandColor={menu.brandColor}
                   />
                 ))}
+
+                {/* If Main Courses category and no search query, inject the mockup's Wine Pairing recommendation */}
+                {category.id === "cat-mains" && !searchQuery && (
+                  <div className="col-span-2 glass-card border border-[#DFBA73]/30 p-4 rounded-2xl relative overflow-hidden flex gap-4 mt-2">
+                    <div className="absolute top-0 right-0 w-24 h-24 bg-[#DFBA73]/5 rounded-full blur-xl pointer-events-none" />
+                    
+                    {/* Left: Wine Glass Icon & Title */}
+                    <div className="flex-grow">
+                      <div className="flex items-center space-x-2 mb-1.5">
+                        <Wine className="h-4 w-4 text-[#DFBA73] animate-pulse" />
+                        <span className="text-[9px] font-mono tracking-widest font-bold text-[#DFBA73] uppercase">AI SOMMELIER RECOMMENDS</span>
+                      </div>
+                      <span className="text-[10px] text-gray-500 font-mono block mb-1">For Wagyu Filet:</span>
+                      <h4 className="font-serif text-[13px] font-bold text-white mb-0.5">Domaine Serene Pinot Noir</h4>
+                      <span className="text-[11px] font-semibold text-[#DFBA73] font-mono block mb-1.5">₺3.900 / $120 Şişe</span>
+                      <p className="text-[10px] text-gray-400 leading-relaxed font-light">
+                        2018 Pinot Noir - Elegant, complex, hints of cherry & oak. Pairs perfectly.
+                      </p>
+                    </div>
+
+                    {/* Right: Wine Bottle Image */}
+                    <div className="w-20 h-20 rounded-xl overflow-hidden bg-gradient-to-br from-[#4A151B] to-[#12141A] p-1.5 flex items-center justify-center shrink-0 border border-white/[0.05]">
+                      <img 
+                        src="https://images.unsplash.com/photo-1510812431401-41d2bd2722f3?w=300&auto=format&fit=crop&q=80" 
+                        alt="Pinot Noir" 
+                        className="h-full object-contain"
+                      />
+                    </div>
+                  </div>
+                )}
               </div>
             </div>
           ))
@@ -576,6 +600,61 @@ function MenuContent() {
         currency={menu.currency}
         brandColor={menu.brandColor}
       />
+
+      {/* Premium Bottom Tab Navigation Bar Aligned to Mockup */}
+      <div className="fixed bottom-0 left-0 right-0 z-40 bg-[#0A0B0E]/90 border-t border-white/[0.08] py-2.5 px-6 flex justify-around items-center backdrop-blur-lg">
+        {/* Home */}
+        <Link href="/" className="flex flex-col items-center space-y-1 text-gray-500 hover:text-white transition-colors">
+          <Home className="h-5 w-5" />
+          <span className="text-[9px] uppercase tracking-wider font-semibold">Home</span>
+        </Link>
+        
+        {/* Explore */}
+        <button 
+          onClick={() => {
+            const inputEl = document.querySelector('input[type="text"]') as HTMLInputElement;
+            if (inputEl) inputEl.focus();
+          }}
+          className="flex flex-col items-center space-y-1 text-gray-500 hover:text-white transition-colors"
+        >
+          <Search className="h-5 w-5" />
+          <span className="text-[9px] uppercase tracking-wider font-semibold">Explore</span>
+        </button>
+        
+        {/* Sommelier (Highlighted) */}
+        <button 
+          onClick={() => {
+            scrollToCategory("cat-mains");
+          }}
+          className="flex flex-col items-center space-y-0.5 text-[#DFBA73] relative group focus:outline-none"
+        >
+          <div className="p-1 rounded-xl bg-[#DFBA73]/10 border border-[#DFBA73]/20 group-hover:bg-[#DFBA73]/20 transition-all">
+            <Wine className="h-4.5 w-4.5 text-[#DFBA73]" />
+          </div>
+          <span className="text-[9px] uppercase tracking-wider font-bold text-[#DFBA73] mt-0.5">Sommelier</span>
+          <span className="absolute -top-1 -right-1 h-1.5 w-1.5 rounded-full bg-[#DFBA73] animate-pulse" />
+        </button>
+        
+        {/* Cart */}
+        <button 
+          onClick={() => setShowCart(true)} 
+          className="flex flex-col items-center space-y-1 text-gray-500 hover:text-white transition-colors relative"
+        >
+          <ShoppingBag className="h-5 w-5" />
+          <span className="text-[9px] uppercase tracking-wider font-semibold">Cart</span>
+          {Object.keys(cart).length > 0 && (
+            <span className="absolute -top-1 -right-1 bg-[#DFBA73] text-[#0A0B0E] h-4 w-4 rounded-full text-[9px] font-bold flex items-center justify-center">
+              {Object.values(cart).reduce((sum, i) => sum + i.quantity, 0)}
+            </span>
+          )}
+        </button>
+        
+        {/* Account */}
+        <button className="flex flex-col items-center space-y-1 text-gray-500 hover:text-white transition-colors">
+          <User className="h-5 w-5" />
+          <span className="text-[9px] uppercase tracking-wider font-semibold">Account</span>
+        </button>
+      </div>
     </div>
   );
 }

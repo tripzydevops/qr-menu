@@ -48,6 +48,7 @@ interface MenuItem {
 interface MenuItemCardProps {
   item: MenuItem;
   onClick: (item: MenuItem) => void;
+  onAddDirect?: (item: MenuItem) => void;
   locale: Locale;
   currency: string;
   brandColor?: string | null;
@@ -88,6 +89,7 @@ const ALLERGEN_MAP: Record<string, { icon: string; label: string }> = {
 export default function MenuItemCard({
   item,
   onClick,
+  onAddDirect,
   locale,
   currency,
   brandColor
@@ -129,92 +131,91 @@ export default function MenuItemCard({
       onClick={() => onClick(item)}
       onMouseEnter={() => setIsHovered(true)}
       onMouseLeave={() => setIsHovered(false)}
-      className="flex bg-white/[0.02] hover:bg-white/[0.05] border border-white/[0.05] rounded-2xl p-3.5 transition-all duration-300 cursor-pointer transform hover:-translate-y-0.5 active:scale-98 shadow-sm hover:shadow-md"
+      className="flex flex-col bg-white/[0.02] hover:bg-white/[0.05] border border-white/[0.05] rounded-2xl overflow-hidden transition-all duration-300 cursor-pointer transform hover:-translate-y-0.5 active:scale-98 shadow-sm hover:shadow-md h-full relative"
       style={{
         borderColor: isHovered ? (brandColor || '#DFBA73cc') : undefined,
         boxShadow: isHovered ? `0 4px 15px -3px ${brandColor || '#DFBA73'}22` : undefined
       }}
     >
-      {/* Text Info */}
-      <div className="flex-grow pr-4 flex flex-col justify-between">
-        <div>
-          {/* Diet badges */}
-          {item.dietaryLabels && item.dietaryLabels.length > 0 && (
-            <div className="flex flex-wrap gap-1 mb-1.5">
-              {item.dietaryLabels.map((lbl) => {
-                const config = DIETARY_MAP[lbl.key.toLowerCase()];
-                if (!config) return null;
-                const IconComponent = config.icon;
-                return (
-                  <span 
-                    key={lbl.key} 
-                    title={getDietaryLabel(lbl.key, locale)}
-                    className={`inline-flex items-center gap-1.5 text-[9px] font-bold border px-2 py-0.5 rounded-full capitalize transition-colors duration-300 ${config.colorClass}`}
-                  >
-                    <IconComponent className="h-2.5 w-2.5" />
-                    <span>{getDietaryLabel(lbl.key, locale)}</span>
-                  </span>
-                );
-              })}
-            </div>
-          )}
-          
-          <h3 className="font-serif text-[17px] font-bold text-white leading-tight tracking-wide mb-1">
-            {name}
-          </h3>
-          
-          {description && (
-            <p className="text-xs text-gray-400 line-clamp-2 leading-relaxed">
-              {description}
-            </p>
-          )}
-        </div>
-
-        <div className="flex items-center justify-between mt-3">
-          {/* Price */}
-          <span 
-            className="font-mono text-[16px] font-semibold transition-colors duration-300"
-            style={{ color: brandColor || '#DFBA73' }}
-          >
-            {getCurrencySymbol(currency)}{formattedPrice}
-          </span>
-
-          {/* Calories and allergens icons preview */}
-          <div className="flex items-center space-x-2">
-            {item.calories !== null && item.calories > 0 && (
-              <span className="inline-flex items-center gap-0.5 text-[10px] text-gray-500 font-medium">
-                <Flame className="h-3 w-3 text-orange-500" />
-                <span>{item.calories} kcal</span>
-              </span>
-            )}
-            
-            {item.allergens && item.allergens.length > 0 && (
-              <div className="flex space-x-1" title="Allergens">
-                {item.allergens.slice(0, 3).map((a) => {
-                  const allergen = ALLERGEN_MAP[a.toLowerCase()];
-                  return allergen ? (
-                    <span key={a} className="text-xs" title={getAllergenLabel(a, locale)}>
-                      {allergen.icon}
-                    </span>
-                  ) : null;
-                })}
-              </div>
-            )}
-          </div>
-        </div>
-      </div>
-
-      {/* Image container */}
-      <div className="w-24 h-24 rounded-xl overflow-hidden flex-shrink-0 relative bg-[#1E293B]/40 border border-gray-800/40">
+      {/* Image Container on Top */}
+      <div className="w-full aspect-square relative bg-[#1E293B]/40 border-b border-white/[0.03] overflow-hidden">
         <img 
           src={item.imageUrl || defaultFoodImage} 
           alt={name}
-          className="w-full h-full object-cover transition-transform duration-500 hover:scale-110"
+          className="w-full h-full object-cover transition-transform duration-500 hover:scale-105"
           loading="lazy"
           onError={(e) => {
             (e.target as HTMLImageElement).src = defaultFoodImage;
           }}
         />
+        
+        {/* Diet labels overlay */}
+        {item.dietaryLabels && item.dietaryLabels.length > 0 && (
+          <div className="absolute top-2 left-2 flex flex-wrap gap-1">
+            {item.dietaryLabels.map((lbl) => {
+              const config = DIETARY_MAP[lbl.key.toLowerCase()];
+              if (!config) return null;
+              const IconComponent = config.icon;
+              return (
+                <span 
+                  key={lbl.key}
+                  title={getDietaryLabel(lbl.key, locale)}
+                  className="bg-[#0A0B0E]/85 text-[#DFBA73] border border-[#DFBA73]/20 text-[8px] font-bold px-1.5 py-0.5 rounded-full uppercase tracking-wider flex items-center space-x-1"
+                >
+                  <IconComponent className="h-2 w-2" />
+                  <span>{getDietaryLabel(lbl.key, locale)}</span>
+                </span>
+              );
+            })}
+          </div>
+        )}
+      </div>
+
+      {/* Info Container at Bottom */}
+      <div className="p-3 flex flex-col flex-grow justify-between">
+        <div>
+          <div className="flex flex-col gap-0.5 mb-1.5">
+            <h3 className="font-serif text-[13px] md:text-sm font-bold text-white leading-tight tracking-wide line-clamp-2 min-h-[32px]">
+              {name}
+            </h3>
+            <span 
+              className="font-mono text-xs font-semibold"
+              style={{ color: brandColor || '#DFBA73' }}
+            >
+              {getCurrencySymbol(currency)}{formattedPrice}
+            </span>
+          </div>
+          
+          {description && (
+            <p className="text-[10px] text-gray-400 line-clamp-2 leading-relaxed font-light mb-3 min-h-[30px]">
+              {description}
+            </p>
+          )}
+        </div>
+
+        {/* Rating and ADD Button Row */}
+        <div className="flex items-center justify-between mt-auto pt-2 border-t border-white/[0.03]">
+          {/* Rating */}
+          <div className="flex items-center space-x-0.5">
+            <span className="text-[#DFBA73] text-[10px] font-bold font-mono">4.9</span>
+            <span className="text-[#DFBA73] text-[9px]">★</span>
+          </div>
+
+          {/* ADD Button */}
+          <button
+            onClick={(e) => {
+              e.stopPropagation(); // prevent opening details sheet
+              if (onAddDirect) {
+                onAddDirect(item);
+              } else {
+                onClick(item);
+              }
+            }}
+            className="px-3 py-1 rounded-lg bg-[#DFBA73] hover:bg-[#DFBA73]/85 text-[#0A0B0E] text-[10px] font-bold transition-all uppercase tracking-wider"
+          >
+            ADD
+          </button>
+        </div>
       </div>
     </div>
   );
