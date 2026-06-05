@@ -351,3 +351,25 @@ class WaiterRequestSchema(WaiterRequestBase):
         from_attributes = True
 
 
+# --- IMPORT SCHEMAS ---
+
+class BulkImportMenuItem(BaseModel):
+    nameTr: str
+    nameEn: str
+    price: Decimal
+    descriptionTr: Optional[str] = None
+    descriptionEn: Optional[str] = None
+    allergens: List[str] = []
+    calories: Optional[int] = None
+
+class BulkImportCategory(BaseModel):
+    nameTr: str
+    nameEn: str
+    items: List[BulkImportMenuItem]
+
+class BulkImportRequest(BaseModel):
+    venueId: str
+    categories: List[BulkImportCategory]
+
+
+

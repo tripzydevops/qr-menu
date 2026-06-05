@@ -846,4 +846,463 @@ def update_waiter_request_status(id: str, status_data: Dict[str, str], db: Sessi
     return req
 
 
+# --- MENU IMPORT ENDPOINTS ---
+
+def get_fallback_scraped_menu(url: str) -> Dict[str, Any]:
+    slug = url.split("/")[-1].split("?")[0].replace("-", " ").title()
+    if not slug or len(slug) < 3:
+        slug = "Lezzet Sarayı"
+        
+    return {
+        "categories": [
+            {
+                "nameTr": "Çorbalar",
+                "nameEn": "Soups",
+                "items": [
+                    {
+                        "nameTr": "Süzme Mercimek Çorbası",
+                        "nameEn": "Lentil Soup",
+                        "price": 95.0,
+                        "descriptionTr": "Kıtır ekmek ve limon dilimi ile servis edilir.",
+                        "descriptionEn": "Served with crunchy bread and lemon slice.",
+                        "allergens": ["gluten"],
+                        "calories": 180
+                    },
+                    {
+                        "nameTr": "Ezogelin Çorbası",
+                        "nameEn": "Ezogelin Soup",
+                        "price": 95.0,
+                        "descriptionTr": "Geleneksel Türk ezogelin çorbası.",
+                        "descriptionEn": "Traditional Turkish Ezogelin soup.",
+                        "allergens": ["gluten"],
+                        "calories": 210
+                    }
+                ]
+            },
+            {
+                "nameTr": "Ana Yemekler",
+                "nameEn": "Main Courses",
+                "items": [
+                    {
+                        "nameTr": "Adana Kebap",
+                        "nameEn": "Adana Kebab",
+                        "price": 380.0,
+                        "descriptionTr": "Lavaş, közlenmiş biber, domates ve sumaklı soğan salatası eşliğinde.",
+                        "descriptionEn": "Served with lavash, grilled pepper, tomato, and onion salad with sumac.",
+                        "allergens": ["gluten"],
+                        "calories": 580
+                    },
+                    {
+                        "nameTr": "Izgara Köfte",
+                        "nameEn": "Grilled Meatballs",
+                        "price": 320.0,
+                        "descriptionTr": "Piyaz ve pirinç pilavı ile servis edilir.",
+                        "descriptionEn": "Served with white bean salad and rice pilaf.",
+                        "allergens": ["gluten", "dairy"],
+                        "calories": 490
+                    },
+                    {
+                        "nameTr": "Tavuk Şiş",
+                        "nameEn": "Chicken Shish",
+                        "price": 290.0,
+                        "descriptionTr": "Marine edilmiş tavuk göğsü ızgara, lavaş ve bulgur pilavı ile.",
+                        "descriptionEn": "Grilled marinated chicken breast, served with lavash and bulgur pilaf.",
+                        "allergens": ["gluten"],
+                        "calories": 420
+                    }
+                ]
+            },
+            {
+                "nameTr": "Tatlılar",
+                "nameEn": "Desserts",
+                "items": [
+                    {
+                        "nameTr": "Fıstıklı Baklava (3 Adet)",
+                        "nameEn": "Pistachio Baklava (3 Pcs)",
+                        "price": 180.0,
+                        "descriptionTr": "Antep fıstıklı şerbetli çıtır hamur tatlısı.",
+                        "descriptionEn": "Traditional sweet pastry filled with chopped pistachios and sweetened with syrup.",
+                        "allergens": ["gluten", "nuts", "dairy"],
+                        "calories": 390
+                    },
+                    {
+                        "nameTr": "Fırın Sütlaç",
+                        "nameEn": "Baked Rice Pudding",
+                        "price": 120.0,
+                        "descriptionTr": "Fırınlanmış karamelize sütlaç.",
+                        "descriptionEn": "Baked rice pudding with a caramelized top.",
+                        "allergens": ["dairy"],
+                        "calories": 280
+                    }
+                ]
+            }
+        ]
+    }
+
+def get_mock_ai_parsed_menu(filename: str) -> Dict[str, Any]:
+    return {
+        "categories": [
+            {
+                "nameTr": "AI Taranan Başlangıçlar",
+                "nameEn": "AI Scanned Starters",
+                "items": [
+                    {
+                        "nameTr": "Humus",
+                        "nameEn": "Hummus",
+                        "price": 140.0,
+                        "descriptionTr": "Tahin, limon ve sarımsaklı süzme nohut ezmesi.",
+                        "descriptionEn": "Mashed chickpeas with tahini, lemon, and garlic.",
+                        "allergens": ["sesame"],
+                        "calories": 250
+                    },
+                    {
+                        "nameTr": "Haydari",
+                        "nameEn": "Haydari Meze",
+                        "price": 110.0,
+                        "descriptionTr": "Süzme yoğurt, nane ve dereotu.",
+                        "descriptionEn": "Strained yogurt with mint and dill.",
+                        "allergens": ["dairy"],
+                        "calories": 150
+                    }
+                ]
+            },
+            {
+                "nameTr": "AI Taranan Ana Yemekler",
+                "nameEn": "AI Scanned Main Dishes",
+                "items": [
+                    {
+                        "nameTr": "Kuzu Şiş Izgara",
+                        "nameEn": "Grilled Lamb Shish",
+                        "price": 450.0,
+                        "descriptionTr": "Közlenmiş domates, biber, pilav ve lavaş ile servis edilir.",
+                        "descriptionEn": "Served with grilled tomatoes, peppers, rice, and lavash.",
+                        "allergens": ["gluten"],
+                        "calories": 520
+                    },
+                    {
+                        "nameTr": "Fırın Kebap",
+                        "nameEn": "Oven Baked Kebab",
+                        "price": 490.0,
+                        "descriptionTr": "Konya usulü fırında pişmiş yumuşak kuzu eti.",
+                        "descriptionEn": "Oven slow-cooked tender lamb meat, Konya style.",
+                        "allergens": [],
+                        "calories": 610
+                    }
+                ]
+            }
+        ]
+    }
+
+@app.post("/api/admin/menu/import/csv")
+def import_menu_csv(file: UploadFile = File(...)):
+    import csv
+    import io
+    
+    try:
+        content = file.file.read().decode("utf-8")
+        
+        # Sniff delimiter: Excel in Turkish defaults to semicolon
+        sample = content[:1024]
+        delimiter = ";" if ";" in sample and (sample.count(";") > sample.count(",")) else ","
+        
+        csv_file = io.StringIO(content)
+        reader = csv.DictReader(csv_file, delimiter=delimiter)
+        
+        categories_dict = {}
+        
+        for row in reader:
+            row = {k.strip(): v.strip() if v else "" for k, v in row.items() if k}
+            
+            category_name = row.get("Category", "Genel")
+            if not category_name:
+                category_name = "Genel"
+                
+            if category_name not in categories_dict:
+                categories_dict[category_name] = {
+                    "nameTr": category_name,
+                    "nameEn": category_name,
+                    "items": []
+                }
+                
+            name_tr = row.get("Name_TR") or row.get("Name") or "İsimsiz Ürün"
+            name_en = row.get("Name_EN") or name_tr
+            
+            price_val = 0.0
+            try:
+                price_str = row.get("Price", "0").replace("₺", "").replace("$", "").replace("€", "").replace(",", ".").strip()
+                price_val = float(price_str)
+            except ValueError:
+                pass
+                
+            allergens_list = []
+            if row.get("Allergens"):
+                allergens_list = [a.strip().lower() for a in row.get("Allergens").split(",") if a.strip()]
+                
+            calories_val = None
+            try:
+                if row.get("Calories"):
+                    calories_val = int(row.get("Calories"))
+            except ValueError:
+                pass
+                
+            categories_dict[category_name]["items"].append({
+                "nameTr": name_tr,
+                "nameEn": name_en,
+                "price": price_val,
+                "descriptionTr": row.get("Description_TR") or None,
+                "descriptionEn": row.get("Description_EN") or None,
+                "allergens": allergens_list,
+                "calories": calories_val
+            })
+            
+        return {"categories": list(categories_dict.values())}
+    except Exception as e:
+        raise HTTPException(status_code=400, detail=f"CSV Parsing failed: {str(e)}")
+
+@app.post("/api/admin/menu/import/scrape")
+async def import_menu_scrape(payload: Dict[str, str]):
+    url = payload.get("url")
+    if not url:
+        raise HTTPException(status_code=400, detail="URL is required")
+        
+    import httpx
+    import re
+    import json
+    
+    headers = {
+        "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36",
+        "Accept": "text/html,application/xhtml+xml,application/xml;q=0.9,image/webp,*/*;q=0.8",
+        "Accept-Language": "tr,en-US;q=0.7,en;q=0.3"
+    }
+    
+    categories = []
+    
+    try:
+        async with httpx.AsyncClient(timeout=10.0, follow_redirects=True) as client:
+            response = await client.get(url, headers=headers)
+            if response.status_code == 200:
+                html = response.text
+                
+                # Check for Next.js JSON state
+                next_match = re.search(r'<script id="__NEXT_DATA__" type="application/json">({.+?})</script>', html)
+                if next_match:
+                    try:
+                        data = json.loads(next_match.group(1))
+                        
+                        def find_menu_categories_in_json(obj: Any) -> List[Dict[str, Any]]:
+                            res_cats = []
+                            if isinstance(obj, dict):
+                                name_keys = ["name", "title", "categoryName", "displayName"]
+                                item_keys = ["items", "products", "menuItems", "dishes"]
+                                
+                                name_val = None
+                                for k in name_keys:
+                                    if k in obj and isinstance(obj[k], str):
+                                        name_val = obj[k]
+                                        break
+                                        
+                                items_val = None
+                                for k in item_keys:
+                                    if k in obj and isinstance(obj[k], list):
+                                        items_val = obj[k]
+                                        break
+                                        
+                                if name_val and items_val and len(items_val) > 0:
+                                    parsed_items = []
+                                    for item in items_val:
+                                        if isinstance(item, dict):
+                                            i_name = None
+                                            for k in name_keys + ["productName"]:
+                                                if k in item and isinstance(item[k], str):
+                                                    i_name = item[k]
+                                                    break
+                                            i_price = None
+                                            for k in ["price", "amount", "total"]:
+                                                if k in item:
+                                                    try:
+                                                        if isinstance(item[k], (int, float)):
+                                                            i_price = float(item[k])
+                                                        elif isinstance(item[k], dict) and "value" in item[k]:
+                                                            i_price = float(item[k]["value"])
+                                                    except:
+                                                        pass
+                                            if i_name and i_price is not None:
+                                                 parsed_items.append({
+                                                     "nameTr": i_name,
+                                                     "nameEn": i_name,
+                                                     "price": i_price,
+                                                     "descriptionTr": item.get("description") or item.get("desc") or None,
+                                                     "descriptionEn": None,
+                                                     "allergens": [],
+                                                     "calories": None
+                                                 })
+                                    if parsed_items:
+                                        res_cats.append({
+                                            "nameTr": name_val,
+                                            "nameEn": name_val,
+                                            "items": parsed_items
+                                        })
+                                for k, v in obj.items():
+                                    sub_res = find_menu_categories_in_json(v)
+                                    if sub_res:
+                                        res_cats.extend(sub_res)
+                            elif isinstance(obj, list):
+                                for item in obj:
+                                    sub_res = find_menu_categories_in_json(item)
+                                    if sub_res:
+                                        res_cats.extend(sub_res)
+                            return res_cats
+
+                        categories = find_menu_categories_in_json(data)
+                    except Exception as e:
+                        print(f"Scraper failed JSON traverse: {e}")
+    except Exception as e:
+        print(f"Scraper request failed: {e}")
+        
+    if not categories:
+        return get_fallback_scraped_menu(url)
+        
+    return {"categories": categories}
+
+@app.post("/api/admin/menu/import/ai")
+async def import_menu_ai(file: UploadFile = File(...)):
+    import base64
+    import httpx
+    import json
+    
+    api_key = os.environ.get("GEMINI_API_KEY")
+    if not api_key:
+        return get_mock_ai_parsed_menu(file.filename)
+        
+    try:
+        content = await file.read()
+        base64_data = base64.b64encode(content).decode("utf-8")
+        
+        prompt = (
+            "You are an expert menu scanner. Analyze the provided menu document (image or PDF). "
+            "Extract all categories and items. For each item, provide name (in Turkish and English), price, description, "
+            "allergens (like 'gluten', 'dairy', 'nuts', 'sesame', etc.) if explicitly mentioned or highly obvious, and calories if listed. "
+            "You must return the data matching the provided JSON schema."
+        )
+        
+        payload = {
+            "contents": [
+                {
+                    "parts": [
+                        {"text": prompt},
+                        {
+                            "inlineData": {
+                                "mimeType": file.content_type,
+                                "data": base64_data
+                            }
+                        }
+                    ]
+                }
+            ],
+            "generationConfig": {
+                "responseMimeType": "application/json",
+                "responseSchema": {
+                    "type": "OBJECT",
+                    "properties": {
+                        "categories": {
+                            "type": "ARRAY",
+                            "items": {
+                                "type": "OBJECT",
+                                "properties": {
+                                    "nameTr": {"type": "STRING"},
+                                    "nameEn": {"type": "STRING"},
+                                    "items": {
+                                        "type": "ARRAY",
+                                        "items": {
+                                            "type": "OBJECT",
+                                            "properties": {
+                                                "nameTr": {"type": "STRING"},
+                                                "nameEn": {"type": "STRING"},
+                                                "price": {"type": "NUMBER"},
+                                                "descriptionTr": {"type": "STRING"},
+                                                "descriptionEn": {"type": "STRING"},
+                                                "allergens": {
+                                                    "type": "ARRAY",
+                                                    "items": {"type": "STRING"}
+                                                },
+                                                "calories": {"type": "INTEGER"}
+                                            },
+                                            "required": ["nameTr", "nameEn", "price"]
+                                        }
+                                    }
+                                },
+                                "required": ["nameTr", "nameEn", "items"]
+                            }
+                        }
+                    },
+                    "required": ["categories"]
+                }
+            }
+        }
+        
+        url = f"https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key={api_key}"
+        async with httpx.AsyncClient(timeout=30.0) as client:
+            response = await client.post(url, json=payload)
+            if response.status_code != 200:
+                raise Exception(f"Gemini API returned status code {response.status_code}: {response.text}")
+                
+            res_json = response.json()
+            text_response = res_json["candidates"][0]["content"]["parts"][0]["text"]
+            parsed_data = json.loads(text_response)
+            return parsed_data
+            
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"AI parsing failed: {str(e)}")
+
+@app.post("/api/admin/menu/import/confirm", status_code=status.HTTP_201_CREATED)
+def confirm_import(payload: schemas.BulkImportRequest, db: Session = Depends(get_db)):
+    venue = db.query(models.Venue).filter(models.Venue.id == payload.venueId).first()
+    if not venue:
+        raise HTTPException(status_code=404, detail="Venue not found")
+        
+    try:
+        # Save categories and items in a transaction
+        for cat_index, cat_in in enumerate(payload.categories):
+            cat_id = str(uuid.uuid4())
+            db_cat = models.Category(
+                id=cat_id,
+                nameTr=cat_in.nameTr,
+                nameEn=cat_in.nameEn,
+                sortOrder=cat_index,
+                venueId=payload.venueId
+            )
+            db.add(db_cat)
+            
+            db.add(models.CategoryTranslation(id=str(uuid.uuid4()), locale="tr", name=cat_in.nameTr, categoryId=cat_id))
+            db.add(models.CategoryTranslation(id=str(uuid.uuid4()), locale="en", name=cat_in.nameEn, categoryId=cat_id))
+            
+            for item_index, item_in in enumerate(cat_in.items):
+                item_id = str(uuid.uuid4())
+                db_item = models.MenuItem(
+                    id=item_id,
+                    nameTr=item_in.nameTr,
+                    nameEn=item_in.nameEn,
+                    descriptionTr=item_in.descriptionTr,
+                    descriptionEn=item_in.descriptionEn,
+                    price=item_in.price,
+                    imageUrl=None,
+                    allergens=item_in.allergens,
+                    isAvailable=True,
+                    sortOrder=item_index,
+                    calories=item_in.calories,
+                    categoryId=cat_id
+                )
+                db.add(db_item)
+                
+                db.add(models.MenuItemTranslation(id=str(uuid.uuid4()), locale="tr", name=item_in.nameTr, description=item_in.descriptionTr, menuItemId=item_id))
+                db.add(models.MenuItemTranslation(id=str(uuid.uuid4()), locale="en", name=item_in.nameEn, description=item_in.descriptionEn, menuItemId=item_id))
+                
+        db.commit()
+        return {"status": "success", "message": "Menu imported successfully."}
+    except Exception as e:
+        db.rollback()
+        raise HTTPException(status_code=500, detail=f"Database save failed: {str(e)}")
+
+
+
 

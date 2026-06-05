@@ -1,6 +1,7 @@
 "use client";
 
 import React, { useEffect, useState } from "react";
+import Link from "next/link";
 import { 
   Plus, 
   Trash2, 
@@ -13,7 +14,8 @@ import {
   ChevronDown,
   ChevronUp,
   Eye,
-  EyeOff
+  EyeOff,
+  Upload
 } from "lucide-react";
 
 interface DietaryLabel {
@@ -470,13 +472,22 @@ export default function AdminMenuPage() {
           <h2 className="font-serif text-2xl font-bold">Menü Listesi</h2>
           <p className="text-xs text-gray-400 mt-1">Mekanınızın dijital menüsünü yönetin, ürün ekleyin ve reorder yapın.</p>
         </div>
-        <button 
-          onClick={() => { setEditingCategory(null); setCatNameTr(""); setCatNameEn(""); setCatErrors({}); setCatModalOpen(true); }}
-          className="flex items-center space-x-1 px-4 py-2.5 rounded-xl bg-gradient-to-r from-[#722F37] to-[#C9A84C]/80 hover:to-[#C9A84C] text-white font-semibold text-xs transition-all shadow-md shadow-[#722F37]/15"
-        >
-          <Plus className="h-4 w-4" />
-          <span>Kategori Ekle</span>
-        </button>
+        <div className="flex items-center space-x-3">
+          <Link
+            href="/admin/menu/import"
+            className="flex items-center space-x-1.5 px-4 py-2.5 rounded-xl bg-[#2A2A3D]/80 border border-gray-800 hover:border-[#C9A84C]/35 text-white font-semibold text-xs transition-all hover:bg-gray-800"
+          >
+            <Upload className="h-4 w-4 text-[#C9A84C]" />
+            <span>Menü İçe Aktar</span>
+          </Link>
+          <button 
+            onClick={() => { setEditingCategory(null); setCatNameTr(""); setCatNameEn(""); setCatErrors({}); setCatModalOpen(true); }}
+            className="flex items-center space-x-1 px-4 py-2.5 rounded-xl bg-gradient-to-r from-[#722F37] to-[#C9A84C]/80 hover:to-[#C9A84C] text-white font-semibold text-xs transition-all shadow-md shadow-[#722F37]/15"
+          >
+            <Plus className="h-4 w-4" />
+            <span>Kategori Ekle</span>
+          </button>
+        </div>
       </div>
 
       {/* Categories Accordion/Cards */}
