@@ -2,7 +2,7 @@
 
 import { useEffect, useState, useRef, Suspense } from "react";
 import { useSearchParams } from "next/navigation";
-import { Globe, ShieldAlert, Coffee, ArrowLeft } from "lucide-react";
+import { Globe, ShieldAlert, Coffee, ArrowLeft, ShoppingBag, Bell, Receipt, CheckCircle } from "lucide-react";
 import Link from "next/link";
 
 import { useLocale } from "../../i18n/useLocale";
@@ -12,6 +12,7 @@ import CategoryNav from "./components/CategoryNav";
 import DietaryFilter from "./components/DietaryFilter";
 import MenuItemCard, { MenuItem } from "./components/MenuItemCard";
 import ItemDetailSheet from "./components/ItemDetailSheet";
+import CartDrawer from "./components/CartDrawer";
 
 interface Category {
   id: string;
@@ -71,6 +72,76 @@ function MenuContent() {
   const [activeCategoryId, setActiveCategoryId] = useState<string>("");
   const [selectedItem, setSelectedItem] = useState<MenuItem | null>(null);
   const [showLangMenu, setShowLangMenu] = useState<boolean>(false);
+  
+  // Cart & Waiter service states
+  const [cart, setCart] = useState<Record<string, { item: MenuItem; quantity: number; notes: string }>>({});
+  const [showCart, setShowCart] = useState<boolean>(false);
+  const [serviceStatus, setServiceStatus] = useState<string | null>(null); // "calling", "success_waiter", "success_bill", "error"
+
+  useEffect(() => {
+    if (serviceStatus && serviceStatus !== "calling") {
+      const timer = setTimeout(() => setServiceStatus(null), 3500);
+      return () => clearTimeout(timer);
+    }
+  }, [serviceStatus]);
+
+  const handleCallService = async (type: "waiter" | "bill") => {
+    setServiceStatus("calling");
+    try {
+      const apiUrl = process.env.NEXT_PUBLIC_API_URL || '';
+      const response = await fetch(`${apiUrl}/api/menu/${token}/call-waiter`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ type })
+      });
+      if (!response.ok) throw new Error();
+      setServiceStatus(type === "waiter" ? "success_waiter" : "success_bill");
+    } catch (err) {
+      setServiceStatus("error");
+    }
+  };
+
+  const handleAddToOrder = (item: MenuItem, quantity: number, notes: string) => {
+    setCart((prev) => {
+      const existing = prev[item.id];
+      if (existing) {
+        return {
+          ...prev,
+          [item.id]: {
+            item,
+            quantity: existing.quantity + quantity,
+            notes: notes ? (existing.notes ? `${existing.notes}; ${notes}` : notes) : existing.notes
+          }
+        };
+      }
+      return {
+        ...prev,
+        [item.id]: { item, quantity, notes }
+      };
+    });
+  };
+
+  const handleUpdateQuantity = (itemId: string, newQty: number) => {
+    if (newQty <= 0) {
+      handleRemoveItem(itemId);
+      return;
+    }
+    setCart((prev) => ({
+      ...prev,
+      [itemId]: { ...prev[itemId], quantity: newQty }
+    }));
+  };
+
+  const handleRemoveItem = (itemId: string) => {
+    setCart((prev) => {
+      const copy = { ...prev };
+      delete copy[itemId];
+      return copy;
+    });
+  };
+
+  const handleClearCart = () => setCart({});
+
 
   const categoryRefs = useRef<Record<string, HTMLDivElement | null>>({});
   const isScrollingRef = useRef<boolean>(false);
@@ -186,7 +257,7 @@ function MenuContent() {
     }
 
     fetchMenu();
-  }, [token]);
+  }, [token, locale]);
 
   // Scroll spy effect to active category indicator
   useEffect(() => {
@@ -431,10 +502,84 @@ function MenuContent() {
         t={t}
         brandColor={menu.brandColor}
         venueName={menu.venueName}
+        onAddToOrder={handleAddToOrder}
+      />
+
+      {/* Floating Bottom Cart Bar */}
+      {Object.keys(cart).length > 0 && !showCart && (
+        <div 
+          className="fixed bottom-6 left-1/2 -translate-x-1/2 w-[90%] max-w-md bg-[#C9A84C] text-[#1C1C28] p-4 rounded-2xl flex items-center justify-between shadow-2xl z-40 animate-fade-in-up border border-[#C9A84C]/50 hover:bg-[#B8973B] transition-all cursor-pointer" 
+          onClick={() => setShowCart(true)}
+        >
+          <div className="flex items-center space-x-3">
+            <div className="bg-[#1C1C28] text-[#C9A84C] h-9 w-9 rounded-xl flex items-center justify-center font-bold text-sm">
+              {Object.values(cart).reduce((sum, i) => sum + i.quantity, 0)}
+            </div>
+            <div>
+              <p className="text-xs font-bold uppercase tracking-wider opacity-90">{locale === 'en' ? 'View Basket' : 'Sepeti Gör'}</p>
+              <p className="text-[11px] opacity-75">{locale === 'en' ? 'Add notes & checkout' : 'Not ekle ve sipariş ver'}</p>
+            </div>
+          </div>
+          <span className="font-mono text-base font-bold">
+            ₺{Object.values(cart).reduce((sum, i) => sum + (Number(i.item.price) * i.quantity), 0).toFixed(2)}
+          </span>
+        </div>
+      )}
+
+      {/* Floating Service Buttons */}
+      <div className="fixed right-4 bottom-24 z-40 flex flex-col space-y-3">
+        <button 
+          onClick={() => handleCallService("waiter")}
+          disabled={serviceStatus === "calling"}
+          className="h-12 w-12 rounded-full bg-[#16213E]/85 backdrop-blur-md border border-gray-800/80 hover:border-[#C9A84C]/50 text-white flex items-center justify-center shadow-xl hover:bg-[#2A2A3D] transition-all"
+          title={locale === 'en' ? 'Call Waiter' : 'Garson Çağır'}
+        >
+          <Bell className="h-5 w-5 text-[#C9A84C]" />
+        </button>
+        <button 
+          onClick={() => handleCallService("bill")}
+          disabled={serviceStatus === "calling"}
+          className="h-12 w-12 rounded-full bg-[#16213E]/85 backdrop-blur-md border border-gray-800/80 hover:border-[#C9A84C]/50 text-white flex items-center justify-center shadow-xl hover:bg-[#2A2A3D] transition-all"
+          title={locale === 'en' ? 'Request Bill' : 'Hesap İste'}
+        >
+          <Receipt className="h-5 w-5 text-[#C9A84C]" />
+        </button>
+      </div>
+
+      {/* Service Request Toasts */}
+      {serviceStatus && (
+        <div className="fixed top-24 left-1/2 -translate-x-1/2 z-55 w-[85%] max-w-sm bg-[#16213E] border border-gray-800 rounded-2xl p-4 shadow-2xl animate-fade-in flex items-center space-x-3">
+          {serviceStatus === "calling" ? (
+            <div className="h-5 w-5 border-2 border-[#C9A84C] border-t-transparent rounded-full animate-spin" />
+          ) : (
+            <CheckCircle className="h-5 w-5 text-emerald-400 animate-bounce" />
+          )}
+          <span className="text-xs font-semibold text-white">
+            {serviceStatus === "calling" && (locale === 'en' ? "Sending request..." : "İstek gönderiliyor...")}
+            {serviceStatus === "success_waiter" && (locale === 'en' ? "Waiter called. A staff member is on the way!" : "Garson çağrıldı. Görevli masanıza yönlendiriliyor!")}
+            {serviceStatus === "success_bill" && (locale === 'en' ? "Bill requested. Waiter will bring the check!" : "Hesap istendi. Garson hesabı getirecektir!")}
+            {serviceStatus === "error" && (locale === 'en' ? "Failed to send request. Please ask staff." : "İstek gönderilemedi. Lütfen garsona doğrudan iletiniz.")}
+          </span>
+        </div>
+      )}
+
+      {/* Cart Drawer Sheet */}
+      <CartDrawer 
+        isOpen={showCart}
+        onClose={() => setShowCart(false)}
+        cart={cart}
+        onUpdateQuantity={handleUpdateQuantity}
+        onRemoveItem={handleRemoveItem}
+        onClearCart={handleClearCart}
+        token={token}
+        locale={locale}
+        currency={menu.currency}
+        brandColor={menu.brandColor}
       />
     </div>
   );
 }
+
 
 export default function MenuPage() {
   return (
