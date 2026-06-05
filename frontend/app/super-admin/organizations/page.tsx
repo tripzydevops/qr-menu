@@ -101,7 +101,7 @@ export default function SuperAdminOrganizationsPage() {
         fetchOrganizations();
       } else {
         const data = await res.json();
-        alert(`Onboarding Hatası: ${data.detail || "İşlem başarısız."}`);
+        alert(`Onboarding Hatası: ${data.detail || "İşlem başarısız."}${data.error ? "\nDetay: " + data.error : ""}`);
       }
     } catch (e: any) {
       console.error(e);
