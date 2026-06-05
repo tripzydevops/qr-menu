@@ -212,6 +212,12 @@ def update_venue(id: str, venue_in: schemas.VenueCreate, db: Session = Depends(g
     venue.currency = venue_in.currency
     venue.defaultLocale = venue_in.defaultLocale
     venue.supportedLocales = venue_in.supportedLocales
+
+    if venue_in.brandColor is not None:
+        org = db.query(models.Organization).filter(models.Organization.id == venue.organizationId).first()
+        if org:
+            org.brandColor = venue_in.brandColor
+
     db.commit()
     db.refresh(venue)
     return venue
@@ -608,4 +614,85 @@ def update_user_role(id: str, role_data: Dict[str, str], db: Session = Depends(g
     db.commit()
     db.refresh(user)
     return user
+
+# Update organization (full details)
+@app.put("/api/super-admin/organizations/{id}", response_model=schemas.OrganizationSchema)
+def update_super_admin_organization(id: str, org_in: schemas.OrganizationCreate, db: Session = Depends(get_db)):
+    org = db.query(models.Organization).filter(models.Organization.id == id).first()
+    if not org:
+        raise HTTPException(status_code=404, detail="Organization not found")
+    org.name = org_in.name
+    org.logoUrl = org_in.logoUrl
+    org.brandColor = org_in.brandColor
+    org.subscriptionTier = org_in.subscriptionTier
+    org.status = org_in.status
+    db.commit()
+    db.refresh(org)
+    return org
+
+# Delete organization
+@app.delete("/api/super-admin/organizations/{id}", status_code=status.HTTP_204_NO_CONTENT)
+def delete_organization(id: str, db: Session = Depends(get_db)):
+    org = db.query(models.Organization).filter(models.Organization.id == id).first()
+    if not org:
+        raise HTTPException(status_code=404, detail="Organization not found")
+    db.delete(org)
+    db.commit()
+
+# Update user details
+@app.put("/api/super-admin/users/{id}", response_model=schemas.UserSchema)
+def update_user_profile_admin(id: str, user_in: schemas.UserUpdate, db: Session = Depends(get_db)):
+    user = db.query(models.User).filter(models.User.id == id).first()
+    if not user:
+        raise HTTPException(status_code=404, detail="User not found")
+    if user_in.email is not None:
+        user.email = user_in.email
+    if user_in.firstName is not None:
+        user.firstName = user_in.firstName
+    if user_in.lastName is not None:
+        user.lastName = user_in.lastName
+    if user_in.role is not None:
+        if user_in.role not in ["SUPER_ADMIN", "ORGANIZATION_ADMIN", "VENUE_MANAGER"]:
+             raise HTTPException(status_code=400, detail="Invalid user role")
+        user.role = user_in.role
+    if user_in.organizationId is not None:
+        user.organizationId = user_in.organizationId if user_in.organizationId != "" else None
+    if user_in.isActive is not None:
+        user.isActive = user_in.isActive
+    db.commit()
+    db.refresh(user)
+    return user
+
+# Delete user profile
+@app.delete("/api/super-admin/users/{id}", status_code=status.HTTP_204_NO_CONTENT)
+def delete_user(id: str, db: Session = Depends(get_db)):
+    user = db.query(models.User).filter(models.User.id == id).first()
+    if not user:
+        raise HTTPException(status_code=404, detail="User not found")
+    db.delete(user)
+    db.commit()
+
+# Get all system settings
+@app.get("/api/super-admin/settings")
+def get_system_settings(db: Session = Depends(get_db)):
+    settings = db.query(models.SystemSetting).all()
+    return {s.key: s.value for s in settings}
+
+# Save/upsert system settings
+@app.post("/api/super-admin/settings")
+def save_system_settings(settings_data: Dict[str, Any], db: Session = Depends(get_db)):
+    try:
+        for key, val in settings_data.items():
+            setting = db.query(models.SystemSetting).filter(models.SystemSetting.key == key).first()
+            if setting:
+                setting.value = str(val)
+            else:
+                db_setting = models.SystemSetting(key=key, value=str(val))
+                db.add(db_setting)
+        db.commit()
+        return {"status": "success", "message": "Settings saved successfully."}
+    except Exception as e:
+        db.rollback()
+        raise HTTPException(status_code=500, detail=str(e))
+
 

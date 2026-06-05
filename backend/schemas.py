@@ -172,6 +172,7 @@ class VenueBase(BaseModel):
 
 class VenueCreate(VenueBase):
     organizationId: str
+    brandColor: Optional[str] = None
 
 class VenueSchema(VenueBase):
     id: str
@@ -249,6 +250,7 @@ class UserCreate(UserBase):
     id: str
 
 class UserUpdate(BaseModel):
+    email: Optional[str] = None
     firstName: Optional[str] = None
     lastName: Optional[str] = None
     role: Optional[str] = None

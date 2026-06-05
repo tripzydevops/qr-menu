@@ -38,6 +38,7 @@ export default function AdminSettingsPage() {
   const [currency, setCurrency] = useState("TRY");
   const [coverImageUrl, setCoverImageUrl] = useState("");
   const [defaultLocale, setDefaultLocale] = useState("tr");
+  const [brandColor, setBrandColor] = useState("#722F37");
   
   // Operating Hours states
   const [hours, setHours] = useState<Record<string, { open: string; close: string }>>({
@@ -70,6 +71,7 @@ export default function AdminSettingsPage() {
           setCurrency(data.currency || "TRY");
           setCoverImageUrl(data.coverImageUrl || "");
           setDefaultLocale(data.defaultLocale || "tr");
+          setBrandColor(data.brandColor || "#722F37");
           if (data.operatingHours) {
             setHours(data.operatingHours);
           }
@@ -124,7 +126,8 @@ export default function AdminSettingsPage() {
           currency,
           defaultLocale,
           supportedLocales: ["tr", "en"],
-          operatingHours: hours
+          operatingHours: hours,
+          brandColor
         })
       });
 
@@ -218,6 +221,36 @@ export default function AdminSettingsPage() {
                 )}
                 <input type="file" accept="image/*" className="hidden" onChange={handleImageUpload} disabled={isUploading} />
               </label>
+            </div>
+          </div>
+        </div>
+
+        {/* Brand Color Theme card */}
+        <div className="bg-[#16213E]/50 border border-gray-800/40 rounded-2xl p-6 shadow-sm space-y-4">
+          <h3 className="font-serif text-lg font-bold text-white flex items-center space-x-2">
+            <span>🎨</span>
+            <span>Renk Teması & Tasarım</span>
+          </h3>
+          <p className="text-xs text-gray-400">Menünüzün ana renk temasını belirleyin. Bu renk misafirlerinizin göreceği menüde, detay pencerelerinde ve paylaşım kartlarında kullanılacaktır.</p>
+
+          <div className="flex items-center space-x-4">
+            <div className="relative">
+              <input 
+                type="color" 
+                value={brandColor}
+                onChange={(e) => setBrandColor(e.target.value)}
+                className="w-16 h-12 bg-[#1C1C28] border border-gray-800 rounded-xl cursor-pointer p-1"
+              />
+            </div>
+            <div className="flex-grow">
+              <input 
+                type="text" 
+                value={brandColor}
+                onChange={(e) => setBrandColor(e.target.value)}
+                placeholder="#722F37"
+                pattern="^#([A-Fa-f0-9]{6}|[A-Fa-f0-9]{3})$"
+                className="w-48 bg-[#1C1C28] border border-gray-800 rounded-xl px-4 py-2.5 text-sm text-white font-mono focus:border-[#C9A84C]/50 focus:outline-none"
+              />
             </div>
           </div>
         </div>
