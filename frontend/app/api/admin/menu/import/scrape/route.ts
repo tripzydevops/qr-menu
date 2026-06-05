@@ -11,27 +11,63 @@ function getFallbackScrapedMenu(url: string) {
           nameEn: "Soups",
           items: [
             {
-              nameTr: "Günün Çorbası",
-              nameEn: "Soup of the Day",
-              price: 95.0,
-              descriptionTr: "Her gün taze hazırlanan geleneksel ev çorbası.",
-              descriptionEn: "Freshly prepared traditional homemade soup of the day.",
-              allergens: ["gluten", "dairy"],
-              calories: 150
+              nameTr: "Kelle Paça Çorbası",
+              nameEn: "Kelle Paca Soup",
+              price: 300.0,
+              descriptionTr: "Ekmek ile servis edilir.",
+              descriptionEn: "Served with bread.",
+              allergens: ["gluten"],
+              calories: 280
             },
             {
-              nameTr: "Süzme Mercimek Çorbası",
-              nameEn: "Lentil Soup",
-              price: 95.0,
-              descriptionTr: "Kıtır ekmek ve limon dilimi ile servis edilir.",
-              descriptionEn: "Served with crunchy bread and lemon slice.",
+              nameTr: "İşkembe Çorbası",
+              nameEn: "Tripe Soup",
+              price: 300.0,
+              descriptionTr: "Sirke sosu ve ekmek ile servis edilir.",
+              descriptionEn: "Served with vinegar sauce and bread.",
+              allergens: ["gluten", "garlic"],
+              calories: 260
+            },
+            {
+              nameTr: "Mevsim Salata",
+              nameEn: "Seasonal Salad",
+              price: 125.0,
+              descriptionTr: "Tek kişilik taze mevsim yeşillikleri.",
+              descriptionEn: "Fresh seasonal greens for one person.",
+              allergens: [],
+              calories: 80
+            },
+            {
+              nameTr: "Süzme Mercimek Çorbası (300 gr.)",
+              nameEn: "Strained Lentil Soup (300 gr.)",
+              price: 220.0,
+              descriptionTr: "Ekmek ve turşu ile servis edilir.",
+              descriptionEn: "Served with bread and pickles.",
               allergens: ["gluten"],
               calories: 180
+            },
+            {
+              nameTr: "Ezogelin Çorbası (300 gr.)",
+              nameEn: "Ezogelin Soup (300 gr.)",
+              price: 220.0,
+              descriptionTr: "Ekmek ve turşu ile servis edilir.",
+              descriptionEn: "Served with bread and pickles.",
+              allergens: ["gluten"],
+              calories: 210
+            },
+            {
+              nameTr: "Brokoli Çorbası (300 gr.)",
+              nameEn: "Broccoli Soup (300 gr.)",
+              price: 210.0,
+              descriptionTr: "Ekmek ve turşu ile servis edilir.",
+              descriptionEn: "Served with bread and pickles.",
+              allergens: ["dairy"],
+              calories: 140
             }
           ]
         },
         {
-          nameTr: "Tavuk Yemekleri",
+          nameTr: "Tavuklu Yemekler",
           nameEn: "Chicken Dishes",
           items: [
             {
@@ -84,7 +120,13 @@ function getFallbackScrapedMenu(url: string) {
               descriptionEn: "Traditional stew prepared with beef, green peas, carrots, and potatoes.",
               allergens: [],
               calories: 460
-            },
+            }
+          ]
+        },
+        {
+          nameTr: "Sebze Yemekleri",
+          nameEn: "Vegetable Dishes",
+          items: [
             {
               nameTr: "Kıymalı Taze Fasulye",
               nameEn: "Green Beans with Minced Meat",
@@ -97,8 +139,23 @@ function getFallbackScrapedMenu(url: string) {
           ]
         },
         {
-          nameTr: "Çiğ Köfteler",
-          nameEn: "Cig Kofte",
+          nameTr: "Pilavlar",
+          nameEn: "Rice Dishes",
+          items: [
+            {
+              nameTr: "Şehriyeli Pirinç Pilavı",
+              nameEn: "Rice Pilaf with Orzo",
+              price: 210.0,
+              descriptionTr: "Ekmek, günün salatası ve günün mezesi ile servis edilir.",
+              descriptionEn: "Served with bread, salad of the day, and meze of the day.",
+              allergens: ["gluten"],
+              calories: 310
+            }
+          ]
+        },
+        {
+          nameTr: "Altuğ Çiğ Köfteler",
+          nameEn: "Altug Cig Kofte",
           items: [
             {
               nameTr: "Çiğ Köfte Dürüm",
@@ -117,30 +174,6 @@ function getFallbackScrapedMenu(url: string) {
               descriptionEn: "Extra portion of çiğ köfte wrapped in lavash with greens and pomegranate sauce.",
               allergens: ["gluten"],
               calories: 410
-            }
-          ]
-        },
-        {
-          nameTr: "Tatlılar",
-          nameEn: "Desserts",
-          items: [
-            {
-              nameTr: "Fırın Sütlaç",
-              nameEn: "Baked Rice Pudding",
-              price: 120.0,
-              descriptionTr: "Fırınlanmış karamelize sütlaç.",
-              descriptionEn: "Baked rice pudding with a caramelized top.",
-              allergens: ["dairy"],
-              calories: 280
-            },
-            {
-              nameTr: "Kemalpaşa Tatlısı",
-              nameEn: "Kemalpaşa Dessert",
-              price: 110.0,
-              descriptionTr: "Tuzsuz peynirli çıtır hamurun şerbetlenmesiyle hazırlanan tatlı.",
-              descriptionEn: "Traditional sweet pastry made from unsalted cheese dough, soaked in syrup.",
-              allergens: ["gluten", "dairy"],
-              calories: 310
             }
           ]
         }
