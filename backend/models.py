@@ -206,3 +206,11 @@ class VenueStaff(Base):
     user = relationship("User", back_populates="venues")
     venue = relationship("Venue", back_populates="staff")
 
+
+class SystemSetting(Base):
+    __tablename__ = "SystemSetting"
+
+    key = Column(String, primary_key=True)
+    value = Column(String, nullable=False)
+
+

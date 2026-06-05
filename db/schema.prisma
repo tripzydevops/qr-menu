@@ -6,6 +6,7 @@ datasource db {
 
 generator client {
   provider = "prisma-client-js"
+  output   = "../frontend/node_modules/.prisma/client"
 }
 
 model Organization {
@@ -186,4 +187,10 @@ model VenueStaff {
 
   @@id([userId, venueId])
 }
+
+model SystemSetting {
+  key   String @id
+  value String
+}
+
 

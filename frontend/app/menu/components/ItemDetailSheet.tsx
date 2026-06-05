@@ -1,8 +1,32 @@
 import React, { useEffect, useState } from 'react';
+import { Flame, AlertTriangle, X, Share2, Leaf, Wheat } from 'lucide-react';
 import { Locale } from '../../../i18n/config';
 import { TranslateFn } from '../../../i18n/useLocale';
 import { MenuItem } from './MenuItemCard';
 import ShareCard from './ShareCard';
+
+// Custom SVG crescent moon and star for Halal matching Lucide's style
+const HalalIcon = (props: React.SVGProps<SVGSVGElement>) => (
+  <svg 
+    xmlns="http://www.w3.org/2000/svg" 
+    viewBox="0 0 24 24" 
+    fill="none" 
+    stroke="currentColor" 
+    strokeWidth="2.5" 
+    strokeLinecap="round" 
+    strokeLinejoin="round" 
+    {...props}
+  >
+    <path d="M12 3a6 6 0 0 0 9 9 9 9 0 1 1-9-9Z" />
+    <polygon points="16 6 16.5 7.5 18 7.7 17 8.7 17.2 10.2 16 9.5 14.8 10.2 15 8.7 14 7.7 15.5 7.5 16 6" fill="currentColor" stroke="none" />
+  </svg>
+);
+
+const DIETARY_MAP: Record<string, { icon: React.ComponentType<any>; label: string; colorClass: string }> = {
+  halal: { icon: HalalIcon, label: 'Halal', colorClass: 'bg-emerald-950/65 text-emerald-400 border-emerald-900/30' },
+  vegan: { icon: Leaf, label: 'Vegan', colorClass: 'bg-green-950/65 text-green-400 border-green-900/30' },
+  'gluten-free': { icon: Wheat, label: 'Gluten-Free', colorClass: 'bg-amber-950/65 text-amber-400 border-amber-900/30' }
+};
 
 interface ItemDetailSheetProps {
   isOpen: boolean;
@@ -114,9 +138,9 @@ export default function ItemDetailSheet({
           {/* Close button top right */}
           <button 
             onClick={onClose}
-            className="absolute top-5 right-5 w-9 h-9 rounded-full bg-[#1C1C28]/60 backdrop-blur-md text-white flex items-center justify-center border border-gray-800/40 hover:bg-[#1C1C28]"
+            className="absolute top-5 right-5 w-9 h-9 rounded-full bg-[#1C1C28]/60 backdrop-blur-md text-white flex items-center justify-center border border-gray-800/40 hover:bg-[#1C1C28] transition-colors"
           >
-            ✕
+            <X className="h-4 w-4" />
           </button>
         </div>
 
@@ -127,15 +151,21 @@ export default function ItemDetailSheet({
             <div>
               {/* Dietary Labels */}
               {item.dietaryLabels && item.dietaryLabels.length > 0 && (
-                <div className="flex space-x-1 mb-2">
-                  {item.dietaryLabels.map((lbl) => (
-                    <span 
-                      key={lbl.key}
-                      className="text-xs bg-emerald-950/70 text-emerald-400 border border-emerald-900/50 px-2 py-0.5 rounded-full"
-                    >
-                      {lbl.icon} {lbl.key}
-                    </span>
-                  ))}
+                <div className="flex flex-wrap gap-1.5 mb-2">
+                  {item.dietaryLabels.map((lbl) => {
+                    const config = DIETARY_MAP[lbl.key.toLowerCase()];
+                    if (!config) return null;
+                    const IconComponent = config.icon;
+                    return (
+                      <span 
+                        key={lbl.key}
+                        className={`inline-flex items-center gap-1.5 text-xs border px-2.5 py-0.5 rounded-full capitalize font-semibold transition-colors duration-300 ${config.colorClass}`}
+                      >
+                        <IconComponent className="h-3 w-3" />
+                        <span>{config.label}</span>
+                      </span>
+                    );
+                  })}
                 </div>
               )}
               <h2 className="font-serif text-2xl font-bold text-white leading-tight">
@@ -150,7 +180,7 @@ export default function ItemDetailSheet({
           {/* Calories Banner */}
           {item.calories !== null && item.calories > 0 && (
             <div className="flex items-center space-x-2 bg-[#2A2A3D]/40 border border-gray-800/40 px-3 py-2 rounded-xl text-xs text-gray-300 w-fit mb-4">
-              <span>🔥</span>
+              <Flame className="h-4 w-4 text-orange-500" />
               <span className="font-semibold text-white">{item.calories}</span>
               <span className="text-gray-400">{t('menu.calories')}</span>
             </div>
@@ -168,19 +198,20 @@ export default function ItemDetailSheet({
           {/* Allergens */}
           {item.allergens && item.allergens.length > 0 && (
             <div className="mb-6 bg-[#16213E]/30 border border-gray-800/40 p-4 rounded-2xl">
-              <h4 className="text-xs font-bold text-[#C9A84C] tracking-widest uppercase mb-3">
-                ⚠️ {t('menu.allergens')}
+              <h4 className="inline-flex items-center gap-1.5 text-xs font-bold text-[#C9A84C] tracking-widest uppercase mb-3">
+                <AlertTriangle className="h-4 w-4 text-amber-500" />
+                <span>{t('menu.allergens')}</span>
               </h4>
               <div className="grid grid-cols-2 gap-2">
                 {item.allergens.map((a) => {
                   const allergen = ALLERGEN_MAP[a.toLowerCase()];
                   return allergen ? (
-                    <div key={a} className="flex items-center space-x-2 bg-[#2A2A3D]/40 px-3 py-2 rounded-xl text-xs text-white">
-                      <span>{allergen.icon}</span>
+                    <div key={a} className="flex items-center space-x-2 bg-[#2A2A3D]/40 px-3 py-2 rounded-xl text-xs text-white border border-gray-800/20">
+                      <span className="text-sm">{allergen.icon}</span>
                       <span>{t(allergen.labelKey)}</span>
                     </div>
                   ) : (
-                    <div key={a} className="flex items-center space-x-2 bg-[#2A2A3D]/40 px-3 py-2 rounded-xl text-xs text-white">
+                    <div key={a} className="flex items-center space-x-2 bg-[#2A2A3D]/40 px-3 py-2 rounded-xl text-xs text-white border border-gray-800/20">
                       <span>🍽️</span>
                       <span className="capitalize">{a}</span>
                     </div>
@@ -196,7 +227,7 @@ export default function ItemDetailSheet({
               onClick={() => setShowShareCard(true)}
               className="flex-grow flex items-center justify-center space-x-2 py-4 rounded-2xl font-semibold transition-all duration-300 text-white border border-[#C9A84C]/35 hover:border-[#C9A84C]/60 hover:bg-[#C9A84C]/5 text-[15px]"
             >
-              <span>📸</span>
+              <Share2 className="h-4 w-4 text-[#C9A84C]" />
               <span>{t('menu.shareInstagram')}</span>
             </button>
             

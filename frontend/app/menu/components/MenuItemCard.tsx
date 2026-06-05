@@ -1,5 +1,29 @@
 import React from 'react';
+import { Leaf, Wheat, Flame } from 'lucide-react';
 import { Locale } from '../../../i18n/config';
+
+// Custom SVG crescent moon and star for Halal matching Lucide's style
+const HalalIcon = (props: React.SVGProps<SVGSVGElement>) => (
+  <svg 
+    xmlns="http://www.w3.org/2000/svg" 
+    viewBox="0 0 24 24" 
+    fill="none" 
+    stroke="currentColor" 
+    strokeWidth="2.5" 
+    strokeLinecap="round" 
+    strokeLinejoin="round" 
+    {...props}
+  >
+    <path d="M12 3a6 6 0 0 0 9 9 9 9 0 1 1-9-9Z" />
+    <polygon points="16 6 16.5 7.5 18 7.7 17 8.7 17.2 10.2 16 9.5 14.8 10.2 15 8.7 14 7.7 15.5 7.5 16 6" fill="currentColor" stroke="none" />
+  </svg>
+);
+
+const DIETARY_MAP: Record<string, { icon: React.ComponentType<any>; label: string; colorClass: string }> = {
+  halal: { icon: HalalIcon, label: 'Halal', colorClass: 'bg-emerald-950/65 text-emerald-400 border-emerald-900/30' },
+  vegan: { icon: Leaf, label: 'Vegan', colorClass: 'bg-green-950/65 text-green-400 border-green-900/30' },
+  'gluten-free': { icon: Wheat, label: 'Gluten-Free', colorClass: 'bg-amber-950/65 text-amber-400 border-amber-900/30' }
+};
 
 interface DietaryLabel {
   key: string;
@@ -83,16 +107,22 @@ export default function MenuItemCard({
         <div>
           {/* Diet badges */}
           {item.dietaryLabels && item.dietaryLabels.length > 0 && (
-            <div className="flex space-x-1 mb-1.5">
-              {item.dietaryLabels.map((lbl) => (
-                <span 
-                  key={lbl.key} 
-                  title={lbl.key}
-                  className="text-[10px] bg-emerald-950/60 text-emerald-400 border border-emerald-900/40 px-1.5 py-0.5 rounded"
-                >
-                  {lbl.icon} {lbl.key}
-                </span>
-              ))}
+            <div className="flex flex-wrap gap-1 mb-1.5">
+              {item.dietaryLabels.map((lbl) => {
+                const config = DIETARY_MAP[lbl.key.toLowerCase()];
+                if (!config) return null;
+                const IconComponent = config.icon;
+                return (
+                  <span 
+                    key={lbl.key} 
+                    title={config.label}
+                    className={`inline-flex items-center gap-1.5 text-[9px] font-bold border px-2 py-0.5 rounded-full capitalize transition-colors duration-300 ${config.colorClass}`}
+                  >
+                    <IconComponent className="h-2.5 w-2.5" />
+                    <span>{config.label}</span>
+                  </span>
+                );
+              })}
             </div>
           )}
           
@@ -116,8 +146,9 @@ export default function MenuItemCard({
           {/* Calories and allergens icons preview */}
           <div className="flex items-center space-x-2">
             {item.calories !== null && item.calories > 0 && (
-              <span className="text-[10px] text-gray-500 font-medium">
-                🔥 {item.calories} kcal
+              <span className="inline-flex items-center gap-0.5 text-[10px] text-gray-500 font-medium">
+                <Flame className="h-3 w-3 text-orange-500" />
+                <span>{item.calories} kcal</span>
               </span>
             )}
             

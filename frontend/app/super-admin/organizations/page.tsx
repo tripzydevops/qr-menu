@@ -41,6 +41,15 @@ export default function SuperAdminOrganizationsPage() {
   const [adminUserId, setAdminUserId] = useState("");
   const [planTier, setPlanTier] = useState("free");
 
+  // Edit Form States
+  const [editModalOpen, setEditModalOpen] = useState(false);
+  const [selectedOrg, setSelectedOrg] = useState<Organization | null>(null);
+  const [editOrgName, setEditOrgName] = useState("");
+  const [editLogoUrl, setEditLogoUrl] = useState("");
+  const [editBrandColor, setEditBrandColor] = useState("");
+  const [editPlanTier, setEditPlanTier] = useState("free");
+  const [editStatus, setEditStatus] = useState("active");
+
   const apiUrl = process.env.NEXT_PUBLIC_API_URL || "";
 
   const fetchOrganizations = async () => {
@@ -158,6 +167,72 @@ export default function SuperAdminOrganizationsPage() {
     }
   };
 
+  const handleOpenEditModal = (org: Organization) => {
+    setSelectedOrg(org);
+    setEditOrgName(org.name);
+    setEditLogoUrl(org.logoUrl || "");
+    setEditBrandColor(org.brandColor || "");
+    setEditPlanTier(org.subscriptionTier);
+    setEditStatus(org.status);
+    setEditModalOpen(true);
+  };
+
+  const handleEditOrg = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!selectedOrg) return;
+    if (!editOrgName) {
+      alert("Lütfen zorunlu alanları doldurun.");
+      return;
+    }
+
+    try {
+      setIsSubmitting(true);
+      const res = await fetch(`${apiUrl}/api/super-admin/organizations/${selectedOrg.id}`, {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          name: editOrgName,
+          logoUrl: editLogoUrl || null,
+          brandColor: editBrandColor || null,
+          subscriptionTier: editPlanTier,
+          status: editStatus
+        })
+      });
+
+      if (res.ok) {
+        setEditModalOpen(false);
+        fetchOrganizations();
+      } else {
+        const data = await res.json();
+        alert(`Güncelleme Hatası: ${data.detail || "İşlem başarısız."}`);
+      }
+    } catch (e: any) {
+      console.error(e);
+      alert("Hata oluştu.");
+    } finally {
+      setIsSubmitting(false);
+    }
+  };
+
+  const handleDeleteOrg = async (id: string) => {
+    if (!confirm("Bu işletmeyi silmek istediğinizden emin misiniz? Bu işlem geri alınamaz ve altındaki tüm şubeler, menüler, kullanıcılar silinecektir!")) return;
+
+    try {
+      const res = await fetch(`${apiUrl}/api/super-admin/organizations/${id}`, {
+        method: "DELETE"
+      });
+      if (res.ok) {
+        fetchOrganizations();
+      } else {
+        alert("İşletme silinemedi.");
+      }
+    } catch (e) {
+      console.error(e);
+      alert("Hata oluştu.");
+    }
+  };
+
+
   return (
     <div className="space-y-6">
       {/* Header and Add button */}
@@ -245,6 +320,13 @@ export default function SuperAdminOrganizationsPage() {
                     <td className="py-4.5 px-6 text-right">
                       <div className="flex items-center justify-end space-x-2.5">
                         <button 
+                          onClick={() => handleOpenEditModal(org)}
+                          title="Düzenle"
+                          className="p-1.5 rounded-lg border bg-[#121224] text-[#C9A84C] border-[#C9A84C]/30 hover:bg-[#C9A84C]/10 transition-colors"
+                        >
+                          <Settings2 className="h-3.5 w-3.5" />
+                        </button>
+                        <button 
                           onClick={() => handleToggleStatus(org.id, org.status)}
                           title={org.status === "active" ? "Askıya Al" : "Aktif Et"}
                           className={`p-1.5 rounded-lg border transition-colors ${
@@ -254,6 +336,13 @@ export default function SuperAdminOrganizationsPage() {
                           }`}
                         >
                           {org.status === "active" ? <X className="h-3.5 w-3.5" /> : <Check className="h-3.5 w-3.5" />}
+                        </button>
+                        <button 
+                          onClick={() => handleDeleteOrg(org.id)}
+                          title="Sil"
+                          className="p-1.5 rounded-lg border bg-red-950/20 text-red-500 border-red-900/30 hover:bg-red-900/30 transition-colors"
+                        >
+                          <Trash2 className="h-3.5 w-3.5" />
                         </button>
                       </div>
                     </td>
@@ -386,6 +475,128 @@ export default function SuperAdminOrganizationsPage() {
                   </>
                 ) : (
                   <span>İşletmeyi Onboard Et</span>
+                )}
+              </button>
+            </div>
+          </form>
+        </div>
+      )}
+
+      {/* Edit Organization Modal */}
+      {editModalOpen && selectedOrg && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+          <div 
+            onClick={() => setEditModalOpen(false)}
+            className="absolute inset-0 bg-black/70 backdrop-blur-md"
+          />
+          
+          <form 
+            onSubmit={handleEditOrg}
+            className="bg-[#16162a] border border-[#2C2C4E]/40 w-full max-w-md rounded-2xl overflow-hidden shadow-2xl relative z-10 animate-slide-up"
+          >
+            <div className="px-6 py-5 border-b border-[#2C2C4E]/30 flex items-center justify-between bg-[#121224]/50">
+              <h3 className="font-serif text-[15px] font-bold text-white">İşletme Bilgilerini Düzenle</h3>
+              <button 
+                type="button"
+                onClick={() => setEditModalOpen(false)}
+                className="text-gray-400 hover:text-white"
+              >
+                ✕
+              </button>
+            </div>
+
+            <div className="p-6 space-y-4 text-xs">
+              <div className="space-y-1.5">
+                <label className="text-gray-400 font-semibold">İşletme / Restoran Adı <span className="text-red-500">*</span></label>
+                <input 
+                  type="text" 
+                  required
+                  placeholder="örn. Karaköy Lokantası"
+                  value={editOrgName}
+                  onChange={(e) => setEditOrgName(e.target.value)}
+                  className="w-full bg-[#121224] border border-[#2C2C4E]/40 px-3 py-2.5 rounded-xl text-white outline-none focus:border-[#C9A84C]/45 transition-colors"
+                />
+              </div>
+
+              <div className="space-y-1.5">
+                <label className="text-gray-400 font-semibold">Logo URL</label>
+                <input 
+                  type="text" 
+                  placeholder="https://image-url..."
+                  value={editLogoUrl}
+                  onChange={(e) => setEditLogoUrl(e.target.value)}
+                  className="w-full bg-[#121224] border border-[#2C2C4E]/40 px-3 py-2.5 rounded-xl text-white outline-none focus:border-[#C9A84C]/45 transition-colors"
+                />
+              </div>
+
+              <div className="space-y-1.5">
+                <label className="text-gray-400 font-semibold">Marka Rengi (HEX)</label>
+                <div className="flex space-x-2">
+                  <input 
+                    type="text" 
+                    placeholder="#722F37"
+                    value={editBrandColor}
+                    onChange={(e) => setEditBrandColor(e.target.value)}
+                    className="w-full bg-[#121224] border border-[#2C2C4E]/40 px-3 py-2.5 rounded-xl text-white outline-none focus:border-[#C9A84C]/45 transition-colors"
+                  />
+                  {editBrandColor && (
+                    <div 
+                      className="w-10 rounded-xl border border-[#2C2C4E]/40"
+                      style={{ backgroundColor: editBrandColor }}
+                    />
+                  )}
+                </div>
+              </div>
+
+              <div className="grid grid-cols-2 gap-4">
+                <div className="space-y-1.5">
+                  <label className="text-gray-400 font-semibold">SaaS Üyelik Planı</label>
+                  <select 
+                    value={editPlanTier}
+                    onChange={(e) => setEditPlanTier(e.target.value)}
+                    className="w-full bg-[#121224] border border-[#2C2C4E]/40 px-3 py-2.5 rounded-xl text-white outline-none focus:border-[#C9A84C]/45 transition-colors"
+                  >
+                    <option value="free">Free</option>
+                    <option value="pro">Pro</option>
+                    <option value="premium">Premium</option>
+                  </select>
+                </div>
+                <div className="space-y-1.5">
+                  <label className="text-gray-400 font-semibold">Hesap Durumu</label>
+                  <select 
+                    value={editStatus}
+                    onChange={(e) => setEditStatus(e.target.value)}
+                    className="w-full bg-[#121224] border border-[#2C2C4E]/40 px-3 py-2.5 rounded-xl text-white outline-none focus:border-[#C9A84C]/45 transition-colors"
+                  >
+                    <option value="active">Aktif</option>
+                    <option value="suspended">Askıda</option>
+                    <option value="onboarding">Kuruluyor</option>
+                  </select>
+                </div>
+              </div>
+            </div>
+
+            <div className="px-6 py-4 border-t border-[#2C2C4E]/20 flex items-center justify-end space-x-3 bg-[#121224]/30">
+              <button 
+                type="button"
+                onClick={() => setEditModalOpen(false)}
+                className="px-4 py-2.5 rounded-xl bg-[#2C2C4E]/40 hover:bg-[#2C2C4E]/60 text-gray-300 font-semibold text-xs transition-colors"
+              >
+                İptal
+              </button>
+              
+              <button 
+                type="submit"
+                disabled={isSubmitting}
+                className="flex items-center space-x-2 px-5 py-2.5 rounded-xl bg-gradient-to-r from-[#6366F1] to-[#C9A84C]/80 hover:to-[#C9A84C] text-white font-semibold text-xs shadow-lg transition-all duration-300"
+              >
+                {isSubmitting ? (
+                  <>
+                    <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                    <span>Güncelleniyor...</span>
+                  </>
+                ) : (
+                  <span>Kaydet</span>
                 )}
               </button>
             </div>

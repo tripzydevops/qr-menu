@@ -6,7 +6,9 @@ from fastapi import UploadFile
 
 logger = logging.getLogger("storage_service")
 
-FIREBASE_BUCKET = os.getenv("FIREBASE_STORAGE_BUCKET", "travel-c8012.firebasestorage.app")
+SUPABASE_URL = os.getenv("SUPABASE_URL", "https://weaneytlhxiexrsiqepy.supabase.co")
+SUPABASE_ANON_KEY = os.getenv("SUPABASE_ANON_KEY", "sb_publishable_D5qMQbj352cqbP5Ys9gu-w_w2lT0uUo")
+SUPABASE_BUCKET = "menu-images"
 LOCAL_UPLOAD_DIR = os.path.join(os.path.dirname(os.path.dirname(__file__)), "static", "uploads")
 
 # Ensure local upload dir exists
@@ -14,8 +16,8 @@ os.makedirs(LOCAL_UPLOAD_DIR, exist_ok=True)
 
 async def upload_image(file: UploadFile) -> str:
     """
-    Uploads an image to Firebase Storage via REST API.
-    Falls back to local storage if the Firebase upload fails.
+    Uploads an image to Supabase Storage via REST API.
+    Falls back to local storage if the Supabase upload fails.
     """
     file_content = await file.read()
     await file.seek(0) # reset file cursor
@@ -25,32 +27,28 @@ async def upload_image(file: UploadFile) -> str:
         file_ext = ".jpg"
     unique_filename = f"{uuid.uuid4()}{file_ext}"
 
-    # Try Firebase Storage REST upload first
+    # Try Supabase Storage REST upload first
     try:
-        url = f"https://firebasestorage.googleapis.com/v0/b/{FIREBASE_BUCKET}/o"
-        params = {"name": f"menu-items/{unique_filename}"}
-        headers = {"Content-Type": file.content_type or "image/jpeg"}
+        url = f"{SUPABASE_URL}/storage/v1/object/{SUPABASE_BUCKET}/{unique_filename}"
+        headers = {
+            "Authorization": f"Bearer {SUPABASE_ANON_KEY}",
+            "apikey": SUPABASE_ANON_KEY,
+            "Content-Type": file.content_type or "image/jpeg"
+        }
 
-        logger.info(f"Attempting Firebase upload to: {url} with name menu-items/{unique_filename}")
+        logger.info(f"Attempting Supabase upload to: {url}")
         
         async with httpx.AsyncClient(timeout=10.0) as client:
-            response = await client.post(url, content=file_content, params=params, headers=headers)
+            response = await client.post(url, content=file_content, headers=headers)
             
             if response.status_code == 200:
-                data = response.json()
-                download_token = data.get("downloadTokens")
-                # Construct the media link
-                encoded_name = f"menu-items%2F{unique_filename}"
-                download_url = f"https://firebasestorage.googleapis.com/v0/b/{FIREBASE_BUCKET}/o/{encoded_name}?alt=media"
-                if download_token:
-                    download_url += f"&token={download_token}"
-                
-                logger.info(f"Firebase upload success: {download_url}")
+                download_url = f"{SUPABASE_URL}/storage/v1/object/public/{SUPABASE_BUCKET}/{unique_filename}"
+                logger.info(f"Supabase upload success: {download_url}")
                 return download_url
             else:
-                logger.warning(f"Firebase returned status {response.status_code}: {response.text}")
+                logger.warning(f"Supabase returned status {response.status_code}: {response.text}")
     except Exception as e:
-        logger.error(f"Error uploading to Firebase: {str(e)}")
+        logger.error(f"Error uploading to Supabase: {str(e)}")
 
     # Fallback: Save to local directory
     logger.info("Falling back to local storage upload")
@@ -66,3 +64,4 @@ async def upload_image(file: UploadFile) -> str:
     except Exception as e:
         logger.error(f"Error saving file locally: {str(e)}")
         raise RuntimeError(f"Could not save file: {str(e)}")
+

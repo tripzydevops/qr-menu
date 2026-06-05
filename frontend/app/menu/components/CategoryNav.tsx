@@ -24,15 +24,16 @@ export default function CategoryNav({
 }: CategoryNavProps) {
   const containerRef = useRef<HTMLDivElement>(null);
 
-  // Auto scroll active tab into view horizontally
+  // Auto scroll active tab into view horizontally without vertical scrolling
   useEffect(() => {
     if (!containerRef.current) return;
-    const activeTab = containerRef.current.querySelector('[data-active="true"]');
+    const activeTab = containerRef.current.querySelector('[data-active="true"]') as HTMLElement;
     if (activeTab) {
-      activeTab.scrollIntoView({
-        behavior: 'smooth',
-        block: 'nearest',
-        inline: 'center'
+      const container = containerRef.current;
+      const scrollLeft = activeTab.offsetLeft - container.offsetWidth / 2 + activeTab.offsetWidth / 2;
+      container.scrollTo({
+        left: scrollLeft,
+        behavior: 'smooth'
       });
     }
   }, [activeCategoryId]);
@@ -46,7 +47,7 @@ export default function CategoryNav({
   };
 
   return (
-    <div className="sticky top-0 z-40 bg-[#1C1C28]/95 backdrop-blur-md border-b border-gray-800/40 py-3 -mx-4 px-4 overflow-hidden">
+    <div className="sticky top-0 z-40 bg-[#1C1C28]/95 backdrop-blur-md border-b border-gray-800/40 py-3 px-4 overflow-hidden">
       <div 
         ref={containerRef}
         className="flex space-x-2 overflow-x-auto no-scrollbar scroll-smooth"

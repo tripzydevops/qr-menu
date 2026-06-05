@@ -7,7 +7,12 @@ import {
   Loader2, 
   AlertCircle,
   ShieldCheck,
-  UserCheck
+  UserCheck,
+  Plus,
+  Trash2,
+  Settings2,
+  Check,
+  X
 } from "lucide-react";
 
 interface User {
@@ -23,8 +28,30 @@ interface User {
 
 export default function SuperAdminUsersPage() {
   const [users, setUsers] = useState<User[]>([]);
+  const [organizations, setOrganizations] = useState<{ id: string; name: string }[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [isSubmitting, setIsSubmitting] = useState(false);
+
+  // Add Modal State
+  const [addModalOpen, setAddModalOpen] = useState(false);
+  const [addUserId, setAddUserId] = useState("");
+  const [addEmail, setAddEmail] = useState("");
+  const [addFirstName, setAddFirstName] = useState("");
+  const [addLastName, setAddLastName] = useState("");
+  const [addRole, setAddRole] = useState("VENUE_MANAGER");
+  const [addOrgId, setAddOrgId] = useState("");
+  const [addIsActive, setAddIsActive] = useState(true);
+
+  // Edit Modal State
+  const [editModalOpen, setEditModalOpen] = useState(false);
+  const [selectedUser, setSelectedUser] = useState<User | null>(null);
+  const [editEmail, setEditEmail] = useState("");
+  const [editFirstName, setEditFirstName] = useState("");
+  const [editLastName, setEditLastName] = useState("");
+  const [editRole, setEditRole] = useState("VENUE_MANAGER");
+  const [editOrgId, setEditOrgId] = useState("");
+  const [editIsActive, setEditIsActive] = useState(true);
 
   const apiUrl = process.env.NEXT_PUBLIC_API_URL || "";
 
@@ -43,9 +70,139 @@ export default function SuperAdminUsersPage() {
     }
   };
 
+  const fetchOrganizations = async () => {
+    try {
+      const res = await fetch(`${apiUrl}/api/super-admin/organizations`);
+      if (res.ok) {
+        const data = await res.json();
+        setOrganizations(data.map((o: any) => ({ id: o.id, name: o.name })));
+      }
+    } catch (e) {
+      console.error("Error fetching organizations: ", e);
+    }
+  };
+
   useEffect(() => {
     fetchUsers();
+    fetchOrganizations();
   }, []);
+
+  const handleOpenAddModal = () => {
+    const randomId = "usr_" + Math.random().toString(36).substring(2, 15) + Math.random().toString(36).substring(2, 15);
+    setAddUserId(randomId);
+    setAddEmail("");
+    setAddFirstName("");
+    setAddLastName("");
+    setAddRole("VENUE_MANAGER");
+    setAddOrgId("");
+    setAddIsActive(true);
+    setAddModalOpen(true);
+  };
+
+  const handleAddUser = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!addUserId || !addEmail) {
+      alert("Lütfen zorunlu alanları doldurun.");
+      return;
+    }
+
+    try {
+      setIsSubmitting(true);
+      const res = await fetch(`${apiUrl}/api/super-admin/users`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          id: addUserId,
+          email: addEmail,
+          firstName: addFirstName || null,
+          lastName: addLastName || null,
+          role: addRole,
+          organizationId: addOrgId || null,
+          isActive: addIsActive
+        })
+      });
+
+      if (res.ok) {
+        setAddModalOpen(false);
+        fetchUsers();
+      } else {
+        const data = await res.json();
+        alert(`Kullanıcı Ekleme Hatası: ${data.detail || "İşlem başarısız."}`);
+      }
+    } catch (e: any) {
+      console.error(e);
+      alert("Hata oluştu.");
+    } finally {
+      setIsSubmitting(false);
+    }
+  };
+
+  const handleOpenEditModal = (user: User) => {
+    setSelectedUser(user);
+    setEditEmail(user.email);
+    setEditFirstName(user.firstName || "");
+    setEditLastName(user.lastName || "");
+    setEditRole(user.role);
+    setEditOrgId(user.organizationId || "");
+    setEditIsActive(user.isActive);
+    setEditModalOpen(true);
+  };
+
+  const handleEditUser = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!selectedUser) return;
+    if (!editEmail) {
+      alert("Lütfen zorunlu alanları doldurun.");
+      return;
+    }
+
+    try {
+      setIsSubmitting(true);
+      const res = await fetch(`${apiUrl}/api/super-admin/users/${selectedUser.id}`, {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          email: editEmail,
+          firstName: editFirstName || null,
+          lastName: editLastName || null,
+          role: editRole,
+          organizationId: editOrgId || null,
+          isActive: editIsActive
+        })
+      });
+
+      if (res.ok) {
+        setEditModalOpen(false);
+        fetchUsers();
+      } else {
+        const data = await res.json();
+        alert(`Güncelleme Hatası: ${data.detail || "İşlem başarısız."}`);
+      }
+    } catch (e: any) {
+      console.error(e);
+      alert("Hata oluştu.");
+    } finally {
+      setIsSubmitting(false);
+    }
+  };
+
+  const handleDeleteUser = async (id: string) => {
+    if (!confirm("Bu kullanıcı hesabını silmek istediğinizden emin misiniz?")) return;
+
+    try {
+      const res = await fetch(`${apiUrl}/api/super-admin/users/${id}`, {
+        method: "DELETE"
+      });
+      if (res.ok) {
+        fetchUsers();
+      } else {
+        alert("Kullanıcı silinemedi.");
+      }
+    } catch (e) {
+      console.error(e);
+      alert("Hata oluştu.");
+    }
+  };
 
   const handleChangeRole = async (userId: string, currentRole: string) => {
     const nextRole = currentRole === "VENUE_MANAGER" 
@@ -86,6 +243,14 @@ export default function SuperAdminUsersPage() {
           </h2>
           <p className="text-xs text-gray-400 mt-1">SaaS platformundaki tüm hesapları listeyin ve rollerini/yetkilerini düzenleyin.</p>
         </div>
+
+        <button 
+          onClick={handleOpenAddModal}
+          className="flex items-center space-x-2 px-4 py-2.5 rounded-xl bg-gradient-to-r from-[#6366F1] to-[#C9A84C]/80 hover:to-[#C9A84C] text-white font-semibold text-xs shadow-lg transition-all duration-300 transform active:scale-98"
+        >
+          <Plus className="h-4 w-4" />
+          <span>Yeni Kullanıcı Ekle</span>
+        </button>
       </div>
 
       {loading ? (
@@ -114,7 +279,7 @@ export default function SuperAdminUsersPage() {
                   <th className="py-4 px-6">Auth ID (Supabase)</th>
                   <th className="py-4 px-6">Platform Yetki Rolü</th>
                   <th className="py-4 px-6">Bağlı İşletme</th>
-                  <th className="py-4 px-6 text-right">Rol Değiştir</th>
+                  <th className="py-4 px-6 text-right">İşlemler</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-[#2C2C4E]/20 text-xs text-gray-300">
@@ -145,20 +310,298 @@ export default function SuperAdminUsersPage() {
                       {user.organizationId ? user.organizationId : "Tüm Platform (Global)"}
                     </td>
                     <td className="py-4.5 px-6 text-right">
-                      <button 
-                        onClick={() => handleChangeRole(user.id, user.role)}
-                        title="Rolü Değiştir"
-                        className="p-1.5 rounded-lg border border-[#2C2C4E]/40 bg-[#121224] text-gray-400 hover:text-white hover:border-[#C9A84C]/40 transition-colors inline-flex items-center space-x-1"
-                      >
-                        <Settings className="h-3.5 w-3.5" />
-                        <span className="text-[10px] font-semibold px-1">Rolü Değiştir</span>
-                      </button>
+                      <div className="flex items-center justify-end space-x-2.5">
+                        <button 
+                          onClick={() => handleOpenEditModal(user)}
+                          title="Düzenle"
+                          className="p-1.5 rounded-lg border bg-[#121224] text-[#C9A84C] border-[#C9A84C]/30 hover:bg-[#C9A84C]/10 transition-colors"
+                        >
+                          <Settings2 className="h-3.5 w-3.5" />
+                        </button>
+                        <button 
+                          onClick={() => handleDeleteUser(user.id)}
+                          title="Sil"
+                          className="p-1.5 rounded-lg border bg-red-950/20 text-red-500 border-red-900/30 hover:bg-red-900/30 transition-colors"
+                        >
+                          <Trash2 className="h-3.5 w-3.5" />
+                        </button>
+                      </div>
                     </td>
                   </tr>
                 ))}
               </tbody>
             </table>
           </div>
+        </div>
+      )}
+
+      {/* Add User Modal */}
+      {addModalOpen && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+          <div 
+            onClick={() => setAddModalOpen(false)}
+            className="absolute inset-0 bg-black/70 backdrop-blur-md"
+          />
+          
+          <form 
+            onSubmit={handleAddUser}
+            className="bg-[#16162a] border border-[#2C2C4E]/40 w-full max-w-md rounded-2xl overflow-hidden shadow-2xl relative z-10 animate-slide-up"
+          >
+            <div className="px-6 py-5 border-b border-[#2C2C4E]/30 flex items-center justify-between bg-[#121224]/50">
+              <h3 className="font-serif text-[15px] font-bold text-white">Yeni Kullanıcı Hesabı Ekle</h3>
+              <button 
+                type="button"
+                onClick={() => setAddModalOpen(false)}
+                className="text-gray-400 hover:text-white"
+              >
+                ✕
+              </button>
+            </div>
+
+            <div className="p-6 space-y-4 text-xs">
+              <div className="space-y-1.5">
+                <label className="text-gray-400 font-semibold">User ID (Supabase UID) <span className="text-red-500">*</span></label>
+                <input 
+                  type="text" 
+                  required
+                  placeholder="UUID Formatı"
+                  value={addUserId}
+                  onChange={(e) => setAddUserId(e.target.value)}
+                  className="w-full bg-[#121224] border border-[#2C2C4E]/40 px-3 py-2.5 rounded-xl text-white font-mono outline-none focus:border-[#C9A84C]/45 transition-colors"
+                />
+              </div>
+
+              <div className="space-y-1.5">
+                <label className="text-gray-400 font-semibold">E-posta Adresi <span className="text-red-500">*</span></label>
+                <input 
+                  type="email" 
+                  required
+                  placeholder="kullanici@tripzy.travel"
+                  value={addEmail}
+                  onChange={(e) => setAddEmail(e.target.value)}
+                  className="w-full bg-[#121224] border border-[#2C2C4E]/40 px-3 py-2.5 rounded-xl text-white outline-none focus:border-[#C9A84C]/45 transition-colors"
+                />
+              </div>
+
+              <div className="grid grid-cols-2 gap-4">
+                <div className="space-y-1.5">
+                  <label className="text-gray-400 font-semibold">Ad</label>
+                  <input 
+                    type="text" 
+                    placeholder="Adı"
+                    value={addFirstName}
+                    onChange={(e) => setAddFirstName(e.target.value)}
+                    className="w-full bg-[#121224] border border-[#2C2C4E]/40 px-3 py-2.5 rounded-xl text-white outline-none focus:border-[#C9A84C]/45 transition-colors"
+                  />
+                </div>
+                <div className="space-y-1.5">
+                  <label className="text-gray-400 font-semibold">Soyad</label>
+                  <input 
+                    type="text" 
+                    placeholder="Soyadı"
+                    value={addLastName}
+                    onChange={(e) => setAddLastName(e.target.value)}
+                    className="w-full bg-[#121224] border border-[#2C2C4E]/40 px-3 py-2.5 rounded-xl text-white outline-none focus:border-[#C9A84C]/45 transition-colors"
+                  />
+                </div>
+              </div>
+
+              <div className="space-y-1.5">
+                <label className="text-gray-400 font-semibold">Platform Yetki Rolü</label>
+                <select 
+                  value={addRole}
+                  onChange={(e) => setAddRole(e.target.value)}
+                  className="w-full bg-[#121224] border border-[#2C2C4E]/40 px-3 py-2.5 rounded-xl text-white outline-none focus:border-[#C9A84C]/45 transition-colors"
+                >
+                  <option value="VENUE_MANAGER">Venue Manager (Restoran Yetkilisi)</option>
+                  <option value="ORGANIZATION_ADMIN">Organization Admin (İşletme Sahibi)</option>
+                  <option value="SUPER_ADMIN">Super Admin (DevOps/Sistem Yetkilisi)</option>
+                </select>
+              </div>
+
+              {addRole !== "SUPER_ADMIN" && (
+                <div className="space-y-1.5">
+                  <label className="text-gray-400 font-semibold">Bağlı Olduğu İşletme (Tenant)</label>
+                  <select 
+                    value={addOrgId}
+                    onChange={(e) => setAddOrgId(e.target.value)}
+                    className="w-full bg-[#121224] border border-[#2C2C4E]/40 px-3 py-2.5 rounded-xl text-white outline-none focus:border-[#C9A84C]/45 transition-colors"
+                  >
+                    <option value="">İşletme Seçin...</option>
+                    {organizations.map((org) => (
+                      <option key={org.id} value={org.id}>{org.name}</option>
+                    ))}
+                  </select>
+                </div>
+              )}
+
+              <div className="space-y-1.5">
+                <label className="text-gray-400 font-semibold">Hesap Durumu</label>
+                <select 
+                  value={addIsActive ? "true" : "false"}
+                  onChange={(e) => setAddIsActive(e.target.value === "true")}
+                  className="w-full bg-[#121224] border border-[#2C2C4E]/40 px-3 py-2.5 rounded-xl text-white outline-none focus:border-[#C9A84C]/45 transition-colors"
+                >
+                  <option value="true">Aktif</option>
+                  <option value="false">Pasif (Askıda)</option>
+                </select>
+              </div>
+            </div>
+
+            <div className="px-6 py-4 border-t border-[#2C2C4E]/20 flex items-center justify-end space-x-3 bg-[#121224]/30">
+              <button 
+                type="button"
+                onClick={() => setAddModalOpen(false)}
+                className="px-4 py-2.5 rounded-xl bg-[#2C2C4E]/40 hover:bg-[#2C2C4E]/60 text-gray-300 font-semibold text-xs transition-colors"
+              >
+                İptal
+              </button>
+              
+              <button 
+                type="submit"
+                disabled={isSubmitting}
+                className="flex items-center space-x-2 px-5 py-2.5 rounded-xl bg-gradient-to-r from-[#6366F1] to-[#C9A84C]/80 hover:to-[#C9A84C] text-white font-semibold text-xs shadow-lg transition-all duration-300"
+              >
+                {isSubmitting ? (
+                  <>
+                    <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                    <span>Kaydediliyor...</span>
+                  </>
+                ) : (
+                  <span>Kullanıcı Ekle</span>
+                )}
+              </button>
+            </div>
+          </form>
+        </div>
+      )}
+
+      {/* Edit User Modal */}
+      {editModalOpen && selectedUser && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+          <div 
+            onClick={() => setEditModalOpen(false)}
+            className="absolute inset-0 bg-black/70 backdrop-blur-md"
+          />
+          
+          <form 
+            onSubmit={handleEditUser}
+            className="bg-[#16162a] border border-[#2C2C4E]/40 w-full max-w-md rounded-2xl overflow-hidden shadow-2xl relative z-10 animate-slide-up"
+          >
+            <div className="px-6 py-5 border-b border-[#2C2C4E]/30 flex items-center justify-between bg-[#121224]/50">
+              <h3 className="font-serif text-[15px] font-bold text-white">Kullanıcı Hesabını Düzenle</h3>
+              <button 
+                type="button"
+                onClick={() => setEditModalOpen(false)}
+                className="text-gray-400 hover:text-white"
+              >
+                ✕
+              </button>
+            </div>
+
+            <div className="p-6 space-y-4 text-xs">
+              <div className="space-y-1.5">
+                <label className="text-gray-400 font-semibold">E-posta Adresi <span className="text-red-500">*</span></label>
+                <input 
+                  type="email" 
+                  required
+                  placeholder="kullanici@tripzy.travel"
+                  value={editEmail}
+                  onChange={(e) => setEditEmail(e.target.value)}
+                  className="w-full bg-[#121224] border border-[#2C2C4E]/40 px-3 py-2.5 rounded-xl text-white outline-none focus:border-[#C9A84C]/45 transition-colors"
+                />
+              </div>
+
+              <div className="grid grid-cols-2 gap-4">
+                <div className="space-y-1.5">
+                  <label className="text-gray-400 font-semibold">Ad</label>
+                  <input 
+                    type="text" 
+                    placeholder="Adı"
+                    value={editFirstName}
+                    onChange={(e) => setEditFirstName(e.target.value)}
+                    className="w-full bg-[#121224] border border-[#2C2C4E]/40 px-3 py-2.5 rounded-xl text-white outline-none focus:border-[#C9A84C]/45 transition-colors"
+                  />
+                </div>
+                <div className="space-y-1.5">
+                  <label className="text-gray-400 font-semibold">Soyad</label>
+                  <input 
+                    type="text" 
+                    placeholder="Soyadı"
+                    value={editLastName}
+                    onChange={(e) => setEditLastName(e.target.value)}
+                    className="w-full bg-[#121224] border border-[#2C2C4E]/40 px-3 py-2.5 rounded-xl text-white outline-none focus:border-[#C9A84C]/45 transition-colors"
+                  />
+                </div>
+              </div>
+
+              <div className="space-y-1.5">
+                <label className="text-gray-400 font-semibold">Platform Yetki Rolü</label>
+                <select 
+                  value={editRole}
+                  onChange={(e) => setEditRole(e.target.value)}
+                  className="w-full bg-[#121224] border border-[#2C2C4E]/40 px-3 py-2.5 rounded-xl text-white outline-none focus:border-[#C9A84C]/45 transition-colors"
+                >
+                  <option value="VENUE_MANAGER">Venue Manager (Restoran Yetkilisi)</option>
+                  <option value="ORGANIZATION_ADMIN">Organization Admin (İşletme Sahibi)</option>
+                  <option value="SUPER_ADMIN">Super Admin (DevOps/Sistem Yetkilisi)</option>
+                </select>
+              </div>
+
+              {editRole !== "SUPER_ADMIN" && (
+                <div className="space-y-1.5">
+                  <label className="text-gray-400 font-semibold">Bağlı Olduğu İşletme (Tenant)</label>
+                  <select 
+                    value={editOrgId}
+                    onChange={(e) => setEditOrgId(e.target.value)}
+                    className="w-full bg-[#121224] border border-[#2C2C4E]/40 px-3 py-2.5 rounded-xl text-white outline-none focus:border-[#C9A84C]/45 transition-colors"
+                  >
+                    <option value="">İşletme Seçin...</option>
+                    {organizations.map((org) => (
+                      <option key={org.id} value={org.id}>{org.name}</option>
+                    ))}
+                  </select>
+                </div>
+              )}
+
+              <div className="space-y-1.5">
+                <label className="text-gray-400 font-semibold">Hesap Durumu</label>
+                <select 
+                  value={editIsActive ? "true" : "false"}
+                  onChange={(e) => setEditIsActive(e.target.value === "true")}
+                  className="w-full bg-[#121224] border border-[#2C2C4E]/40 px-3 py-2.5 rounded-xl text-white outline-none focus:border-[#C9A84C]/45 transition-colors"
+                >
+                  <option value="true">Aktif</option>
+                  <option value="false">Pasif (Askıda)</option>
+                </select>
+              </div>
+            </div>
+
+            <div className="px-6 py-4 border-t border-[#2C2C4E]/20 flex items-center justify-end space-x-3 bg-[#121224]/30">
+              <button 
+                type="button"
+                onClick={() => setEditModalOpen(false)}
+                className="px-4 py-2.5 rounded-xl bg-[#2C2C4E]/40 hover:bg-[#2C2C4E]/60 text-gray-300 font-semibold text-xs transition-colors"
+              >
+                İptal
+              </button>
+              
+              <button 
+                type="submit"
+                disabled={isSubmitting}
+                className="flex items-center space-x-2 px-5 py-2.5 rounded-xl bg-gradient-to-r from-[#6366F1] to-[#C9A84C]/80 hover:to-[#C9A84C] text-white font-semibold text-xs shadow-lg transition-all duration-300"
+              >
+                {isSubmitting ? (
+                  <>
+                    <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                    <span>Güncelleniyor...</span>
+                  </>
+                ) : (
+                  <span>Değişiklikleri Kaydet</span>
+                )}
+              </button>
+            </div>
+          </form>
         </div>
       )}
     </div>

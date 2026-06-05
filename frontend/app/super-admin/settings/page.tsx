@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import { 
   Sliders, 
   Save, 
@@ -12,6 +12,7 @@ import {
 
 export default function SuperAdminSettingsPage() {
   const [isSaved, setIsSaved] = useState(false);
+  const [loading, setLoading] = useState(true);
 
   // Free Tier Limits
   const [freeMaxVenues, setFreeMaxVenues] = useState(1);
@@ -28,11 +29,81 @@ export default function SuperAdminSettingsPage() {
   const [premiumMaxTables, setPremiumMaxTables] = useState(999);
   const [premiumAnalytics, setPremiumAnalytics] = useState(true);
 
-  const handleSave = (e: React.FormEvent) => {
+  // Global Settings
+  const [defaultCurrency, setDefaultCurrency] = useState("TRY");
+  const [defaultLocale, setDefaultLocale] = useState("tr");
+
+  const apiUrl = process.env.NEXT_PUBLIC_API_URL || "";
+
+  useEffect(() => {
+    const fetchSettings = async () => {
+      try {
+        setLoading(true);
+        const res = await fetch(`${apiUrl}/api/super-admin/settings`);
+        if (res.ok) {
+          const data = await res.json();
+          if (data.freeMaxVenues !== undefined) setFreeMaxVenues(parseInt(data.freeMaxVenues));
+          if (data.freeMaxTables !== undefined) setFreeMaxTables(parseInt(data.freeMaxTables));
+          if (data.freeAnalytics !== undefined) setFreeAnalytics(data.freeAnalytics === "true");
+          if (data.proMaxVenues !== undefined) setProMaxVenues(parseInt(data.proMaxVenues));
+          if (data.proMaxTables !== undefined) setProMaxTables(parseInt(data.proMaxTables));
+          if (data.proAnalytics !== undefined) setProAnalytics(data.proAnalytics === "true");
+          if (data.premiumMaxVenues !== undefined) setPremiumMaxVenues(parseInt(data.premiumMaxVenues));
+          if (data.premiumMaxTables !== undefined) setPremiumMaxTables(parseInt(data.premiumMaxTables));
+          if (data.premiumAnalytics !== undefined) setPremiumAnalytics(data.premiumAnalytics === "true");
+          if (data.defaultCurrency !== undefined) setDefaultCurrency(data.defaultCurrency);
+          if (data.defaultLocale !== undefined) setDefaultLocale(data.defaultLocale);
+        }
+      } catch (e) {
+        console.error("Error fetching settings: ", e);
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    fetchSettings();
+  }, []);
+
+  const handleSave = async (e: React.FormEvent) => {
     e.preventDefault();
-    setIsSaved(true);
-    setTimeout(() => setIsSaved(false), 3000);
+    try {
+      const res = await fetch(`${apiUrl}/api/super-admin/settings`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          freeMaxVenues,
+          freeMaxTables,
+          freeAnalytics,
+          proMaxVenues,
+          proMaxTables,
+          proAnalytics,
+          premiumMaxVenues,
+          premiumMaxTables,
+          premiumAnalytics,
+          defaultCurrency,
+          defaultLocale
+        })
+      });
+      if (res.ok) {
+        setIsSaved(true);
+        setTimeout(() => setIsSaved(false), 3000);
+      } else {
+        alert("Ayarlar kaydedilemedi.");
+      }
+    } catch (e) {
+      console.error(e);
+      alert("Hata oluştu.");
+    }
   };
+
+  if (loading) {
+    return (
+      <div className="h-64 flex flex-col items-center justify-center text-gray-400">
+        <Sliders className="h-8 w-8 animate-pulse text-[#C9A84C] mb-4" />
+        <p className="text-xs">Sistem limit ayarları yükleniyor...</p>
+      </div>
+    );
+  }
 
   return (
     <div className="space-y-6 max-w-4xl select-none animate-fade-in">
@@ -178,7 +249,11 @@ export default function SuperAdminSettingsPage() {
           <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
             <div className="space-y-1.5">
               <label className="text-gray-400 font-semibold">Varsayılan Para Birimi</label>
-              <select className="w-full bg-[#121224] border border-[#2C2C4E]/40 px-3 py-2.5 rounded-xl text-white outline-none focus:border-[#C9A84C]/45 transition-colors">
+              <select 
+                value={defaultCurrency}
+                onChange={(e) => setDefaultCurrency(e.target.value)}
+                className="w-full bg-[#121224] border border-[#2C2C4E]/40 px-3 py-2.5 rounded-xl text-white outline-none focus:border-[#C9A84C]/45 transition-colors"
+              >
                 <option value="TRY">Türk Lirası (TRY)</option>
                 <option value="USD">Amerikan Doları (USD)</option>
                 <option value="EUR">Euro (EUR)</option>
@@ -187,7 +262,11 @@ export default function SuperAdminSettingsPage() {
 
             <div className="space-y-1.5">
               <label className="text-gray-400 font-semibold">Sistem Varsayılan Dil</label>
-              <select className="w-full bg-[#121224] border border-[#2C2C4E]/40 px-3 py-2.5 rounded-xl text-white outline-none focus:border-[#C9A84C]/45 transition-colors">
+              <select 
+                value={defaultLocale}
+                onChange={(e) => setDefaultLocale(e.target.value)}
+                className="w-full bg-[#121224] border border-[#2C2C4E]/40 px-3 py-2.5 rounded-xl text-white outline-none focus:border-[#C9A84C]/45 transition-colors"
+              >
                 <option value="tr">Türkçe (TR)</option>
                 <option value="en">İngilizce (EN)</option>
               </select>

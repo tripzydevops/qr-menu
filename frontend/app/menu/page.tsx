@@ -343,17 +343,18 @@ function MenuContent() {
         </div>
       )}
 
-      {/* Category Nav and Filters */}
-      <div className="px-4">
-        {menu.categories.length > 0 && (
-          <CategoryNav 
-            categories={menu.categories} 
-            activeCategoryId={activeCategoryId} 
-            onCategoryClick={scrollToCategory} 
-            locale={locale}
-          />
-        )}
+      {/* Category Nav */}
+      {menu.categories.length > 0 && (
+        <CategoryNav 
+          categories={menu.categories} 
+          activeCategoryId={activeCategoryId} 
+          onCategoryClick={scrollToCategory} 
+          locale={locale}
+        />
+      )}
 
+      {/* Dietary Filters */}
+      <div className="px-4">
         <DietaryFilter 
           activeFilter={activeFilter} 
           onFilterChange={setActiveFilter} 
