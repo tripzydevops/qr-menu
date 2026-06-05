@@ -52,13 +52,13 @@ export default function DietaryFilter({
             onClick={() => onFilterChange(chip.key)}
             className={`flex items-center space-x-1.5 px-3.5 py-1.5 rounded-full text-xs font-semibold border transition-all duration-300 ${
               isActive
-                ? 'text-[#1C1C28] shadow-md scale-105'
-                : 'bg-[#1C1C28] text-gray-400 border-gray-800/80 hover:text-gray-300 hover:border-gray-700'
+                ? 'text-[#0A0B0E] shadow-md scale-105'
+                : 'bg-[#0A0B0E] text-gray-400 border-white/[0.04] hover:text-gray-300 hover:border-white/[0.08]'
             }`}
             style={isActive ? {
-              backgroundColor: brandColor || '#C9A84C',
-              borderColor: brandColor || '#C9A84C',
-              boxShadow: `0 4px 12px -2px ${brandColor || '#C9A84C'}44`
+              backgroundColor: brandColor || '#DFBA73',
+              borderColor: brandColor || '#DFBA73',
+              boxShadow: `0 4px 12px -2px ${brandColor || '#DFBA73'}44`
             } : undefined}
           >
             <IconComponent className="h-3.5 w-3.5" />

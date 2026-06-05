@@ -103,24 +103,24 @@ export default function CartDrawer({
       />
 
       {/* Drawer */}
-      <div className="relative w-full max-w-lg bg-[#1C1C28] border-t border-gray-800 rounded-t-[2.5rem] shadow-2xl flex flex-col max-h-[85vh] z-10 animate-fade-in-up">
+      <div className="relative w-full max-w-lg bg-[#0A0B0E] border-t border-white/[0.05] rounded-t-[2.5rem] shadow-2xl flex flex-col max-h-[85vh] z-10 animate-fade-in-up">
         {/* Handle */}
         <div className="absolute top-3 left-1/2 -translate-x-1/2 w-12 h-1 rounded-full bg-gray-700/60" />
 
         {/* Header */}
-        <div className="p-6 border-b border-gray-800/40 flex justify-between items-center mt-2">
+        <div className="p-6 border-b border-white/[0.04] flex justify-between items-center mt-2">
           <div className="flex items-center space-x-2">
-            <ShoppingBag className="h-5 w-5 text-[#C9A84C]" />
+            <ShoppingBag className="h-5 w-5 text-[#DFBA73]" />
             <h3 className="font-serif text-lg font-bold text-white">
               {locale === 'en' ? 'Your Basket' : 'Sepetiniz'}
             </h3>
-            <span className="bg-[#C9A84C]/10 text-[#C9A84C] text-xs font-mono font-bold px-2 py-0.5 rounded-full border border-[#C9A84C]/25">
+            <span className="bg-[#DFBA73]/10 text-[#DFBA73] text-xs font-mono font-bold px-2 py-0.5 rounded-full border border-[#DFBA73]/25">
               {totalItems}
             </span>
           </div>
           <button 
             onClick={onClose}
-            className="w-8 h-8 rounded-full bg-[#2A2A3D]/80 text-gray-400 hover:text-white flex items-center justify-center border border-gray-800/60 transition-colors"
+            className="w-8 h-8 rounded-full bg-white/[0.02] text-gray-400 hover:text-white flex items-center justify-center border border-white/[0.05] transition-colors"
           >
             <X className="h-4 w-4" />
           </button>
@@ -164,7 +164,7 @@ export default function CartDrawer({
               )}
 
               {/* Items List */}
-              <div className="divide-y divide-gray-800/40 space-y-3.5">
+              <div className="divide-y divide-white/[0.03] space-y-3.5">
                 {cartArray.map(({ item, quantity, notes }) => {
                   const name = locale === 'en' ? item.nameEn : item.nameTr;
                   return (
@@ -174,20 +174,20 @@ export default function CartDrawer({
                           {name}
                         </h5>
                         {notes && (
-                          <p className="text-[11px] text-gray-400 bg-gray-800/40 px-2 py-0.5 rounded w-fit mt-1.5 font-mono">
+                          <p className="text-[11px] text-gray-400 bg-white/[0.02] border border-white/[0.04] px-2 py-0.5 rounded w-fit mt-1.5 font-mono">
                             ✍️ {notes}
                           </p>
                         )}
-                        <span className="inline-block text-xs text-[#C9A84C] font-semibold mt-1">
+                        <span className="inline-block text-xs text-[#DFBA73] font-semibold mt-1">
                           {getCurrencySymbol(currency)}{(Number(item.price) * quantity).toFixed(2)}
                         </span>
                       </div>
                       
                       {/* Quantity Editor */}
-                      <div className="flex items-center space-x-2.5 flex-shrink-0 bg-[#2A2A3D]/40 px-2.5 py-1.5 rounded-xl border border-gray-800/35">
+                      <div className="flex items-center space-x-2.5 flex-shrink-0 bg-white/[0.02] px-2.5 py-1.5 rounded-xl border border-white/[0.05]">
                         <button 
                           onClick={() => onUpdateQuantity(item.id, quantity - 1)}
-                          className="w-5.5 h-5.5 text-xs font-bold text-gray-400 hover:text-white flex items-center justify-center bg-[#1C1C28] rounded-md"
+                          className="w-5.5 h-5.5 text-xs font-bold text-gray-400 hover:text-white flex items-center justify-center bg-[#0A0B0E] rounded-md"
                         >
                           -
                         </button>
@@ -196,7 +196,7 @@ export default function CartDrawer({
                         </span>
                         <button 
                           onClick={() => onUpdateQuantity(item.id, quantity + 1)}
-                          className="w-5.5 h-5.5 text-xs font-bold text-gray-400 hover:text-white flex items-center justify-center bg-[#1C1C28] rounded-md"
+                          className="w-5.5 h-5.5 text-xs font-bold text-gray-400 hover:text-white flex items-center justify-center bg-[#0A0B0E] rounded-md"
                         >
                           +
                         </button>
@@ -218,12 +218,12 @@ export default function CartDrawer({
 
         {/* Footer actions */}
         {!orderSuccess && cartArray.length > 0 && (
-          <div className="p-6 border-t border-gray-800/40 bg-[#1C1C28]/95 space-y-4 rounded-b-[2.5rem]">
+          <div className="p-6 border-t border-white/[0.04] bg-[#0A0B0E]/95 space-y-4 rounded-b-[2.5rem]">
             <div className="flex justify-between items-center">
               <span className="text-xs text-gray-400">
                 {locale === 'en' ? 'Total Amount' : 'Toplam Tutar'}
               </span>
-              <span className="font-mono text-lg font-bold text-[#C9A84C] bg-[#C9A84C]/5 px-3 py-1 rounded-xl border border-[#C9A84C]/10">
+              <span className="font-mono text-lg font-bold text-[#DFBA73] bg-[#DFBA73]/5 px-3 py-1 rounded-xl border border-[#DFBA73]/10">
                 {getCurrencySymbol(currency)}{totalPrice.toFixed(2)}
               </span>
             </div>
@@ -231,11 +231,11 @@ export default function CartDrawer({
             <button 
               onClick={handleCheckout}
               disabled={submitting}
-              className="w-full py-4 rounded-2xl bg-[#C9A84C] hover:bg-[#B8973B] text-[#1C1C28] font-bold text-sm transition-colors flex items-center justify-center space-x-2 disabled:opacity-50 disabled:cursor-not-allowed shadow-xl shadow-[#C9A84C]/10"
+              className="w-full py-4 rounded-2xl bg-[#DFBA73] hover:bg-[#DFBA73]/85 text-[#0A0B0E] font-bold text-sm transition-colors flex items-center justify-center space-x-2 disabled:opacity-50 disabled:cursor-not-allowed shadow-xl shadow-[#DFBA73]/10"
             >
               {submitting ? (
                 <>
-                  <Loader className="h-4 w-4 animate-spin text-[#1C1C28]" />
+                  <Loader className="h-4 w-4 animate-spin text-[#0A0B0E]" />
                   <span>{locale === 'en' ? 'Placing Order...' : 'Sipariş Gönderiliyor...'}</span>
                 </>
               ) : (

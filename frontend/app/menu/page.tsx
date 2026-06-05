@@ -318,11 +318,11 @@ function MenuContent() {
 
   if (!menu) {
     return (
-      <div className="flex-grow flex flex-col items-center justify-center bg-[#1C1C28] text-white p-6 min-h-screen">
-        <ShieldAlert className="h-14 w-14 text-[#C9A84C] mb-4 animate-bounce" />
+      <div className="flex-grow flex flex-col items-center justify-center bg-[#0A0B0E] text-white p-6 min-h-screen">
+        <ShieldAlert className="h-14 w-14 text-[#DFBA73] mb-4 animate-bounce" />
         <h2 className="text-2xl font-serif font-bold mb-2">Menü Yüklenemedi</h2>
         <p className="text-gray-400 text-sm text-center mb-6 max-w-sm">Taramış olduğunuz QR kod geçersiz veya sunucuya bağlanılamadı.</p>
-        <Link href="/" className="bg-[#2A2A3D] border border-gray-800 px-5 py-2.5 rounded-xl text-sm font-semibold hover:bg-gray-800 transition-colors">
+        <Link href="/" className="bg-white/[0.02] border border-white/[0.08] px-5 py-2.5 rounded-xl text-sm font-semibold hover:bg-white/[0.05] transition-all">
           Ana Sayfaya Dön
         </Link>
       </div>
@@ -344,11 +344,11 @@ function MenuContent() {
   const filteredCategories = getFilteredCategories();
 
   return (
-    <div className="flex-grow flex flex-col bg-[#1C1C28] min-h-screen pb-24 relative select-none animate-fade-in">
+    <div className="flex-grow flex flex-col bg-[#0A0B0E] min-h-screen pb-24 relative select-none animate-fade-in">
       {/* Banner / Cover Image */}
       <div 
         className="w-full h-56 relative bg-gradient-to-b overflow-hidden"
-        style={{ backgroundImage: `linear-gradient(to bottom, ${menu.brandColor || '#722F37'}, #1C1C28)` }}
+        style={{ backgroundImage: `linear-gradient(to bottom, ${menu.brandColor || '#5C1D24'}, #0A0B0E)` }}
       >
         {menu.coverImageUrl ? (
           <img 
@@ -357,11 +357,11 @@ function MenuContent() {
             className="w-full h-full object-cover opacity-60 scale-105 transition-transform duration-1000"
           />
         ) : null}
-        <div className="absolute inset-0 bg-gradient-to-t from-[#1C1C28] via-transparent to-black/40" />
+        <div className="absolute inset-0 bg-gradient-to-t from-[#0A0B0E] via-transparent to-black/40" />
         
         {/* Call actions overlay */}
         <div className="absolute top-4 left-4 right-4 flex justify-between items-center z-10">
-          <Link href="/" className="p-2.5 rounded-full bg-[#1C1C28]/60 backdrop-blur-md text-white border border-gray-800/40 hover:bg-[#1C1C28] transition-all">
+          <Link href="/" className="p-2.5 rounded-full bg-[#0A0B0E]/60 backdrop-blur-md text-white border border-white/[0.08] hover:bg-[#0A0B0E] transition-all">
             <ArrowLeft className="h-4 w-4" />
           </Link>
           
@@ -369,22 +369,22 @@ function MenuContent() {
           <div className="relative">
             <button 
               onClick={() => setShowLangMenu(!showLangMenu)}
-              className="flex items-center space-x-1.5 px-3 py-2 rounded-full bg-[#1C1C28]/60 backdrop-blur-md text-white border border-gray-800/40 hover:border-[#C9A84C]/40 transition-all font-semibold uppercase text-xs"
+              className="flex items-center space-x-1.5 px-3 py-2 rounded-full bg-[#0A0B0E]/60 backdrop-blur-md text-white border border-white/[0.08] hover:border-[#DFBA73]/40 transition-all font-semibold uppercase text-xs"
             >
-              <Globe className="h-4 w-4 text-[#C9A84C]" />
+              <Globe className="h-4 w-4 text-[#DFBA73]" />
               <span>{locale}</span>
             </button>
             {showLangMenu && (
-              <div className="absolute right-0 mt-2 w-28 bg-[#16213E] border border-gray-800 rounded-xl overflow-hidden shadow-2xl z-55">
+              <div className="absolute right-0 mt-2 w-28 bg-[#0A0B0E] border border-white/[0.08] rounded-xl overflow-hidden shadow-2xl z-55">
                 <button 
                   onClick={() => { setLocale('tr'); setShowLangMenu(false); }}
-                  className="w-full text-left px-4 py-2.5 text-xs font-semibold hover:bg-[#2A2A3D] text-white border-b border-gray-800/60"
+                  className="w-full text-left px-4 py-2.5 text-xs font-semibold hover:bg-white/[0.02] text-white border-b border-white/[0.04]"
                 >
                   Türkçe
                 </button>
                 <button 
                   onClick={() => { setLocale('en'); setShowLangMenu(false); }}
-                  className="w-full text-left px-4 py-2.5 text-xs font-semibold hover:bg-[#2A2A3D] text-white"
+                  className="w-full text-left px-4 py-2.5 text-xs font-semibold hover:bg-white/[0.02] text-white"
                 >
                   English
                 </button>
@@ -396,13 +396,13 @@ function MenuContent() {
         {/* Floating Brand Logo */}
         <div className="absolute -bottom-10 left-1/2 -translate-x-1/2 flex flex-col items-center">
           {menu.logoUrl ? (
-            <div className="h-20 w-20 rounded-full border-4 border-[#1C1C28] overflow-hidden bg-white shadow-xl">
+            <div className="h-20 w-20 rounded-full border-4 border-[#0A0B0E] overflow-hidden bg-white shadow-xl">
               <img src={menu.logoUrl} alt={menu.organizationName} className="h-full w-full object-cover" />
             </div>
           ) : (
             <div 
-              className="h-20 w-20 rounded-full border-4 border-[#1C1C28] bg-gradient-to-r flex items-center justify-center shadow-xl"
-              style={{ backgroundImage: `linear-gradient(to right, ${menu.brandColor || '#722F37'}, #C9A84C)` }}
+              className="h-20 w-20 rounded-full border-4 border-[#0A0B0E] bg-gradient-to-r flex items-center justify-center shadow-xl"
+              style={{ backgroundImage: `linear-gradient(to right, ${menu.brandColor || '#5C1D24'}, #DFBA73)` }}
             >
               <Coffee className="h-9 w-9 text-white" />
             </div>
@@ -415,7 +415,7 @@ function MenuContent() {
         <h1 className="font-serif text-3xl font-bold text-white tracking-wide">
           {menu.venueName}
         </h1>
-        <p className="text-xs text-[#C9A84C] font-mono tracking-widest uppercase mt-1 flex items-center justify-center space-x-1.5">
+        <p className="text-xs text-[#DFBA73] font-mono tracking-widest uppercase mt-1 flex items-center justify-center space-x-1.5">
           <span>{menu.organizationName}</span>
           {menu.areaName ? (
             <>
@@ -424,7 +424,7 @@ function MenuContent() {
             </>
           ) : null}
           <span className="w-1.5 h-1.5 rounded-full bg-gray-700" />
-          <span className="bg-[#C9A84C]/10 px-2 py-0.5 rounded text-white border border-[#C9A84C]/20">{menu.tableName}</span>
+          <span className="bg-[#DFBA73]/10 px-2 py-0.5 rounded text-white border border-[#DFBA73]/20">{menu.tableName}</span>
         </p>
       </div>
 
@@ -508,11 +508,11 @@ function MenuContent() {
       {/* Floating Bottom Cart Bar */}
       {Object.keys(cart).length > 0 && !showCart && (
         <div 
-          className="fixed bottom-6 left-1/2 -translate-x-1/2 w-[90%] max-w-md bg-[#C9A84C] text-[#1C1C28] p-4 rounded-2xl flex items-center justify-between shadow-2xl z-40 animate-fade-in-up border border-[#C9A84C]/50 hover:bg-[#B8973B] transition-all cursor-pointer" 
+          className="fixed bottom-6 left-1/2 -translate-x-1/2 w-[90%] max-w-md bg-[#DFBA73] text-[#0A0B0E] p-4 rounded-2xl flex items-center justify-between shadow-2xl z-40 animate-fade-in-up border border-[#DFBA73]/50 hover:bg-[#DFBA73]/85 transition-all cursor-pointer" 
           onClick={() => setShowCart(true)}
         >
           <div className="flex items-center space-x-3">
-            <div className="bg-[#1C1C28] text-[#C9A84C] h-9 w-9 rounded-xl flex items-center justify-center font-bold text-sm">
+            <div className="bg-[#0A0B0E] text-[#DFBA73] h-9 w-9 rounded-xl flex items-center justify-center font-bold text-sm">
               {Object.values(cart).reduce((sum, i) => sum + i.quantity, 0)}
             </div>
             <div>
@@ -531,26 +531,26 @@ function MenuContent() {
         <button 
           onClick={() => handleCallService("waiter")}
           disabled={serviceStatus === "calling"}
-          className="h-12 w-12 rounded-full bg-[#16213E]/85 backdrop-blur-md border border-gray-800/80 hover:border-[#C9A84C]/50 text-white flex items-center justify-center shadow-xl hover:bg-[#2A2A3D] transition-all"
+          className="h-12 w-12 rounded-full bg-white/[0.02] border border-white/[0.08] hover:border-[#DFBA73]/50 text-white flex items-center justify-center shadow-xl hover:bg-white/[0.05] backdrop-blur-md transition-all"
           title={locale === 'en' ? 'Call Waiter' : 'Garson Çağır'}
         >
-          <Bell className="h-5 w-5 text-[#C9A84C]" />
+          <Bell className="h-5 w-5 text-[#DFBA73]" />
         </button>
         <button 
           onClick={() => handleCallService("bill")}
           disabled={serviceStatus === "calling"}
-          className="h-12 w-12 rounded-full bg-[#16213E]/85 backdrop-blur-md border border-gray-800/80 hover:border-[#C9A84C]/50 text-white flex items-center justify-center shadow-xl hover:bg-[#2A2A3D] transition-all"
+          className="h-12 w-12 rounded-full bg-white/[0.02] border border-white/[0.08] hover:border-[#DFBA73]/50 text-white flex items-center justify-center shadow-xl hover:bg-white/[0.05] backdrop-blur-md transition-all"
           title={locale === 'en' ? 'Request Bill' : 'Hesap İste'}
         >
-          <Receipt className="h-5 w-5 text-[#C9A84C]" />
+          <Receipt className="h-5 w-5 text-[#DFBA73]" />
         </button>
       </div>
 
       {/* Service Request Toasts */}
       {serviceStatus && (
-        <div className="fixed top-24 left-1/2 -translate-x-1/2 z-55 w-[85%] max-w-sm bg-[#16213E] border border-gray-800 rounded-2xl p-4 shadow-2xl animate-fade-in flex items-center space-x-3">
+        <div className="fixed top-24 left-1/2 -translate-x-1/2 z-55 w-[85%] max-w-sm bg-[#0A0B0E]/95 border border-white/[0.08] rounded-2xl p-4 shadow-2xl animate-fade-in flex items-center space-x-3 backdrop-blur-md">
           {serviceStatus === "calling" ? (
-            <div className="h-5 w-5 border-2 border-[#C9A84C] border-t-transparent rounded-full animate-spin" />
+            <div className="h-5 w-5 border-2 border-[#DFBA73] border-t-transparent rounded-full animate-spin" />
           ) : (
             <CheckCircle className="h-5 w-5 text-emerald-400 animate-bounce" />
           )}

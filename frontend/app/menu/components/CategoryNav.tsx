@@ -49,7 +49,7 @@ export default function CategoryNav({
   };
 
   return (
-    <div className="sticky top-0 z-40 bg-[#1C1C28]/95 backdrop-blur-md border-b border-gray-800/40 py-3 px-4 overflow-hidden">
+    <div className="sticky top-0 z-40 bg-[#0A0B0E]/90 backdrop-blur-md border-b border-white/[0.04] py-3 px-4 overflow-hidden">
       <div 
         ref={containerRef}
         className="flex space-x-2 overflow-x-auto no-scrollbar scroll-smooth snap-x snap-mandatory"
@@ -64,11 +64,11 @@ export default function CategoryNav({
               className={`flex-shrink-0 px-4 py-2 rounded-full text-sm font-medium transition-all duration-300 snap-center ${
                 isActive
                   ? 'text-white scale-105'
-                  : 'bg-[#2A2A3D]/50 text-gray-400 hover:text-white border border-transparent hover:border-gray-800'
+                  : 'bg-white/[0.02] text-gray-400 hover:text-white border border-white/[0.04]'
               }`}
               style={isActive ? {
-                backgroundImage: `linear-gradient(to right, ${brandColor || '#722F37'}, #C9A84Ccc)`,
-                boxShadow: `0 10px 15px -3px ${brandColor || '#722F37'}33`
+                backgroundImage: `linear-gradient(to right, ${brandColor || '#5C1D24'}, #DFBA73cc)`,
+                boxShadow: `0 10px 15px -3px ${brandColor || '#5C1D24'}33`
               } : undefined}
             >
               {getCategoryName(cat)}

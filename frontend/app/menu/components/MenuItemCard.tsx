@@ -129,10 +129,10 @@ export default function MenuItemCard({
       onClick={() => onClick(item)}
       onMouseEnter={() => setIsHovered(true)}
       onMouseLeave={() => setIsHovered(false)}
-      className="flex bg-[#16213E]/55 hover:bg-[#16213E]/80 border border-gray-800/35 rounded-2xl p-3.5 transition-all duration-300 cursor-pointer transform hover:-translate-y-0.5 active:scale-98 shadow-sm hover:shadow-md"
+      className="flex bg-white/[0.02] hover:bg-white/[0.05] border border-white/[0.05] rounded-2xl p-3.5 transition-all duration-300 cursor-pointer transform hover:-translate-y-0.5 active:scale-98 shadow-sm hover:shadow-md"
       style={{
-        borderColor: isHovered ? (brandColor || '#C9A84Ccc') : undefined,
-        boxShadow: isHovered ? `0 4px 15px -3px ${brandColor || '#C9A84C'}22` : undefined
+        borderColor: isHovered ? (brandColor || '#DFBA73cc') : undefined,
+        boxShadow: isHovered ? `0 4px 15px -3px ${brandColor || '#DFBA73'}22` : undefined
       }}
     >
       {/* Text Info */}
@@ -174,7 +174,7 @@ export default function MenuItemCard({
           {/* Price */}
           <span 
             className="font-mono text-[16px] font-semibold transition-colors duration-300"
-            style={{ color: brandColor || '#C9A84C' }}
+            style={{ color: brandColor || '#DFBA73' }}
           >
             {getCurrencySymbol(currency)}{formattedPrice}
           </span>

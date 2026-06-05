@@ -122,7 +122,7 @@ export default function ItemDetailSheet({
 
       {/* Sheet Container */}
       <div 
-        className={`relative w-full max-w-lg bg-[#1C1C28] border-t border-gray-800 rounded-t-[2.5rem] shadow-2xl overflow-y-auto no-scrollbar max-h-[92vh] transition-transform duration-300 transform ${
+        className={`relative w-full max-w-lg bg-[#0A0B0E] border-t border-white/[0.05] rounded-t-[2.5rem] shadow-2xl overflow-y-auto no-scrollbar max-h-[92vh] transition-transform duration-300 transform ${
           isOpen ? 'translate-y-0' : 'translate-y-full'
         }`}
       >
@@ -139,12 +139,12 @@ export default function ItemDetailSheet({
               (e.target as HTMLImageElement).src = defaultFoodImage;
             }}
           />
-          <div className="absolute inset-0 bg-gradient-to-t from-[#1C1C28] via-[#1C1C28]/20 to-transparent" />
+          <div className="absolute inset-0 bg-gradient-to-t from-[#0A0B0E] via-[#0A0B0E]/20 to-transparent" />
           
           {/* Close button top right */}
           <button 
             onClick={onClose}
-            className="absolute top-5 right-5 w-9 h-9 rounded-full bg-[#1C1C28]/60 backdrop-blur-md text-white flex items-center justify-center border border-gray-800/40 hover:bg-[#1C1C28] transition-colors"
+            className="absolute top-5 right-5 w-9 h-9 rounded-full bg-[#0A0B0E]/60 backdrop-blur-md text-white flex items-center justify-center border border-white/[0.05] hover:bg-[#0A0B0E] transition-colors"
           >
             <X className="h-4 w-4" />
           </button>
@@ -178,14 +178,14 @@ export default function ItemDetailSheet({
                 {name}
               </h2>
             </div>
-            <span className="font-mono text-xl font-bold text-[#C9A84C] ml-4 bg-[#C9A84C]/5 px-3 py-1 rounded-xl border border-[#C9A84C]/10">
+            <span className="font-mono text-xl font-bold text-[#DFBA73] ml-4 bg-[#DFBA73]/5 px-3 py-1 rounded-xl border border-[#DFBA73]/10">
               {getCurrencySymbol(currency)}{formattedPrice}
             </span>
           </div>
 
           {/* Calories Banner */}
           {item.calories !== null && item.calories > 0 && (
-            <div className="flex items-center space-x-2 bg-[#2A2A3D]/40 border border-gray-800/40 px-3 py-2 rounded-xl text-xs text-gray-300 w-fit mb-4">
+            <div className="flex items-center space-x-2 bg-white/[0.02] border border-white/[0.04] px-3 py-2 rounded-xl text-xs text-gray-300 w-fit mb-4">
               <Flame className="h-4 w-4 text-orange-500" />
               <span className="font-semibold text-white">{item.calories}</span>
               <span className="text-gray-400">{t('menu.calories')}</span>
@@ -195,7 +195,7 @@ export default function ItemDetailSheet({
           {/* Description */}
           {description && (
             <div className="mb-6">
-              <p className="text-[14px] text-gray-300 leading-relaxed">
+              <p className="text-[14px] text-gray-300 leading-relaxed font-light">
                 {description}
               </p>
             </div>
@@ -203,8 +203,8 @@ export default function ItemDetailSheet({
 
           {/* Allergens */}
           {item.allergens && item.allergens.length > 0 && (
-            <div className="mb-6 bg-[#16213E]/30 border border-gray-800/40 p-4 rounded-2xl">
-              <h4 className="inline-flex items-center gap-1.5 text-xs font-bold text-[#C9A84C] tracking-widest uppercase mb-3">
+            <div className="mb-6 bg-white/[0.01] border border-white/[0.04] p-4 rounded-2xl">
+              <h4 className="inline-flex items-center gap-1.5 text-xs font-bold text-[#DFBA73] tracking-widest uppercase mb-3">
                 <AlertTriangle className="h-4 w-4 text-amber-500" />
                 <span>{t('menu.allergens')}</span>
               </h4>
@@ -212,12 +212,12 @@ export default function ItemDetailSheet({
                 {item.allergens.map((a) => {
                   const allergen = ALLERGEN_MAP[a.toLowerCase()];
                   return allergen ? (
-                    <div key={a} className="flex items-center space-x-2 bg-[#2A2A3D]/40 px-3 py-2 rounded-xl text-xs text-white border border-gray-800/20">
+                    <div key={a} className="flex items-center space-x-2 bg-white/[0.02] px-3 py-2 rounded-xl text-xs text-white border border-white/[0.04]">
                       <span className="text-sm">{allergen.icon}</span>
                       <span>{t(allergen.labelKey)}</span>
                     </div>
                   ) : (
-                    <div key={a} className="flex items-center space-x-2 bg-[#2A2A3D]/40 px-3 py-2 rounded-xl text-xs text-white border border-gray-800/20">
+                    <div key={a} className="flex items-center space-x-2 bg-white/[0.02] px-3 py-2 rounded-xl text-xs text-white border border-white/[0.04]">
                       <span>🍽️</span>
                       <span className="capitalize">{a}</span>
                     </div>
@@ -237,20 +237,20 @@ export default function ItemDetailSheet({
               value={notes}
               onChange={(e) => setNotes(e.target.value)}
               placeholder={locale === 'en' ? 'E.g., no onions, extra sauce...' : 'Örn: soğan istemiyorum, az tereyağlı...'}
-              className="w-full bg-[#2A2A3D]/50 border border-gray-800 focus:border-[#C9A84C]/50 rounded-xl px-4 py-3.5 text-sm text-white focus:outline-none transition-colors"
+              className="w-full bg-white/[0.01] border border-white/[0.08] focus:border-[#DFBA73]/50 rounded-xl px-4 py-3.5 text-sm text-white focus:outline-none transition-colors"
             />
           </div>
 
           {/* Actions */}
           <div className="flex flex-col space-y-3 mt-4">
-            <div className="flex items-center justify-between bg-[#2A2A3D]/30 border border-gray-800/40 p-2 rounded-2xl">
+            <div className="flex items-center justify-between bg-white/[0.01] border border-white/[0.04] p-2 rounded-2xl">
               <span className="text-xs font-semibold text-gray-300 ml-2">
                 {locale === 'en' ? 'Quantity' : 'Adet'}
               </span>
               <div className="flex items-center space-x-3.5 mr-1">
                 <button 
                   onClick={() => setQuantity(Math.max(1, quantity - 1))}
-                  className="w-8 h-8 rounded-xl bg-[#2A2A3D] text-white flex items-center justify-center font-bold border border-gray-800 hover:bg-[#3E3E56] transition-colors"
+                  className="w-8 h-8 rounded-xl bg-white/[0.02] text-white flex items-center justify-center font-bold border border-white/[0.05] hover:bg-white/[0.06] transition-colors"
                 >
                   -
                 </button>
@@ -259,7 +259,7 @@ export default function ItemDetailSheet({
                 </span>
                 <button 
                   onClick={() => setQuantity(quantity + 1)}
-                  className="w-8 h-8 rounded-xl bg-[#2A2A3D] text-white flex items-center justify-center font-bold border border-gray-800 hover:bg-[#3E3E56] transition-colors"
+                  className="w-8 h-8 rounded-xl bg-white/[0.02] text-white flex items-center justify-center font-bold border border-white/[0.05] hover:bg-white/[0.06] transition-colors"
                 >
                   +
                 </button>
@@ -272,16 +272,16 @@ export default function ItemDetailSheet({
                   onAddToOrder(item, quantity, notes);
                   onClose();
                 }}
-                className="flex-grow py-4 rounded-2xl font-bold bg-[#C9A84C] hover:bg-[#B8973B] text-[#1C1C28] transition-colors duration-300 text-[14px] shadow-lg shadow-[#C9A84C]/15"
+                className="flex-grow py-4 rounded-2xl font-bold bg-[#DFBA73] hover:bg-[#DFBA73]/85 text-[#0A0B0E] transition-colors duration-300 text-[14px] shadow-lg shadow-[#DFBA73]/15"
               >
                 {locale === 'en' ? 'Add to Order' : 'Siparişe Ekle'} • {getCurrencySymbol(currency)}{(Number(item.price) * quantity).toFixed(2)}
               </button>
               
               <button 
                 onClick={() => setShowShareCard(true)}
-                className="p-4 rounded-2xl font-semibold transition-all duration-300 text-white border border-[#C9A84C]/35 hover:border-[#C9A84C]/60 hover:bg-[#C9A84C]/5 text-[15px]"
+                className="p-4 rounded-2xl font-semibold transition-all duration-300 text-white border border-[#DFBA73]/35 hover:border-[#DFBA73]/60 hover:bg-[#DFBA73]/5 text-[15px]"
               >
-                <Share2 className="h-5 w-5 text-[#C9A84C]" />
+                <Share2 className="h-5 w-5 text-[#DFBA73]" />
               </button>
             </div>
           </div>
