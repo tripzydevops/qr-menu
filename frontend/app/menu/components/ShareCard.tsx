@@ -74,7 +74,7 @@ export default function ShareCard({
 
     // Background Gradient (Garnet to Deep Charcoal)
     const grad = ctx.createLinearGradient(0, 0, 0, 1920);
-    grad.addColorStop(0, '#722F37');
+    grad.addColorStop(0, brandColor || '#722F37');
     grad.addColorStop(0.3, '#1C1C28');
     grad.addColorStop(1, '#0A0A0B');
     ctx.fillStyle = grad;
@@ -158,7 +158,8 @@ export default function ShareCard({
         {/* Story Poster Preview (9:16 Aspect Ratio) */}
         <div 
           ref={cardRef}
-          className="w-full aspect-[9/16] rounded-[2rem] border-2 border-[#C9A84C]/30 shadow-2xl relative overflow-hidden flex flex-col justify-between p-8 text-center bg-gradient-to-b from-[#722F37] via-[#1C1C28] to-[#0A0A0B]"
+          className="w-full aspect-[9/16] rounded-[2rem] border-2 border-[#C9A84C]/30 shadow-2xl relative overflow-hidden flex flex-col justify-between p-8 text-center bg-gradient-to-b"
+          style={{ backgroundImage: `linear-gradient(to bottom, ${brandColor || '#722F37'} 0%, #1C1C28 30%, #0A0A0B 100%)` }}
         >
           {/* Accent Borders */}
           <div className="absolute inset-4 border border-[#C9A84C]/10 rounded-[1.7rem] pointer-events-none" />
@@ -215,7 +216,11 @@ export default function ShareCard({
           <button 
             onClick={handleShare}
             disabled={isSharing}
-            className="flex-grow py-3 rounded-xl bg-gradient-to-r from-[#722F37] to-[#C9A84C]/80 hover:to-[#C9A84C] text-white font-semibold text-sm transition-all duration-300 shadow-lg shadow-[#722F37]/20"
+            className="flex-grow py-3 rounded-xl text-white font-semibold text-sm transition-all duration-300"
+            style={{
+              backgroundImage: `linear-gradient(to right, ${brandColor || '#722F37'}, #C9A84Ccc)`,
+              boxShadow: `0 10px 15px -3px ${(brandColor || '#722F37')}33`
+            }}
           >
             {isSharing ? 'Sharing...' : 'Share / Download'}
           </button>

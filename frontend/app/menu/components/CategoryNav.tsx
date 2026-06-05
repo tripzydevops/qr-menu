@@ -14,13 +14,15 @@ interface CategoryNavProps {
   activeCategoryId: string;
   onCategoryClick: (id: string) => void;
   locale: Locale;
+  brandColor?: string | null;
 }
 
 export default function CategoryNav({
   categories,
   activeCategoryId,
   onCategoryClick,
-  locale
+  locale,
+  brandColor
 }: CategoryNavProps) {
   const containerRef = useRef<HTMLDivElement>(null);
 
@@ -61,9 +63,13 @@ export default function CategoryNav({
               onClick={() => onCategoryClick(cat.id)}
               className={`flex-shrink-0 px-4 py-2 rounded-full text-sm font-medium transition-all duration-300 ${
                 isActive
-                  ? 'bg-gradient-to-r from-[#722F37] to-[#C9A84C]/80 text-white shadow-lg shadow-[#722F37]/20 scale-105'
+                  ? 'text-white scale-105'
                   : 'bg-[#2A2A3D]/50 text-gray-400 hover:text-white border border-transparent hover:border-gray-800'
               }`}
+              style={isActive ? {
+                backgroundImage: `linear-gradient(to right, ${brandColor || '#722F37'}, #C9A84Ccc)`,
+                boxShadow: `0 10px 15px -3px ${brandColor || '#722F37'}33`
+              } : undefined}
             >
               {getCategoryName(cat)}
             </button>

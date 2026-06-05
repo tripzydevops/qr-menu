@@ -259,7 +259,10 @@ function MenuContent() {
   return (
     <div className="flex-grow flex flex-col bg-[#1C1C28] min-h-screen pb-24 relative select-none animate-fade-in">
       {/* Banner / Cover Image */}
-      <div className="w-full h-56 relative bg-gradient-to-b from-[#722F37] to-[#1C1C28] overflow-hidden">
+      <div 
+        className="w-full h-56 relative bg-gradient-to-b overflow-hidden"
+        style={{ backgroundImage: `linear-gradient(to bottom, ${menu.brandColor || '#722F37'}, #1C1C28)` }}
+      >
         {menu.coverImageUrl ? (
           <img 
             src={menu.coverImageUrl} 
@@ -310,7 +313,10 @@ function MenuContent() {
               <img src={menu.logoUrl} alt={menu.organizationName} className="h-full w-full object-cover" />
             </div>
           ) : (
-            <div className="h-20 w-20 rounded-full border-4 border-[#1C1C28] bg-gradient-to-r from-[#722F37] to-[#C9A84C] flex items-center justify-center shadow-xl">
+            <div 
+              className="h-20 w-20 rounded-full border-4 border-[#1C1C28] bg-gradient-to-r flex items-center justify-center shadow-xl"
+              style={{ backgroundImage: `linear-gradient(to right, ${menu.brandColor || '#722F37'}, #C9A84C)` }}
+            >
               <Coffee className="h-9 w-9 text-white" />
             </div>
           )}
@@ -350,6 +356,7 @@ function MenuContent() {
           activeCategoryId={activeCategoryId} 
           onCategoryClick={scrollToCategory} 
           locale={locale}
+          brandColor={menu.brandColor}
         />
       )}
 
