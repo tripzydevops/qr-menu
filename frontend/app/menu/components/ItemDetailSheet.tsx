@@ -37,6 +37,7 @@ interface ItemDetailSheetProps {
   t: TranslateFn;
   brandColor?: string | null;
   venueName: string;
+  onAddToOrder: (item: MenuItem, quantity: number, notes: string) => void;
 }
 
 const ALLERGEN_MAP: Record<string, { icon: string; labelKey: string }> = {
@@ -56,15 +57,20 @@ export default function ItemDetailSheet({
   currency,
   t,
   brandColor = '#722F37',
-  venueName
+  venueName,
+  onAddToOrder
 }: ItemDetailSheetProps) {
   const [showShareCard, setShowShareCard] = useState(false);
   const [isRendered, setIsRendered] = useState(false);
+  const [quantity, setQuantity] = useState(1);
+  const [notes, setNotes] = useState('');
 
   useEffect(() => {
     if (isOpen) {
       setIsRendered(true);
       document.body.style.overflow = 'hidden';
+      setQuantity(1);
+      setNotes('');
     } else {
       const timer = setTimeout(() => setIsRendered(false), 300);
       document.body.style.overflow = 'unset';
@@ -73,15 +79,6 @@ export default function ItemDetailSheet({
   }, [isOpen]);
 
   if (!isRendered || !item) return null;
-
-  const getDietaryTranslationKey = (key: string) => {
-    switch (key.toLowerCase()) {
-      case 'halal': return 'menu.halal';
-      case 'vegan': return 'menu.vegan';
-      case 'gluten-free': return 'menu.glutenFree';
-      default: return '';
-    }
-  };
 
   const getItemDetails = () => {
     if (item.translations) {
@@ -165,14 +162,13 @@ export default function ItemDetailSheet({
                     const config = DIETARY_MAP[lbl.key.toLowerCase()];
                     if (!config) return null;
                     const IconComponent = config.icon;
-                    const translationKey = getDietaryTranslationKey(lbl.key);
                     return (
                       <span 
                         key={lbl.key}
                         className={`inline-flex items-center gap-1.5 text-xs border px-2.5 py-0.5 rounded-full capitalize font-semibold transition-colors duration-300 ${config.colorClass}`}
                       >
                         <IconComponent className="h-3 w-3" />
-                        <span>{translationKey ? t(translationKey) : lbl.key}</span>
+                        <span>{config.label}</span>
                       </span>
                     );
                   })}
@@ -182,14 +178,7 @@ export default function ItemDetailSheet({
                 {name}
               </h2>
             </div>
-            <span 
-              className="font-mono text-xl font-bold ml-4 px-3 py-1 rounded-xl border transition-colors duration-300"
-              style={{
-                color: brandColor || '#C9A84C',
-                backgroundColor: `${brandColor || '#C9A84C'}11`,
-                borderColor: `${brandColor || '#C9A84C'}22`
-              }}
-            >
+            <span className="font-mono text-xl font-bold text-[#C9A84C] ml-4 bg-[#C9A84C]/5 px-3 py-1 rounded-xl border border-[#C9A84C]/10">
               {getCurrencySymbol(currency)}{formattedPrice}
             </span>
           </div>
@@ -215,10 +204,7 @@ export default function ItemDetailSheet({
           {/* Allergens */}
           {item.allergens && item.allergens.length > 0 && (
             <div className="mb-6 bg-[#16213E]/30 border border-gray-800/40 p-4 rounded-2xl">
-              <h4 
-                className="inline-flex items-center gap-1.5 text-xs font-bold tracking-widest uppercase mb-3 transition-colors duration-300"
-                style={{ color: brandColor || '#C9A84C' }}
-              >
+              <h4 className="inline-flex items-center gap-1.5 text-xs font-bold text-[#C9A84C] tracking-widest uppercase mb-3">
                 <AlertTriangle className="h-4 w-4 text-amber-500" />
                 <span>{t('menu.allergens')}</span>
               </h4>
@@ -241,34 +227,63 @@ export default function ItemDetailSheet({
             </div>
           )}
 
+          {/* Notes Input */}
+          <div className="mb-6">
+            <label className="block text-xs font-bold text-gray-400 uppercase tracking-wider mb-2">
+              {locale === 'en' ? 'Special Instructions' : 'Özel Notlar'}
+            </label>
+            <input 
+              type="text"
+              value={notes}
+              onChange={(e) => setNotes(e.target.value)}
+              placeholder={locale === 'en' ? 'E.g., no onions, extra sauce...' : 'Örn: soğan istemiyorum, az tereyağlı...'}
+              className="w-full bg-[#2A2A3D]/50 border border-gray-800 focus:border-[#C9A84C]/50 rounded-xl px-4 py-3.5 text-sm text-white focus:outline-none transition-colors"
+            />
+          </div>
+
           {/* Actions */}
-          <div className="flex space-x-3 mt-4">
-            <button 
-              onClick={() => setShowShareCard(true)}
-              className="flex-grow flex items-center justify-center space-x-2 py-4 rounded-2xl font-semibold transition-all duration-300 text-white border text-[15px]"
-              style={{
-                borderColor: `${brandColor || '#C9A84C'}55`,
-                backgroundColor: 'transparent'
-              }}
-              onMouseEnter={(e) => {
-                e.currentTarget.style.borderColor = brandColor || '#C9A84C';
-                e.currentTarget.style.backgroundColor = `${brandColor || '#C9A84C'}11`;
-              }}
-              onMouseLeave={(e) => {
-                e.currentTarget.style.borderColor = `${brandColor || '#C9A84C'}55`;
-                e.currentTarget.style.backgroundColor = 'transparent';
-              }}
-            >
-              <Share2 className="h-4 w-4" style={{ color: brandColor || '#C9A84C' }} />
-              <span>{t('menu.shareInstagram')}</span>
-            </button>
+          <div className="flex flex-col space-y-3 mt-4">
+            <div className="flex items-center justify-between bg-[#2A2A3D]/30 border border-gray-800/40 p-2 rounded-2xl">
+              <span className="text-xs font-semibold text-gray-300 ml-2">
+                {locale === 'en' ? 'Quantity' : 'Adet'}
+              </span>
+              <div className="flex items-center space-x-3.5 mr-1">
+                <button 
+                  onClick={() => setQuantity(Math.max(1, quantity - 1))}
+                  className="w-8 h-8 rounded-xl bg-[#2A2A3D] text-white flex items-center justify-center font-bold border border-gray-800 hover:bg-[#3E3E56] transition-colors"
+                >
+                  -
+                </button>
+                <span className="font-mono text-sm font-bold text-white w-4 text-center">
+                  {quantity}
+                </span>
+                <button 
+                  onClick={() => setQuantity(quantity + 1)}
+                  className="w-8 h-8 rounded-xl bg-[#2A2A3D] text-white flex items-center justify-center font-bold border border-gray-800 hover:bg-[#3E3E56] transition-colors"
+                >
+                  +
+                </button>
+              </div>
+            </div>
             
-            <button 
-              onClick={onClose}
-              className="px-6 py-4 rounded-2xl font-semibold bg-[#2A2A3D] hover:bg-[#3E3E56] text-white transition-colors duration-300 text-[15px]"
-            >
-              {t('menu.close')}
-            </button>
+            <div className="flex space-x-3">
+              <button 
+                onClick={() => {
+                  onAddToOrder(item, quantity, notes);
+                  onClose();
+                }}
+                className="flex-grow py-4 rounded-2xl font-bold bg-[#C9A84C] hover:bg-[#B8973B] text-[#1C1C28] transition-colors duration-300 text-[14px] shadow-lg shadow-[#C9A84C]/15"
+              >
+                {locale === 'en' ? 'Add to Order' : 'Siparişe Ekle'} • {getCurrencySymbol(currency)}{(Number(item.price) * quantity).toFixed(2)}
+              </button>
+              
+              <button 
+                onClick={() => setShowShareCard(true)}
+                className="p-4 rounded-2xl font-semibold transition-all duration-300 text-white border border-[#C9A84C]/35 hover:border-[#C9A84C]/60 hover:bg-[#C9A84C]/5 text-[15px]"
+              >
+                <Share2 className="h-5 w-5 text-[#C9A84C]" />
+              </button>
+            </div>
           </div>
         </div>
 

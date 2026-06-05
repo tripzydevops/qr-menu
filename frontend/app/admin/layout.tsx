@@ -12,7 +12,8 @@ import {
   ExternalLink,
   ChevronRight,
   Menu,
-  X
+  X,
+  ClipboardList
 } from "lucide-react";
 
 export default function AdminLayout({
@@ -31,6 +32,7 @@ export default function AdminLayout({
   }, []);
 
   const navItems = [
+    { name: "Siparişler & İstekler", path: "/admin/orders", icon: ClipboardList },
     { name: "Menü Yönetimi", path: "/admin/menu", icon: Utensils },
     { name: "QR & Masalar", path: "/admin/tables", icon: QrCode },
     { name: "Restoran Ayarları", path: "/admin/settings", icon: Settings },
