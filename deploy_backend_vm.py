@@ -25,30 +25,19 @@ def run_cmd(args, msg=None):
 def main():
     print(f"Starting deployment of FastAPI Backend to VM ({VM})...")
 
-    # 1. Create remote directory
-    run_cmd(["ssh", VM, f"mkdir -p {REMOTE_DIR}"], "Creating remote directory on VM")
+    # 1. Create remote directories
+    run_cmd(["ssh", VM, f"mkdir -p {REMOTE_DIR}"], "Creating remote directories on VM")
 
-    # 2. Copy backend files
-    backend_files = [
-        "backend/main.py",
-        "backend/database.py",
-        "backend/models.py",
-        "backend/schemas.py",
-        "backend/requirements.txt",
-        "backend/seed.py",
-        "backend/__init__.py"
-    ]
-    
-    # Verify local files exist
-    for f in backend_files:
-        if not os.path.exists(f):
-            print(f"Local file missing: {f}. Run deploy script from the project root directory.")
-            sys.exit(1)
+    # 2. Package and copy backend files
+    print("--> Packaging and copying backend source files to VM...")
+    subprocess.run(["tar", "-czf", "backend.tar.gz", "-C", "backend", "."], check=True)
+    subprocess.run(["scp", "backend.tar.gz", f"{VM}:{REMOTE_DIR}/backend.tar.gz"], check=True)
+    run_cmd(["ssh", VM, f"tar -xzf {REMOTE_DIR}/backend.tar.gz -C {REMOTE_DIR}"], "Extracting backend package on VM")
 
-    print("--> Copying backend source files to VM...")
-    for f in backend_files:
-        basename = os.path.basename(f)
-        subprocess.run(["scp", f, f"{VM}:{REMOTE_DIR}/{basename}"], check=True)
+    # Clean up tarballs
+    if os.path.exists("backend.tar.gz"):
+        os.remove("backend.tar.gz")
+    subprocess.run(["ssh", VM, f"rm {REMOTE_DIR}/backend.tar.gz"], capture_output=True)
 
     # Copy env configuration
     if os.path.exists(".env"):
@@ -56,6 +45,7 @@ def main():
         subprocess.run(["scp", ".env", f"{VM}:{REMOTE_DIR}/.env"], check=True)
     else:
         print("WARNING: No local .env file found to copy.")
+
 
     # 3. Setup Virtual environment on VM and install requirements
     setup_cmd = (
@@ -67,8 +57,8 @@ def main():
     run_cmd(["ssh", VM, setup_cmd], "Setting up Python virtual environment and installing packages on VM")
 
     # 4. Stop any existing uvicorn processes running on port 8080 to prevent conflicts
-    kill_cmd = "pkill -f 'uvicorn.*8080' || true"
-    run_cmd(["ssh", VM, kill_cmd], "Stopping any active uvicorn instances on port 8080")
+    print("--> Stopping any active uvicorn instances on port 8080...")
+    subprocess.run(["ssh", VM, "pkill -f uvicorn"], capture_output=True)
 
     # 5. Start the FastAPI server using nohup to run persistently in the background
     start_cmd = (
@@ -77,7 +67,7 @@ def main():
     )
     run_cmd(["ssh", VM, start_cmd], "Starting FastAPI backend server on VM (Port 8080)")
 
-    print("\n🎉 Deployment completed successfully!")
+    print("\nDeployment completed successfully!")
     print(f"Backend is running on VM host: http://hotelplus:8080")
     print(f"Logs are tailing at: {REMOTE_DIR}/uvicorn.log on your VM.")
 

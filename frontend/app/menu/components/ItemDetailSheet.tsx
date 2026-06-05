@@ -1,0 +1,227 @@
+import React, { useEffect, useState } from 'react';
+import { Locale } from '../../../i18n/config';
+import { TranslateFn } from '../../../i18n/useLocale';
+import { MenuItem } from './MenuItemCard';
+import ShareCard from './ShareCard';
+
+interface ItemDetailSheetProps {
+  isOpen: boolean;
+  item: MenuItem | null;
+  onClose: () => void;
+  locale: Locale;
+  currency: string;
+  t: TranslateFn;
+  brandColor?: string | null;
+  venueName: string;
+}
+
+const ALLERGEN_MAP: Record<string, { icon: string; labelKey: string }> = {
+  gluten: { icon: '🌾', labelKey: 'menu.allergensList.gluten' },
+  dairy: { icon: '🥛', labelKey: 'menu.allergensList.dairy' },
+  nuts: { icon: '🥜', labelKey: 'menu.allergensList.nuts' },
+  sesame: { icon: '🌱', labelKey: 'menu.allergensList.sesame' },
+  eggs: { icon: '🍳', labelKey: 'menu.allergensList.eggs' },
+  fish: { icon: '🐟', labelKey: 'menu.allergensList.fish' }
+};
+
+export default function ItemDetailSheet({
+  isOpen,
+  item,
+  onClose,
+  locale,
+  currency,
+  t,
+  brandColor = '#722F37',
+  venueName
+}: ItemDetailSheetProps) {
+  const [showShareCard, setShowShareCard] = useState(false);
+  const [isRendered, setIsRendered] = useState(false);
+
+  useEffect(() => {
+    if (isOpen) {
+      setIsRendered(true);
+      document.body.style.overflow = 'hidden';
+    } else {
+      const timer = setTimeout(() => setIsRendered(false), 300);
+      document.body.style.overflow = 'unset';
+      return () => clearTimeout(timer);
+    }
+  }, [isOpen]);
+
+  if (!isRendered || !item) return null;
+
+  const getItemDetails = () => {
+    if (item.translations) {
+      const trans = item.translations.find(t => t.locale === locale);
+      if (trans) return { name: trans.name, description: trans.description };
+    }
+    return {
+      name: locale === 'en' ? item.nameEn : item.nameTr,
+      description: locale === 'en' ? item.descriptionEn : item.descriptionTr
+    };
+  };
+
+  const { name, description } = getItemDetails();
+
+  const getCurrencySymbol = (code: string) => {
+    switch (code) {
+      case 'USD': return '$';
+      case 'EUR': return '€';
+      case 'GBP': return '£';
+      case 'TRY':
+      default: return '₺';
+    }
+  };
+
+  const formattedPrice = Number(item.price).toLocaleString(locale === 'tr' ? 'tr-TR' : 'en-US', {
+    minimumFractionDigits: 0,
+    maximumFractionDigits: 2
+  });
+
+  const defaultFoodImage = 'https://images.unsplash.com/photo-1546069901-ba9599a7e63c?w=800&auto=format&fit=crop&q=80';
+
+  return (
+    <div className="fixed inset-0 z-50 flex items-end justify-center">
+      {/* Backdrop */}
+      <div 
+        onClick={onClose}
+        className={`absolute inset-0 bg-[#0A0A0B]/80 backdrop-blur-sm transition-opacity duration-300 ${
+          isOpen ? 'opacity-100' : 'opacity-0'
+        }`}
+      />
+
+      {/* Sheet Container */}
+      <div 
+        className={`relative w-full max-w-lg bg-[#1C1C28] border-t border-gray-800 rounded-t-[2.5rem] shadow-2xl overflow-y-auto no-scrollbar max-h-[92vh] transition-transform duration-300 transform ${
+          isOpen ? 'translate-y-0' : 'translate-y-full'
+        }`}
+      >
+        {/* Handle */}
+        <div className="absolute top-3 left-1/2 -translate-x-1/2 w-12 h-1.5 rounded-full bg-gray-700/60 z-10" />
+
+        {/* Full Bleed Image */}
+        <div className="w-full h-72 relative bg-[#1E293B]/20">
+          <img 
+            src={item.imageUrl || defaultFoodImage} 
+            alt={name}
+            className="w-full h-full object-cover"
+            onError={(e) => {
+              (e.target as HTMLImageElement).src = defaultFoodImage;
+            }}
+          />
+          <div className="absolute inset-0 bg-gradient-to-t from-[#1C1C28] via-[#1C1C28]/20 to-transparent" />
+          
+          {/* Close button top right */}
+          <button 
+            onClick={onClose}
+            className="absolute top-5 right-5 w-9 h-9 rounded-full bg-[#1C1C28]/60 backdrop-blur-md text-white flex items-center justify-center border border-gray-800/40 hover:bg-[#1C1C28]"
+          >
+            ✕
+          </button>
+        </div>
+
+        {/* Contents */}
+        <div className="p-6 pt-2">
+          {/* Header */}
+          <div className="flex justify-between items-start mb-4">
+            <div>
+              {/* Dietary Labels */}
+              {item.dietaryLabels && item.dietaryLabels.length > 0 && (
+                <div className="flex space-x-1 mb-2">
+                  {item.dietaryLabels.map((lbl) => (
+                    <span 
+                      key={lbl.key}
+                      className="text-xs bg-emerald-950/70 text-emerald-400 border border-emerald-900/50 px-2 py-0.5 rounded-full"
+                    >
+                      {lbl.icon} {lbl.key}
+                    </span>
+                  ))}
+                </div>
+              )}
+              <h2 className="font-serif text-2xl font-bold text-white leading-tight">
+                {name}
+              </h2>
+            </div>
+            <span className="font-mono text-xl font-bold text-[#C9A84C] ml-4 bg-[#C9A84C]/5 px-3 py-1 rounded-xl border border-[#C9A84C]/10">
+              {getCurrencySymbol(currency)}{formattedPrice}
+            </span>
+          </div>
+
+          {/* Calories Banner */}
+          {item.calories !== null && item.calories > 0 && (
+            <div className="flex items-center space-x-2 bg-[#2A2A3D]/40 border border-gray-800/40 px-3 py-2 rounded-xl text-xs text-gray-300 w-fit mb-4">
+              <span>🔥</span>
+              <span className="font-semibold text-white">{item.calories}</span>
+              <span className="text-gray-400">{t('menu.calories')}</span>
+            </div>
+          )}
+
+          {/* Description */}
+          {description && (
+            <div className="mb-6">
+              <p className="text-[14px] text-gray-300 leading-relaxed">
+                {description}
+              </p>
+            </div>
+          )}
+
+          {/* Allergens */}
+          {item.allergens && item.allergens.length > 0 && (
+            <div className="mb-6 bg-[#16213E]/30 border border-gray-800/40 p-4 rounded-2xl">
+              <h4 className="text-xs font-bold text-[#C9A84C] tracking-widest uppercase mb-3">
+                ⚠️ {t('menu.allergens')}
+              </h4>
+              <div className="grid grid-cols-2 gap-2">
+                {item.allergens.map((a) => {
+                  const allergen = ALLERGEN_MAP[a.toLowerCase()];
+                  return allergen ? (
+                    <div key={a} className="flex items-center space-x-2 bg-[#2A2A3D]/40 px-3 py-2 rounded-xl text-xs text-white">
+                      <span>{allergen.icon}</span>
+                      <span>{t(allergen.labelKey)}</span>
+                    </div>
+                  ) : (
+                    <div key={a} className="flex items-center space-x-2 bg-[#2A2A3D]/40 px-3 py-2 rounded-xl text-xs text-white">
+                      <span>🍽️</span>
+                      <span className="capitalize">{a}</span>
+                    </div>
+                  );
+                })}
+              </div>
+            </div>
+          )}
+
+          {/* Actions */}
+          <div className="flex space-x-3 mt-4">
+            <button 
+              onClick={() => setShowShareCard(true)}
+              className="flex-grow flex items-center justify-center space-x-2 py-4 rounded-2xl font-semibold transition-all duration-300 text-white border border-[#C9A84C]/35 hover:border-[#C9A84C]/60 hover:bg-[#C9A84C]/5 text-[15px]"
+            >
+              <span>📸</span>
+              <span>{t('menu.shareInstagram')}</span>
+            </button>
+            
+            <button 
+              onClick={onClose}
+              className="px-6 py-4 rounded-2xl font-semibold bg-[#2A2A3D] hover:bg-[#3E3E56] text-white transition-colors duration-300 text-[15px]"
+            >
+              {t('menu.close')}
+            </button>
+          </div>
+        </div>
+
+        {/* Share canvas modal popup */}
+        {showShareCard && (
+          <ShareCard 
+            item={item} 
+            locale={locale} 
+            venueName={venueName} 
+            currencySymbol={getCurrencySymbol(currency)}
+            onClose={() => setShowShareCard(false)} 
+            t={t}
+            brandColor={brandColor}
+          />
+        )}
+      </div>
+    </div>
+  );
+}

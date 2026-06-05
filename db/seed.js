@@ -4,54 +4,107 @@ const prisma = new PrismaClient();
 async function main() {
   console.log("Seeding Supabase database via Prisma Client...");
 
-  // 1. Clean existing records (cascade handles child records, but clearing in order is safe)
+  // 1. Clean existing records in dependency order
+  await prisma.analyticsEvent.deleteMany({});
+  await prisma.menuSchedule.deleteMany({});
+  await prisma.menuItemTranslation.deleteMany({});
+  await prisma.categoryTranslation.deleteMany({});
   await prisma.menuItem.deleteMany({});
   await prisma.category.deleteMany({});
+  await prisma.menu.deleteMany({});
   await prisma.table.deleteMany({});
   await prisma.venue.deleteMany({});
   await prisma.organization.deleteMany({});
+  await prisma.dietaryLabel.deleteMany({});
 
   console.log("Database cleared. Inserting Karaköy Lokantası dataset...");
 
-  // 2. Create Organization
+  // 2. Create Dietary Labels
+  const labelHalal = await prisma.dietaryLabel.create({
+    data: { key: "halal", icon: "☪" }
+  });
+  const labelVegan = await prisma.dietaryLabel.create({
+    data: { key: "vegan", icon: "🌱" }
+  });
+  const labelGlutenFree = await prisma.dietaryLabel.create({
+    data: { key: "gluten-free", icon: "🌾" }
+  });
+
+  // 3. Create Organization with premium branding
   const org = await prisma.organization.create({
     data: {
       id: "org-karakoy",
       name: "Karaköy Lokantası",
-      logoUrl: "https://images.unsplash.com/photo-1555396273-367ea4eb4db5?w=200&auto=format&fit=crop&q=80"
+      logoUrl: "https://images.unsplash.com/photo-1555396273-367ea4eb4db5?w=200&auto=format&fit=crop&q=80",
+      brandColor: "#722F37", // Rich Garnet
+      subscriptionTier: "premium"
     }
   });
 
-  // 3. Create Venue
+  // 4. Create Venue
   const venue = await prisma.venue.create({
     data: {
       id: "venue-karakoy-main",
       name: "Karaköy Merkez",
       address: "Kemankeş Karamustafa Paşa Mh., Beyoğlu, İstanbul",
+      coverImageUrl: "https://images.unsplash.com/photo-1514933651103-005eec06c04b?w=1200&auto=format&fit=crop&q=80",
+      phone: "+90 212 292 44 55",
+      operatingHours: {
+        monday: { open: "12:00", close: "23:00" },
+        tuesday: { open: "12:00", close: "23:00" },
+        wednesday: { open: "12:00", close: "23:00" },
+        thursday: { open: "12:00", close: "23:00" },
+        friday: { open: "12:00", close: "23:30" },
+        saturday: { open: "12:00", close: "23:30" },
+        sunday: { open: "12:00", close: "22:00" }
+      },
+      currency: "TRY",
+      defaultLocale: "tr",
+      supportedLocales: ["tr", "en"],
       organizationId: org.id
     }
   });
 
-  // 4. Create Tables
+  // 5. Create Tables
   const tables = [
-    { id: "table-1", name: "Masa 1", qrToken: "k1", venueId: venue.id },
-    { id: "table-2", name: "Masa 2", qrToken: "k2", venueId: venue.id },
-    { id: "table-3", name: "Masa 3", qrToken: "k3", venueId: venue.id },
-    { id: "table-4", name: "Masa 4", qrToken: "k4", venueId: venue.id },
-    { id: "table-5", name: "Room 101", qrToken: "r101", venueId: venue.id },
+    { id: "table-1", name: "Masa 1", areaName: "Bahçe", qrToken: "k1", venueId: venue.id },
+    { id: "table-2", name: "Masa 2", areaName: "Bahçe", qrToken: "k2", venueId: venue.id },
+    { id: "table-3", name: "Masa 3", areaName: "Giriş Kat", qrToken: "k3", venueId: venue.id },
+    { id: "table-4", name: "Masa 4", areaName: "Giriş Kat", qrToken: "k4", venueId: venue.id },
+    { id: "table-5", name: "Masa 5", areaName: "Teras", qrToken: "k5", venueId: venue.id },
   ];
   for (const t of tables) {
     await prisma.table.create({ data: t });
   }
 
-  // 5. Create Categories
+  // 6. Create Menu and Schedules
+  const mainMenu = await prisma.menu.create({
+    data: {
+      id: "menu-karakoy-main",
+      name: "Ana Yemek Menüsü",
+      venueId: venue.id,
+      isActive: true
+    }
+  });
+
+  await prisma.menuSchedule.create({
+    data: {
+      menuId: mainMenu.id,
+      startTime: "12:00",
+      endTime: "23:30"
+    }
+  });
+
+  // 7. Create Categories linked to Menu
   const catStarters = await prisma.category.create({
     data: {
       id: "cat-starters",
       nameTr: "Başlangıçlar & Mezeler",
       nameEn: "Starters & Mezes",
+      iconName: "Soup",
       sortOrder: 1,
-      venueId: venue.id
+      venueId: venue.id,
+      menuId: mainMenu.id
     }
   });
 
@@ -60,8 +113,10 @@ async function main() {
       id: "cat-mains",
       nameTr: "Ana Yemekler",
       nameEn: "Main Courses",
+      iconName: "Beef",
       sortOrder: 2,
-      venueId: venue.id
+      venueId: venue.id,
+      menuId: mainMenu.id
     }
   });
 
@@ -70,8 +125,10 @@ async function main() {
       id: "cat-desserts",
       nameTr: "Tatlılar",
       nameEn: "Desserts",
+      iconName: "Dessert",
       sortOrder: 3,
-      venueId: venue.id
+      venueId: venue.id,
+      menuId: mainMenu.id
     }
   });
 
@@ -80,14 +137,31 @@ async function main() {
       id: "cat-drinks",
       nameTr: "İçecekler",
       nameEn: "Drinks",
+      iconName: "GlassWater",
       sortOrder: 4,
-      venueId: venue.id
+      venueId: venue.id,
+      menuId: mainMenu.id
     }
   });
 
-  // 6. Create Menu Items
-  const items = [
-    // Starters
+  // Create Category Translations
+  const categoryTranslations = [
+    { categoryId: catStarters.id, locale: "tr", name: "Başlangıçlar & Mezeler" },
+    { categoryId: catStarters.id, locale: "en", name: "Starters & Mezes" },
+    { categoryId: catMains.id, locale: "tr", name: "Ana Yemekler" },
+    { categoryId: catMains.id, locale: "en", name: "Main Courses" },
+    { categoryId: catDesserts.id, locale: "tr", name: "Tatlılar" },
+    { categoryId: catDesserts.id, locale: "en", name: "Desserts" },
+    { categoryId: catDrinks.id, locale: "tr", name: "İçecekler" },
+    { categoryId: catDrinks.id, locale: "en", name: "Drinks" }
+  ];
+
+  for (const ct of categoryTranslations) {
+    await prisma.categoryTranslation.create({ data: ct });
+  }
+
+  // 8. Create Menu Items
+  const menuItems = [
     {
       id: "item-lentil",
       nameTr: "Süzme Mercimek Çorbası",
@@ -98,7 +172,9 @@ async function main() {
       imageUrl: "https://images.unsplash.com/photo-1547592165-e1d17fed6005?w=500&auto=format&fit=crop&q=80",
       allergens: ["gluten"],
       isAvailable: true,
-      categoryId: catStarters.id
+      calories: 180,
+      categoryId: catStarters.id,
+      dietaryLabels: { connect: [{ key: "halal" }, { key: "vegan" }] }
     },
     {
       id: "item-hummus",
@@ -110,9 +186,10 @@ async function main() {
       imageUrl: "https://images.unsplash.com/photo-1628294895520-73f08b1c51d9?w=500&auto=format&fit=crop&q=80",
       allergens: ["sesame", "dairy"],
       isAvailable: true,
-      categoryId: catStarters.id
+      calories: 340,
+      categoryId: catStarters.id,
+      dietaryLabels: { connect: [{ key: "halal" }, { key: "gluten-free" }] }
     },
-    // Mains
     {
       id: "item-kebab",
       nameTr: "Zırh Kebabı (Adana)",
@@ -123,7 +200,9 @@ async function main() {
       imageUrl: "https://images.unsplash.com/photo-1561758033-d89a9ad46330?w=500&auto=format&fit=crop&q=80",
       allergens: ["gluten"],
       isAvailable: true,
-      categoryId: catMains.id
+      calories: 620,
+      categoryId: catMains.id,
+      dietaryLabels: { connect: [{ key: "halal" }] }
     },
     {
       id: "item-manti",
@@ -135,9 +214,10 @@ async function main() {
       imageUrl: "https://images.unsplash.com/photo-1565557623262-b51c2513a641?w=500&auto=format&fit=crop&q=80",
       allergens: ["gluten", "dairy"],
       isAvailable: true,
-      categoryId: catMains.id
+      calories: 480,
+      categoryId: catMains.id,
+      dietaryLabels: { connect: [{ key: "halal" }] }
     },
-    // Desserts
     {
       id: "item-baklava",
       nameTr: "Fıstıklı Havuç Dilim Baklava",
@@ -148,9 +228,10 @@ async function main() {
       imageUrl: "https://images.unsplash.com/photo-1582231375454-9e86e40b2a11?w=500&auto=format&fit=crop&q=80",
       allergens: ["gluten", "nuts", "dairy"],
       isAvailable: true,
-      categoryId: catDesserts.id
+      calories: 520,
+      categoryId: catDesserts.id,
+      dietaryLabels: { connect: [{ key: "halal" }] }
     },
-    // Drinks
     {
       id: "item-ayran",
       nameTr: "Yayık Ayranı",
@@ -161,7 +242,9 @@ async function main() {
       imageUrl: "https://images.unsplash.com/photo-1541658016709-82535e94bc69?w=500&auto=format&fit=crop&q=80",
       allergens: ["dairy"],
       isAvailable: true,
-      categoryId: catDrinks.id
+      calories: 90,
+      categoryId: catDrinks.id,
+      dietaryLabels: { connect: [{ key: "halal" }, { key: "gluten-free" }] }
     },
     {
       id: "item-tea",
@@ -173,12 +256,35 @@ async function main() {
       imageUrl: "https://images.unsplash.com/photo-1576092768241-dec231879fc3?w=500&auto=format&fit=crop&q=80",
       allergens: [],
       isAvailable: true,
-      categoryId: catDrinks.id
+      calories: 0,
+      categoryId: catDrinks.id,
+      dietaryLabels: { connect: [{ key: "halal" }, { key: "gluten-free" }, { key: "vegan" }] }
     }
   ];
 
-  for (const item of items) {
-    await prisma.menuItem.create({ data: item });
+  for (const itemData of menuItems) {
+    const createdItem = await prisma.menuItem.create({
+      data: itemData
+    });
+
+    // Create item translations
+    await prisma.menuItemTranslation.create({
+      data: {
+        menuItemId: createdItem.id,
+        locale: "tr",
+        name: itemData.nameTr,
+        description: itemData.descriptionTr
+      }
+    });
+
+    await prisma.menuItemTranslation.create({
+      data: {
+        menuItemId: createdItem.id,
+        locale: "en",
+        name: itemData.nameEn,
+        description: itemData.descriptionEn
+      }
+    });
   }
 
   console.log("🎉 Database seeding completed successfully!");
@@ -192,3 +298,4 @@ main()
   .finally(async () => {
     await prisma.$disconnect();
   });
+

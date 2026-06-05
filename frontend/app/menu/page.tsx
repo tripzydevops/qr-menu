@@ -2,45 +2,82 @@
 
 import { useEffect, useState, useRef, Suspense } from "react";
 import { useSearchParams } from "next/navigation";
-import { Globe, ShieldAlert, Info, Coffee, ArrowLeft } from "lucide-react";
+import { Globe, ShieldAlert, Coffee, ArrowLeft } from "lucide-react";
 import Link from "next/link";
 
-interface MenuItem {
-  id: string;
-  nameTr: string;
-  nameEn: string;
-  descriptionTr: string | null;
-  descriptionEn: string | null;
-  price: string;
-  imageUrl: string | null;
-  allergens: string[];
-  isAvailable: boolean;
-}
+import { useLocale } from "../../i18n/useLocale";
+import { Locale } from "../../i18n/config";
+import MenuSkeleton from "./components/MenuSkeleton";
+import CategoryNav from "./components/CategoryNav";
+import DietaryFilter from "./components/DietaryFilter";
+import MenuItemCard, { MenuItem } from "./components/MenuItemCard";
+import ItemDetailSheet from "./components/ItemDetailSheet";
 
 interface Category {
   id: string;
   nameTr: string;
   nameEn: string;
+  iconName?: string | null;
   sortOrder: number;
   items: MenuItem[];
 }
 
 interface MenuData {
   tableName: string;
+  areaName: string | null;
+  venueId: string;
   venueName: string;
+  coverImageUrl: string | null;
+  phone: string | null;
+  operatingHours: Record<string, any> | null;
+  currency: string;
+  defaultLocale: string;
+  supportedLocales: string[];
   organizationName: string;
   logoUrl: string | null;
+  brandColor: string | null;
   categories: Category[];
 }
 
 // Resilient fallback mock data mirroring backend seed data
 const MOCK_DATA: Record<string, MenuData> = {
-  k4: {
-    tableName: "Masa 4",
+  k1: {
+    tableName: "Masa 1",
+    areaName: "Bahçe",
+    venueId: "venue-karakoy-main",
     venueName: "Karaköy Merkez",
+    coverImageUrl: "https://images.unsplash.com/photo-1514933651103-005eec06c04b?w=1200&auto=format&fit=crop&q=80",
+    phone: "+90 212 292 44 55",
+    operatingHours: null,
+    currency: "TRY",
+    defaultLocale: "tr",
+    supportedLocales: ["tr", "en"],
     organizationName: "Karaköy Lokantası",
     logoUrl: "https://images.unsplash.com/photo-1555396273-367ea4eb4db5?w=200&auto=format&fit=crop&q=80",
-    categories: [
+    brandColor: "#722F37",
+    categories: [] // Seeding has them, we'll populate basic items
+  }
+};
+
+function MenuContent() {
+  const searchParams = useSearchParams();
+  const token = searchParams.get("token") || "k1";
+
+  const { locale, setLocale, t } = useLocale();
+  const [menu, setMenu] = useState<MenuData | null>(null);
+  const [loading, setLoading] = useState<boolean>(true);
+  const [isOffline, setIsOffline] = useState<boolean>(false);
+  const [activeFilter, setActiveFilter] = useState<string>("all");
+  const [activeCategoryId, setActiveCategoryId] = useState<string>("");
+  const [selectedItem, setSelectedItem] = useState<MenuItem | null>(null);
+  const [showLangMenu, setShowLangMenu] = useState<boolean>(false);
+
+  const categoryRefs = useRef<Record<string, HTMLDivElement | null>>({});
+  const isScrollingRef = useRef<boolean>(false);
+
+  // Sync categories for Karaköy mock fallback if backend fails
+  useEffect(() => {
+    MOCK_DATA.k1.categories = [
       {
         id: "cat-starters",
         nameTr: "Başlangıçlar & Mezeler",
@@ -51,23 +88,27 @@ const MOCK_DATA: Record<string, MenuData> = {
             id: "item-lentil",
             nameTr: "Süzme Mercimek Çorbası",
             nameEn: "Lentil Soup",
-            descriptionTr: "Kıtır ekmek, limon ve zeytinyağı ile sıcak servis edilir.",
-            descriptionEn: "Served hot with crispy croutons, lemon, and olive oil.",
+            descriptionTr: "Kıtır ekmek ve limon ile servis edilir.",
+            descriptionEn: "Served with crunchy croutons and lemon.",
             price: "120.00",
             imageUrl: "https://images.unsplash.com/photo-1547592165-e1d17fed6005?w=500&auto=format&fit=crop&q=80",
             allergens: ["gluten"],
-            isAvailable: true
+            isAvailable: true,
+            calories: 180,
+            dietaryLabels: [{ key: "halal", icon: "☪" }, { key: "vegan", icon: "🌱" }]
           },
           {
             id: "item-hummus",
             nameTr: "Sıcak Tereyağlı Humus",
             nameEn: "Warm Hummus with Butter",
-            descriptionTr: "Tavada tereyağında çevrilmiş pastırma dilimleri ile sıcak fırınlanmış nohut ezmesi.",
-            descriptionEn: "Creamy baked chickpeas topped with pastrami slices sautéed in butter.",
+            descriptionTr: "Pastırma dilimleri ve tereyağı ile fırınlanmış humus.",
+            descriptionEn: "Baked hummus topped with pastrami slices and melted butter.",
             price: "195.00",
             imageUrl: "https://images.unsplash.com/photo-1628294895520-73f08b1c51d9?w=500&auto=format&fit=crop&q=80",
             allergens: ["sesame", "dairy"],
-            isAvailable: true
+            isAvailable: true,
+            calories: 340,
+            dietaryLabels: [{ key: "halal", icon: "☪" }, { key: "gluten-free", icon: "🌾" }]
           }
         ]
       },
@@ -79,139 +120,60 @@ const MOCK_DATA: Record<string, MenuData> = {
         items: [
           {
             id: "item-kebab",
-            nameTr: "Zırh Kebabı (Adana Kebabı)",
+            nameTr: "Zırh Kebabı (Adana)",
             nameEn: "Hand-Minced Adana Kebab",
-            descriptionTr: "Közlenmiş yeşil biber, ızgara domates, sıcak lavaş ve sumaklı soğan salatası eşliğinde.",
-            descriptionEn: "Served with charred green pepper, grilled tomato, hot lavash, and sumac onion salad.",
+            descriptionTr: "Közlenmiş biber, domates, lavaş ve sumaklı soğan salatası eşliğinde.",
+            descriptionEn: "Served with grilled pepper, tomato, lavash, and sumac onion salad.",
             price: "420.00",
             imageUrl: "https://images.unsplash.com/photo-1561758033-d89a9ad46330?w=500&auto=format&fit=crop&q=80",
             allergens: ["gluten"],
-            isAvailable: true
+            isAvailable: true,
+            calories: 620,
+            dietaryLabels: [{ key: "halal", icon: "☪" }]
           },
           {
             id: "item-manti",
             nameTr: "Kayseri Mantısı",
-            nameEn: "Traditional Kayseri Manti",
-            descriptionTr: "Sarımsaklı yoğurt, nane ve sumaklı kızgın tereyağ sosu ile lezzetlendirilmiş dana kıymalı mantı.",
-            descriptionEn: "Tiny beef-filled dumplings served with garlic yogurt, dried mint, and sumac-infused butter.",
+            nameEn: "Turkish Manti (Dumplings)",
+            descriptionTr: "Sarımsaklı yoğurt, nane ve sumaklı tereyağ sosu ile.",
+            descriptionEn: "Tiny beef-filled dumplings served with garlic yogurt, mint, and sumac butter.",
             price: "310.00",
             imageUrl: "https://images.unsplash.com/photo-1565557623262-b51c2513a641?w=500&auto=format&fit=crop&q=80",
             allergens: ["gluten", "dairy"],
-            isAvailable: true
-          }
-        ]
-      },
-      {
-        id: "cat-desserts",
-        nameTr: "Tatlılar",
-        nameEn: "Desserts",
-        sortOrder: 3,
-        items: [
-          {
-            id: "item-baklava",
-            nameTr: "Fıstıklı Havuç Dilim Baklava",
-            nameEn: "Pistachio Carrot-Slice Baklava",
-            descriptionTr: "Çıtır yufka aralarında bol Antep fıstığı, Maraş keçi sütü kesme dondurması ile servis edilir.",
-            descriptionEn: "Crisp flaky pastry layers filled with rich pistachios, served with traditional Turkish ice cream.",
-            price: "240.00",
-            imageUrl: "https://images.unsplash.com/photo-1582231375454-9e86e40b2a11?w=500&auto=format&fit=crop&q=80",
-            allergens: ["gluten", "nuts", "dairy"],
-            isAvailable: true
-          }
-        ]
-      },
-      {
-        id: "cat-drinks",
-        nameTr: "İçecekler",
-        nameEn: "Cold & Hot Drinks",
-        sortOrder: 4,
-        items: [
-          {
-            id: "item-ayran",
-            nameTr: "Köpüklü Yayık Ayranı",
-            nameEn: "Traditional Frothy Ayran",
-            descriptionTr: "Geleneksel yayık usulü köpüklü soğuk yoğurt içeceği, taze nane yaprağı ile.",
-            descriptionEn: "Cold whisked yogurt drink with a rich froth, served with fresh mint.",
-            price: "65.00",
-            imageUrl: "https://images.unsplash.com/photo-1541658016709-82535e94bc69?w=500&auto=format&fit=crop&q=80",
-            allergens: ["dairy"],
-            isAvailable: true
-          },
-          {
-            id: "item-tea",
-            nameTr: "Demleme Türk Çayı",
-            nameEn: "Brewed Turkish Tea",
-            descriptionTr: "İnce belli bardakta taze demlenmiş Rize çayı.",
-            descriptionEn: "Freshly brewed premium black tea from Rize, served in a tulip glass.",
-            price: "35.00",
-            imageUrl: "https://images.unsplash.com/photo-1576092768241-dec231879fc3?w=500&auto=format&fit=crop&q=80",
-            allergens: [],
-            isAvailable: true
+            isAvailable: true,
+            calories: 480,
+            dietaryLabels: [{ key: "halal", icon: "☪" }]
           }
         ]
       }
-    ]
-  },
-  r101: {
-    tableName: "Room 101",
-    venueName: "Lobby & Room Service",
-    organizationName: "Grand Bosphorus Hotel",
-    logoUrl: "https://images.unsplash.com/photo-1566073771259-6a8506099945?w=200&auto=format&fit=crop&q=80",
-    categories: [
-      {
-        id: "cat-breakfast",
-        nameTr: "Oda Servisi Kahvaltı",
-        nameEn: "Room Service Breakfast",
-        sortOrder: 1,
-        items: [
-          {
-            id: "item-breakfast-plate",
-            nameTr: "Geleneksel Türk Kahvaltı Tabağı",
-            nameEn: "Traditional Turkish Breakfast Plate",
-            descriptionTr: "Ezine peyniri, kaşar, petek bal, kaymak, domates, salatalık, zeytin çeşitleri, haşlanmış yumurta ve taze simit.",
-            descriptionEn: "Ezine feta cheese, aged kashar, honeycomb, clotted cream, tomatoes, cucumbers, olives, boiled egg, and fresh simit.",
-            price: "380.00",
-            imageUrl: "https://images.unsplash.com/photo-1525351484163-7529414344d8?w=500&auto=format&fit=crop&q=80",
-            allergens: ["gluten", "dairy", "sesame"],
-            isAvailable: true
-          }
-        ]
-      }
-    ]
-  }
-};
-
-function MenuContent() {
-  const searchParams = useSearchParams();
-  const token = searchParams.get("token") || "k4"; // Default to k4 (Karaköy Lokantası Masa 4)
-
-  const [menu, setMenu] = useState<MenuData | null>(null);
-  const [lang, setLang] = useState<"tr" | "en">("tr");
-  const [loading, setLoading] = useState<boolean>(true);
-  const [error, setError] = useState<string | null>(null);
-  const [selectedItem, setSelectedItem] = useState<MenuItem | null>(null);
-
-  const categoryRefs = useRef<Record<string, HTMLDivElement | null>>({});
+    ];
+  }, []);
 
   useEffect(() => {
     async function fetchMenu() {
       try {
         setLoading(true);
-        const apiUrl = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000";
-        const res = await fetch(`${apiUrl}/api/menu/${token}`);
+        // Standard endpoint setup matching hotelplus VM host
+        const apiUrl = process.env.NEXT_PUBLIC_API_URL || "http://hotelplus:8080";
+        const res = await fetch(`${apiUrl}/api/menu/${token}?locale=${locale}`);
+        
         if (!res.ok) {
-          throw new Error("API Offline or Token Invalid. Falling back to local data.");
+          throw new Error("Invalid response");
         }
+        
         const data = await res.json();
         setMenu(data);
+        if (data.categories.length > 0) {
+          setActiveCategoryId(data.categories[0].id);
+        }
+        setIsOffline(false);
       } catch (err) {
-        console.warn(err);
-        // Resilient fallback to mock data
-        if (MOCK_DATA[token]) {
-          setMenu(MOCK_DATA[token]);
-        } else {
-          // If token isn't in mock data, default to k4 so user always sees a menu
-          setMenu(MOCK_DATA["k4"]);
+        console.warn("Backend unavailable, loading local fallback client-cache", err);
+        setIsOffline(true);
+        const localData = MOCK_DATA[token] || MOCK_DATA.k1;
+        setMenu(localData);
+        if (localData.categories.length > 0) {
+          setActiveCategoryId(localData.categories[0].id);
         }
       } finally {
         setLoading(false);
@@ -221,246 +183,238 @@ function MenuContent() {
     fetchMenu();
   }, [token]);
 
+  // Scroll spy effect to active category indicator
+  useEffect(() => {
+    if (loading || !menu) return;
+
+    const handleScroll = () => {
+      if (isScrollingRef.current) return;
+
+      const scrollPos = window.scrollY + 120; // offset sticky bars
+      const cats = menu.categories;
+      
+      for (let i = cats.length - 1; i >= 0; i--) {
+        const el = categoryRefs.current[cats[i].id];
+        if (el && el.offsetTop <= scrollPos) {
+          setActiveCategoryId(cats[i].id);
+          break;
+        }
+      }
+    };
+
+    window.addEventListener("scroll", handleScroll);
+    return () => window.removeEventListener("scroll", handleScroll);
+  }, [loading, menu]);
+
   const scrollToCategory = (id: string) => {
     const el = categoryRefs.current[id];
     if (el) {
-      el.scrollIntoView({ behavior: "smooth", block: "start" });
+      isScrollingRef.current = true;
+      setActiveCategoryId(id);
+      
+      const targetOffset = el.offsetTop - 100;
+      window.scrollTo({
+        top: targetOffset,
+        behavior: "smooth"
+      });
+
+      // Release scroll spy lock after scroll completes
+      setTimeout(() => {
+        isScrollingRef.current = false;
+      }, 800);
     }
   };
 
   if (loading) {
-    return (
-      <div className="flex-1 flex flex-col items-center justify-center bg-background text-foreground">
-        <div className="animate-spin rounded-full h-10 w-10 border-t-2 border-primary mb-4"></div>
-        <p className="text-muted-foreground text-sm font-medium">Menü yükleniyor / Loading Menu...</p>
-      </div>
-    );
+    return <MenuSkeleton />;
   }
 
   if (!menu) {
     return (
-      <div className="flex-1 flex flex-col items-center justify-center bg-background text-foreground p-6">
-        <ShieldAlert className="h-12 w-12 text-accent mb-4" />
-        <h2 className="text-xl font-bold mb-2">Menü Bulunamadı</h2>
-        <p className="text-muted-foreground text-sm text-center mb-6">Taramış olduğunuz QR kod geçersiz veya sunucuya bağlanılamadı.</p>
-        <Link href="/" className="bg-muted px-4 py-2 rounded-lg text-sm hover:bg-muted/80 transition-colors">
+      <div className="flex-grow flex flex-col items-center justify-center bg-[#1C1C28] text-white p-6 min-h-screen">
+        <ShieldAlert className="h-14 w-14 text-[#C9A84C] mb-4 animate-bounce" />
+        <h2 className="text-2xl font-serif font-bold mb-2">Menü Yüklenemedi</h2>
+        <p className="text-gray-400 text-sm text-center mb-6 max-w-sm">Taramış olduğunuz QR kod geçersiz veya sunucuya bağlanılamadı.</p>
+        <Link href="/" className="bg-[#2A2A3D] border border-gray-800 px-5 py-2.5 rounded-xl text-sm font-semibold hover:bg-gray-800 transition-colors">
           Ana Sayfaya Dön
         </Link>
       </div>
     );
   }
 
+  // Filter items in memory by live dietary choice
+  const getFilteredCategories = () => {
+    if (activeFilter === "all") return menu.categories;
+
+    return menu.categories.map((cat) => {
+      const filteredItems = cat.items.filter((item) => 
+        item.dietaryLabels?.some((lbl) => lbl.key.toLowerCase() === activeFilter.toLowerCase())
+      );
+      return { ...cat, items: filteredItems };
+    }).filter((cat) => cat.items.length > 0);
+  };
+
+  const filteredCategories = getFilteredCategories();
+
   return (
-    <div className="flex-1 flex flex-col bg-background min-h-screen pb-20 relative">
-      {/* Header Profile */}
-      <header className="sticky top-0 bg-background/85 backdrop-blur-md border-b border-muted z-30 px-4 py-3 flex items-center justify-between">
-        <div className="flex items-center gap-3">
-          <Link href="/" className="p-1.5 hover:bg-muted rounded-full transition-colors">
+    <div className="flex-grow flex flex-col bg-[#1C1C28] min-h-screen pb-24 relative select-none animate-fade-in">
+      {/* Banner / Cover Image */}
+      <div className="w-full h-56 relative bg-gradient-to-b from-[#722F37] to-[#1C1C28] overflow-hidden">
+        {menu.coverImageUrl ? (
+          <img 
+            src={menu.coverImageUrl} 
+            alt={menu.venueName} 
+            className="w-full h-full object-cover opacity-60 scale-105 transition-transform duration-1000"
+          />
+        ) : null}
+        <div className="absolute inset-0 bg-gradient-to-t from-[#1C1C28] via-transparent to-black/40" />
+        
+        {/* Call actions overlay */}
+        <div className="absolute top-4 left-4 right-4 flex justify-between items-center z-10">
+          <Link href="/" className="p-2.5 rounded-full bg-[#1C1C28]/60 backdrop-blur-md text-white border border-gray-800/40 hover:bg-[#1C1C28] transition-all">
             <ArrowLeft className="h-4 w-4" />
           </Link>
-          {menu.logoUrl ? (
-            <img 
-              src={menu.logoUrl} 
-              alt={menu.organizationName} 
-              className="h-10 w-10 rounded-full object-cover border border-muted"
-            />
-          ) : (
-            <div className="h-10 w-10 rounded-full bg-primary/20 flex items-center justify-center">
-              <Coffee className="h-5 w-5 text-primary" />
-            </div>
-          )}
-          <div>
-            <h2 className="text-sm font-bold leading-tight">{menu.organizationName}</h2>
-            <p className="text-xs text-muted-foreground flex items-center gap-1.5">
-              <span>{menu.venueName}</span>
-              <span className="h-1 w-1 bg-muted-foreground rounded-full"></span>
-              <span className="text-primary font-medium">{menu.tableName}</span>
-            </p>
-          </div>
-        </div>
-
-        {/* Language Toggler */}
-        <button 
-          onClick={() => setLang(lang === "tr" ? "en" : "tr")}
-          className="flex items-center gap-1 text-xs border border-muted hover:border-primary/50 px-2.5 py-1.5 rounded-full transition-all bg-card/50"
-        >
-          <Globe className="h-3.5 w-3.5 text-primary" />
-          <span className="font-semibold uppercase">{lang}</span>
-        </button>
-      </header>
-
-      {/* Horizontal Scroll Categories */}
-      <nav className="sticky top-[65px] bg-background/95 backdrop-blur z-20 border-b border-muted/50 px-4 py-2.5 flex gap-2 overflow-x-auto no-scrollbar shadow-md">
-        {menu.categories.map((cat) => (
-          <button
-            key={cat.id}
-            onClick={() => scrollToCategory(cat.id)}
-            className="flex-shrink-0 text-xs px-3.5 py-2 rounded-full border border-muted bg-card hover:bg-muted hover:border-primary/30 transition-all font-medium whitespace-nowrap active:scale-95"
-          >
-            {lang === "tr" ? cat.nameTr : cat.nameEn}
-          </button>
-        ))}
-      </nav>
-
-      {/* Menu Categories and Items */}
-      <main className="px-4 py-6 max-w-2xl mx-auto w-full flex-1 space-y-10">
-        {menu.categories.map((category) => (
-          <div 
-            key={category.id} 
-            ref={(el) => { categoryRefs.current[category.id] = el; }}
-            className="space-y-4 pt-4 border-t border-muted/30 first:border-0 first:pt-0"
-          >
-            <h3 className="text-lg font-extrabold tracking-tight border-l-4 border-primary pl-2.5 text-foreground">
-              {lang === "tr" ? category.nameTr : category.nameEn}
-            </h3>
-
-            <div className="grid grid-cols-1 gap-4">
-              {category.items.map((item) => (
-                <div
-                  key={item.id}
-                  onClick={() => setSelectedItem(item)}
-                  className="bg-card border border-muted hover:border-primary/20 rounded-xl p-3 flex gap-4 cursor-pointer hover:shadow-lg transition-all group duration-300 relative overflow-hidden"
-                >
-                  {/* Image */}
-                  {item.imageUrl && (
-                    <div className="h-20 w-20 md:h-24 md:w-24 relative rounded-lg overflow-hidden flex-shrink-0 bg-muted">
-                      <img
-                        src={item.imageUrl}
-                        alt={lang === "tr" ? item.nameTr : item.nameEn}
-                        className="object-cover h-full w-full group-hover:scale-105 transition-transform duration-300"
-                      />
-                    </div>
-                  )}
-
-                  {/* Information */}
-                  <div className="flex-1 flex flex-col justify-between py-0.5">
-                    <div>
-                      <h4 className="font-bold text-sm md:text-base text-foreground group-hover:text-primary transition-colors">
-                        {lang === "tr" ? item.nameTr : item.nameEn}
-                      </h4>
-                      <p className="text-xs text-muted-foreground line-clamp-2 mt-1 pr-4">
-                        {lang === "tr" ? item.descriptionTr : item.descriptionEn}
-                      </p>
-                    </div>
-
-                    {/* Footer card info */}
-                    <div className="flex items-center justify-between mt-2">
-                      <span className="text-sm font-extrabold text-primary">
-                        ₺{parseFloat(item.price).toFixed(2)}
-                      </span>
-
-                      {/* Allergens badges preview */}
-                      {item.allergens.length > 0 && (
-                        <div className="flex gap-1">
-                          {item.allergens.slice(0, 2).map((allergen) => (
-                            <span 
-                              key={allergen} 
-                              className="text-[9px] bg-accent/10 border border-accent/20 text-accent font-semibold px-1.5 py-0.5 rounded-full capitalize"
-                            >
-                              {allergen}
-                            </span>
-                          ))}
-                          {item.allergens.length > 2 && (
-                            <span className="text-[9px] bg-muted text-muted-foreground px-1 py-0.5 rounded-full">
-                              +{item.allergens.length - 2}
-                            </span>
-                          )}
-                        </div>
-                      )}
-                    </div>
-                  </div>
-                </div>
-              ))}
-            </div>
-          </div>
-        ))}
-      </main>
-
-      {/* Modal Popup Details */}
-      {selectedItem && (
-        <div className="fixed inset-0 bg-background/80 backdrop-blur-sm z-50 flex items-end sm:items-center justify-center p-4">
-          <div 
-            className="bg-card border border-muted w-full max-w-md rounded-t-2xl sm:rounded-2xl overflow-hidden shadow-2xl animate-in slide-in-from-bottom duration-300"
-            onClick={(e) => e.stopPropagation()}
-          >
-            {/* Image banner inside modal */}
-            {selectedItem.imageUrl && (
-              <div className="w-full h-48 relative bg-muted">
-                <img 
-                  src={selectedItem.imageUrl} 
-                  alt={lang === "tr" ? selectedItem.nameTr : selectedItem.nameEn}
-                  className="w-full h-full object-cover"
-                />
-              </div>
-            )}
-
-            <div className="p-5 space-y-4">
-              <div className="flex justify-between items-start gap-4">
-                <div>
-                  <h3 className="text-lg font-bold text-foreground">
-                    {lang === "tr" ? selectedItem.nameTr : selectedItem.nameEn}
-                  </h3>
-                  <span className="text-lg font-extrabold text-primary block mt-1">
-                    ₺{parseFloat(selectedItem.price).toFixed(2)}
-                  </span>
-                </div>
+          
+          {/* Active Locale dropdown */}
+          <div className="relative">
+            <button 
+              onClick={() => setShowLangMenu(!showLangMenu)}
+              className="flex items-center space-x-1.5 px-3 py-2 rounded-full bg-[#1C1C28]/60 backdrop-blur-md text-white border border-gray-800/40 hover:border-[#C9A84C]/40 transition-all font-semibold uppercase text-xs"
+            >
+              <Globe className="h-4 w-4 text-[#C9A84C]" />
+              <span>{locale}</span>
+            </button>
+            {showLangMenu && (
+              <div className="absolute right-0 mt-2 w-28 bg-[#16213E] border border-gray-800 rounded-xl overflow-hidden shadow-2xl z-55">
                 <button 
-                  onClick={() => setSelectedItem(null)}
-                  className="text-xs bg-muted hover:bg-muted/80 text-foreground px-3 py-1.5 rounded-full transition-colors font-medium border border-muted"
+                  onClick={() => { setLocale('tr'); setShowLangMenu(false); }}
+                  className="w-full text-left px-4 py-2.5 text-xs font-semibold hover:bg-[#2A2A3D] text-white border-b border-gray-800/60"
                 >
-                  {lang === "tr" ? "Kapat" : "Close"}
+                  Türkçe
+                </button>
+                <button 
+                  onClick={() => { setLocale('en'); setShowLangMenu(false); }}
+                  className="w-full text-left px-4 py-2.5 text-xs font-semibold hover:bg-[#2A2A3D] text-white"
+                >
+                  English
                 </button>
               </div>
-
-              {/* Description */}
-              {(selectedItem.descriptionTr || selectedItem.descriptionEn) && (
-                <div className="space-y-1">
-                  <span className="text-xs text-muted-foreground font-semibold flex items-center gap-1.5">
-                    <Info className="h-3 w-3" />
-                    {lang === "tr" ? "Ürün Açıklaması" : "Description"}
-                  </span>
-                  <p className="text-sm text-foreground/90 leading-relaxed">
-                    {lang === "tr" ? selectedItem.descriptionTr : selectedItem.descriptionEn}
-                  </p>
-                </div>
-              )}
-
-              {/* Allergens warning */}
-              {selectedItem.allergens.length > 0 && (
-                <div className="space-y-2 pt-2 border-t border-muted/50">
-                  <span className="text-xs text-accent font-semibold flex items-center gap-1.5">
-                    <ShieldAlert className="h-3.5 w-3.5" />
-                    {lang === "tr" ? "Alerjen Uyarıları" : "Allergen Warnings"}
-                  </span>
-                  <div className="flex flex-wrap gap-1.5">
-                    {selectedItem.allergens.map((allergen) => (
-                      <span 
-                        key={allergen} 
-                        className="text-xs bg-accent/15 border border-accent/30 text-accent font-bold px-2.5 py-1 rounded-full capitalize"
-                      >
-                        {allergen}
-                      </span>
-                    ))}
-                  </div>
-                </div>
-              )}
-            </div>
+            )}
           </div>
         </div>
+
+        {/* Floating Brand Logo */}
+        <div className="absolute -bottom-10 left-1/2 -translate-x-1/2 flex flex-col items-center">
+          {menu.logoUrl ? (
+            <div className="h-20 w-20 rounded-full border-4 border-[#1C1C28] overflow-hidden bg-white shadow-xl">
+              <img src={menu.logoUrl} alt={menu.organizationName} className="h-full w-full object-cover" />
+            </div>
+          ) : (
+            <div className="h-20 w-20 rounded-full border-4 border-[#1C1C28] bg-gradient-to-r from-[#722F37] to-[#C9A84C] flex items-center justify-center shadow-xl">
+              <Coffee className="h-9 w-9 text-white" />
+            </div>
+          )}
+        </div>
+      </div>
+
+      {/* Brand Title */}
+      <div className="mt-12 text-center px-4 mb-4">
+        <h1 className="font-serif text-3xl font-bold text-white tracking-wide">
+          {menu.venueName}
+        </h1>
+        <p className="text-xs text-[#C9A84C] font-mono tracking-widest uppercase mt-1 flex items-center justify-center space-x-1.5">
+          <span>{menu.organizationName}</span>
+          {menu.areaName ? (
+            <>
+              <span className="w-1.5 h-1.5 rounded-full bg-gray-700" />
+              <span className="text-white/80">{menu.areaName}</span>
+            </>
+          ) : null}
+          <span className="w-1.5 h-1.5 rounded-full bg-gray-700" />
+          <span className="bg-[#C9A84C]/10 px-2 py-0.5 rounded text-white border border-[#C9A84C]/20">{menu.tableName}</span>
+        </p>
+      </div>
+
+      {/* Offline Mode Banner */}
+      {isOffline && (
+        <div className="mx-4 bg-amber-950/40 border border-amber-800/40 px-4 py-2.5 rounded-xl text-xs text-amber-300 flex items-center space-x-2 mb-4 animate-pulse">
+          <span className="text-base">⚠️</span>
+          <span>{t('menu.offlineMode')}</span>
+        </div>
       )}
+
+      {/* Category Nav and Filters */}
+      <div className="px-4">
+        {menu.categories.length > 0 && (
+          <CategoryNav 
+            categories={menu.categories} 
+            activeCategoryId={activeCategoryId} 
+            onCategoryClick={scrollToCategory} 
+            locale={locale}
+          />
+        )}
+
+        <DietaryFilter 
+          activeFilter={activeFilter} 
+          onFilterChange={setActiveFilter} 
+          t={t}
+        />
+      </div>
+
+      {/* Items list container */}
+      <main className="px-4 max-w-2xl mx-auto w-full flex-grow space-y-10">
+        {filteredCategories.length > 0 ? (
+          filteredCategories.map((category) => (
+            <div 
+              key={category.id} 
+              ref={(el) => { categoryRefs.current[category.id] = el; }}
+              className="space-y-4 pt-2"
+            >
+              <h3 className="font-serif text-xl font-bold text-[#E8E8E8] tracking-wide border-b border-gray-800/50 pb-2">
+                {locale === 'en' ? category.nameEn : category.nameTr}
+              </h3>
+
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                {category.items.map((item) => (
+                  <MenuItemCard 
+                    key={item.id} 
+                    item={item} 
+                    onClick={setSelectedItem} 
+                    locale={locale} 
+                    currency={menu.currency}
+                  />
+                ))}
+              </div>
+            </div>
+          ))
+        ) : (
+          <div className="flex flex-col items-center justify-center py-12 text-center">
+            <span className="text-3xl mb-2">🍽️</span>
+            <p className="text-gray-400 text-sm">{t('menu.noItems') || 'No items match the filter.'}</p>
+          </div>
+        )}
+      </main>
+
+      {/* Bottom Sheet Drawer for dish details */}
+      <ItemDetailSheet 
+        isOpen={selectedItem !== null} 
+        item={selectedItem} 
+        onClose={() => setSelectedItem(null)} 
+        locale={locale} 
+        currency={menu.currency} 
+        t={t}
+        brandColor={menu.brandColor}
+        venueName={menu.venueName}
+      />
     </div>
   );
 }
 
 export default function MenuPage() {
   return (
-    <Suspense fallback={
-      <div className="flex-1 flex flex-col items-center justify-center bg-background text-foreground">
-        <div className="animate-spin rounded-full h-10 w-10 border-t-2 border-primary mb-4"></div>
-        <p className="text-muted-foreground text-sm font-medium">Menü yükleniyor / Loading Menu...</p>
-      </div>
-    }>
+    <Suspense fallback={<MenuSkeleton />}>
       <MenuContent />
     </Suspense>
   );
 }
+

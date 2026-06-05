@@ -2,34 +2,64 @@
 @tailwind components;
 @tailwind utilities;
 
-@import url('https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700;800&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;700&family=Inter:wght@300;400;500;600;700&family=Playfair+Display:ital,wght@0,400;0,600;0,700;1,400&display=swap');
 
 :root {
-  --font-outfit: 'Outfit', sans-serif;
+  --font-inter: 'Inter', sans-serif;
+  --font-playfair: 'Playfair Display', serif;
+  --font-dm-sans: 'DM Sans', sans-serif;
 }
 
 body {
-  background-color: #0A0A0B;
-  color: #ECECEE;
-  font-family: var(--font-outfit), sans-serif;
+  background-color: #1C1C28;
+  color: #E8E8E8;
+  font-family: var(--font-inter), sans-serif;
   overflow-x: hidden;
+  -webkit-font-smoothing: antialiased;
 }
 
-/* Custom scrollbar for premium touch */
+/* Premium scrollbar styling */
 ::-webkit-scrollbar {
   width: 6px;
   height: 6px;
 }
 
 ::-webkit-scrollbar-track {
-  background: #0A0A0B;
+  background: #1C1C28;
 }
 
 ::-webkit-scrollbar-thumb {
-  background: #26262B;
+  background: #2A2A3D;
   border-radius: 3px;
 }
 
 ::-webkit-scrollbar-thumb:hover {
-  background: #D97706;
+  background: #C9A84C; /* Warm Gold */
 }
+
+/* Utilities */
+@layer utilities {
+  .no-scrollbar::-webkit-scrollbar {
+    display: none;
+  }
+  .no-scrollbar {
+    -ms-overflow-style: none;  /* IE and Edge */
+    scrollbar-width: none;  /* Firefox */
+  }
+  
+  .glass-card {
+    background: rgba(22, 33, 62, 0.7);
+    backdrop-filter: blur(12px);
+    border: 1px solid rgba(201, 168, 76, 0.1);
+  }
+  
+  .glass-card-hover:hover {
+    border-color: rgba(201, 168, 76, 0.3);
+    box-shadow: 0 10px 30px -10px rgba(0, 0, 0, 0.5);
+  }
+
+  .text-glow {
+    text-shadow: 0 0 10px rgba(201, 168, 76, 0.3);
+  }
+}
+
