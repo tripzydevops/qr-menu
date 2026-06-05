@@ -26,7 +26,7 @@ export default function SuperAdminUsersPage() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
-  const apiUrl = process.env.NEXT_PUBLIC_API_URL || "http://hotelplus:8080";
+  const apiUrl = process.env.NEXT_PUBLIC_API_URL || "";
 
   const fetchUsers = async () => {
     try {

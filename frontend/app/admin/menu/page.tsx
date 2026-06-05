@@ -76,7 +76,7 @@ export default function AdminMenuPage() {
   const [isUploading, setIsUploading] = useState(false);
 
   const venueId = "venue-karakoy-main"; // Seed default
-  const apiUrl = process.env.NEXT_PUBLIC_API_URL || "http://hotelplus:8080";
+  const apiUrl = process.env.NEXT_PUBLIC_API_URL || "";
 
   const fetchMenuData = async () => {
     try {

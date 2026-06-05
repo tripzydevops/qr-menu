@@ -26,7 +26,7 @@ export default function AdminAnalyticsPage() {
   const [isRefreshing, setIsRefreshing] = useState(false);
 
   const venueId = "venue-karakoy-main";
-  const apiUrl = process.env.NEXT_PUBLIC_API_URL || "http://hotelplus:8080";
+  const apiUrl = process.env.NEXT_PUBLIC_API_URL || "";
 
   const fetchAnalytics = async (showRefSymbol = false) => {
     try {

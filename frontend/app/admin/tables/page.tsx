@@ -34,6 +34,7 @@ export default function AdminTablesPage() {
   const [isSubmitting, setIsSubmitting] = useState(false);
 
   const venueId = "venue-karakoy-main";
+  const apiUrl = process.env.NEXT_PUBLIC_API_URL || "";
   // API routes are now served from the same Next.js app (relative URLs)
   // The live url format the QR code maps to
   const getGuestMenuUrl = (token: string) => {

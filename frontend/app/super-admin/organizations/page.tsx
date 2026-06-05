@@ -41,7 +41,7 @@ export default function SuperAdminOrganizationsPage() {
   const [adminUserId, setAdminUserId] = useState("");
   const [planTier, setPlanTier] = useState("free");
 
-  const apiUrl = process.env.NEXT_PUBLIC_API_URL || "http://hotelplus:8080";
+  const apiUrl = process.env.NEXT_PUBLIC_API_URL || "";
 
   const fetchOrganizations = async () => {
     try {

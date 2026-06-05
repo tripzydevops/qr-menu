@@ -153,8 +153,8 @@ function MenuContent() {
     async function fetchMenu() {
       try {
         setLoading(true);
-        // Standard endpoint setup matching hotelplus VM host
-        const apiUrl = process.env.NEXT_PUBLIC_API_URL || "http://hotelplus:8080";
+        // API requests are now relative (empty string fallback) to run on same origin
+        const apiUrl = process.env.NEXT_PUBLIC_API_URL || "";
         const res = await fetch(`${apiUrl}/api/menu/${token}?locale=${locale}`);
         
         if (!res.ok) {

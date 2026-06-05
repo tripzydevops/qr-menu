@@ -13,7 +13,7 @@ import {
   Image as ImageIcon
 } from "lucide-react";
 
-interface Venue {
+interface SettingsVenue {
   id: string;
   name: string;
   address: string | null;
@@ -26,7 +26,7 @@ interface Venue {
 }
 
 export default function AdminSettingsPage() {
-  const [venue, setVenue] = useState<Venue | null>(null);
+  const [venue, setVenue] = useState<SettingsVenue | null>(null);
   const [loading, setLoading] = useState(true);
   const [isSaving, setIsSaving] = useState(false);
   const [isUploading, setIsUploading] = useState(false);
@@ -52,7 +52,7 @@ export default function AdminSettingsPage() {
 
   const venueId = "venue-karakoy-main";
   const organizationId = "org-karakoy";
-  const apiUrl = process.env.NEXT_PUBLIC_API_URL || "http://hotelplus:8080";
+  const apiUrl = process.env.NEXT_PUBLIC_API_URL || "";
 
   useEffect(() => {
     async function fetchSettings() {
