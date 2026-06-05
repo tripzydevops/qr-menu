@@ -50,7 +50,31 @@ interface MenuItemCardProps {
   onClick: (item: MenuItem) => void;
   locale: Locale;
   currency: string;
+  brandColor?: string | null;
 }
+
+const getDietaryLabel = (key: string, locale: Locale) => {
+  const isTr = locale === 'tr';
+  switch (key.toLowerCase()) {
+    case 'halal': return isTr ? 'Helal' : 'Halal';
+    case 'vegan': return isTr ? 'Vegan' : 'Vegan';
+    case 'gluten-free': return isTr ? 'Glutensiz' : 'Gluten-Free';
+    default: return key;
+  }
+};
+
+const getAllergenLabel = (key: string, locale: Locale) => {
+  const isTr = locale === 'tr';
+  switch (key.toLowerCase()) {
+    case 'gluten': return isTr ? 'Gluten' : 'Gluten';
+    case 'dairy': return isTr ? 'Süt Ürünü' : 'Dairy';
+    case 'nuts': return isTr ? 'Kuruyemiş' : 'Nuts';
+    case 'sesame': return isTr ? 'Susam' : 'Sesame';
+    case 'eggs': return isTr ? 'Yumurta' : 'Eggs';
+    case 'fish': return isTr ? 'Balık' : 'Fish';
+    default: return key;
+  }
+};
 
 const ALLERGEN_MAP: Record<string, { icon: string; label: string }> = {
   gluten: { icon: '🌾', label: 'Gluten' },
@@ -65,8 +89,11 @@ export default function MenuItemCard({
   item,
   onClick,
   locale,
-  currency
+  currency,
+  brandColor
 }: MenuItemCardProps) {
+  const [isHovered, setIsHovered] = React.useState(false);
+
   const getItemDetails = () => {
     if (item.translations) {
       const trans = item.translations.find(t => t.locale === locale);
@@ -100,7 +127,13 @@ export default function MenuItemCard({
   return (
     <div 
       onClick={() => onClick(item)}
-      className="flex bg-[#16213E]/55 hover:bg-[#16213E]/80 border border-gray-800/35 hover:border-[#C9A84C]/20 rounded-2xl p-3.5 transition-all duration-300 cursor-pointer transform hover:-translate-y-0.5 active:scale-98 shadow-sm hover:shadow-md"
+      onMouseEnter={() => setIsHovered(true)}
+      onMouseLeave={() => setIsHovered(false)}
+      className="flex bg-[#16213E]/55 hover:bg-[#16213E]/80 border border-gray-800/35 rounded-2xl p-3.5 transition-all duration-300 cursor-pointer transform hover:-translate-y-0.5 active:scale-98 shadow-sm hover:shadow-md"
+      style={{
+        borderColor: isHovered ? (brandColor || '#C9A84Ccc') : undefined,
+        boxShadow: isHovered ? `0 4px 15px -3px ${brandColor || '#C9A84C'}22` : undefined
+      }}
     >
       {/* Text Info */}
       <div className="flex-grow pr-4 flex flex-col justify-between">
@@ -115,11 +148,11 @@ export default function MenuItemCard({
                 return (
                   <span 
                     key={lbl.key} 
-                    title={config.label}
+                    title={getDietaryLabel(lbl.key, locale)}
                     className={`inline-flex items-center gap-1.5 text-[9px] font-bold border px-2 py-0.5 rounded-full capitalize transition-colors duration-300 ${config.colorClass}`}
                   >
                     <IconComponent className="h-2.5 w-2.5" />
-                    <span>{config.label}</span>
+                    <span>{getDietaryLabel(lbl.key, locale)}</span>
                   </span>
                 );
               })}
@@ -139,7 +172,10 @@ export default function MenuItemCard({
 
         <div className="flex items-center justify-between mt-3">
           {/* Price */}
-          <span className="font-mono text-[16px] font-semibold text-[#C9A84C]">
+          <span 
+            className="font-mono text-[16px] font-semibold transition-colors duration-300"
+            style={{ color: brandColor || '#C9A84C' }}
+          >
             {getCurrencySymbol(currency)}{formattedPrice}
           </span>
 
@@ -157,7 +193,7 @@ export default function MenuItemCard({
                 {item.allergens.slice(0, 3).map((a) => {
                   const allergen = ALLERGEN_MAP[a.toLowerCase()];
                   return allergen ? (
-                    <span key={a} className="text-xs" title={allergen.label}>
+                    <span key={a} className="text-xs" title={getAllergenLabel(a, locale)}>
                       {allergen.icon}
                     </span>
                   ) : null;

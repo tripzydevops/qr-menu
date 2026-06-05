@@ -3,6 +3,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
 from sqlalchemy.orm import Session
 from typing import List, Optional, Dict, Any
+from decimal import Decimal
 import uuid
 import datetime
 import os
@@ -136,6 +137,80 @@ def get_menu_by_qr_token(qr_token: str, request: Request, locale: Optional[str] 
         brandColor=org.brandColor,
         categories=categories
     )
+
+@app.post("/api/menu/{qr_token}/order", response_model=schemas.OrderSchema, status_code=status.HTTP_201_CREATED)
+def place_order(qr_token: str, order_in: schemas.OrderCreate, db: Session = Depends(get_db)):
+    # 1. Resolve Table
+    table = db.query(models.Table).filter(models.Table.qrToken == qr_token).first()
+    if not table:
+        raise HTTPException(status_code=404, detail="Table not found")
+        
+    # 2. Calculate totals and verify items
+    total_amount = Decimal("0.00")
+    order_items = []
+    
+    for item_in in order_in.items:
+        menu_item = db.query(models.MenuItem).filter(models.MenuItem.id == item_in.menuItemId).first()
+        if not menu_item:
+            raise HTTPException(status_code=404, detail=f"Menu item {item_in.menuItemId} not found")
+        if not menu_item.isAvailable:
+            raise HTTPException(status_code=400, detail=f"Menu item {menu_item.nameEn} is not available")
+            
+        item_total = Decimal(str(menu_item.price)) * item_in.quantity
+        total_amount += item_total
+        
+        db_order_item = models.OrderItem(
+            id=str(uuid.uuid4()),
+            menuItemId=item_in.menuItemId,
+            quantity=item_in.quantity,
+            price=menu_item.price,
+            notes=item_in.notes
+        )
+        order_items.append(db_order_item)
+        
+    # 3. Create Order
+    db_order = models.Order(
+        id=str(uuid.uuid4()),
+        venueId=table.venueId,
+        tableId=table.id,
+        status="pending",
+        totalAmount=total_amount
+    )
+    db.add(db_order)
+    
+    # Associate items
+    for item in order_items:
+        item.orderId = db_order.id
+        db.add(item)
+        
+    db.commit()
+    db.refresh(db_order)
+    
+    # Attach table name for serialization
+    db_order.tableName = table.name
+    return db_order
+
+@app.post("/api/menu/{qr_token}/call-waiter", response_model=schemas.WaiterRequestSchema, status_code=status.HTTP_201_CREATED)
+def call_waiter(qr_token: str, request_in: schemas.WaiterRequestCreate, db: Session = Depends(get_db)):
+    table = db.query(models.Table).filter(models.Table.qrToken == qr_token).first()
+    if not table:
+        raise HTTPException(status_code=404, detail="Table not found")
+        
+    db_request = models.WaiterRequest(
+        id=str(uuid.uuid4()),
+        venueId=table.venueId,
+        tableId=table.id,
+        type=request_in.type,
+        status="pending"
+    )
+    db.add(db_request)
+    db.commit()
+    db.refresh(db_request)
+    
+    # Attach details for serialization
+    db_request.tableName = table.name
+    db_request.areaName = table.areaName
+    return db_request
 
 # --- ANALYTICS VIEW LOGGING ---
 
@@ -694,5 +769,81 @@ def save_system_settings(settings_data: Dict[str, Any], db: Session = Depends(ge
     except Exception as e:
         db.rollback()
         raise HTTPException(status_code=500, detail=str(e))
+
+
+# --- ORDERS & SERVICE REQUESTS (ADMIN) ---
+
+@app.get("/api/admin/orders", response_model=List[schemas.OrderSchema])
+def list_orders(venueId: str, status: Optional[str] = None, db: Session = Depends(get_db)):
+    query = db.query(models.Order).filter(models.Order.venueId == venueId)
+    if status:
+        query = query.filter(models.Order.status == status)
+    orders = query.order_by(models.Order.createdAt.desc()).all()
+    
+    # Populate tableName for display
+    for order in orders:
+        if order.tableId:
+            table = db.query(models.Table).filter(models.Table.id == order.tableId).first()
+            if table:
+                order.tableName = table.name
+    return orders
+
+@app.put("/api/admin/orders/{id}/status", response_model=schemas.OrderSchema)
+def update_order_status(id: str, status_data: Dict[str, str], db: Session = Depends(get_db)):
+    order = db.query(models.Order).filter(models.Order.id == id).first()
+    if not order:
+        raise HTTPException(status_code=404, detail="Order not found")
+        
+    new_status = status_data.get("status")
+    if new_status not in ["pending", "preparing", "completed", "cancelled"]:
+        raise HTTPException(status_code=400, detail="Invalid status")
+        
+    order.status = new_status
+    db.commit()
+    db.refresh(order)
+    
+    if order.tableId:
+        table = db.query(models.Table).filter(models.Table.id == order.tableId).first()
+        if table:
+            order.tableName = table.name
+            
+    return order
+
+@app.get("/api/admin/waiter-requests", response_model=List[schemas.WaiterRequestSchema])
+def list_waiter_requests(venueId: str, status: Optional[str] = "pending", db: Session = Depends(get_db)):
+    query = db.query(models.WaiterRequest).filter(models.WaiterRequest.venueId == venueId)
+    if status:
+        query = query.filter(models.WaiterRequest.status == status)
+    requests = query.order_by(models.WaiterRequest.createdAt.desc()).all()
+    
+    # Populate table and area names
+    for req in requests:
+        table = db.query(models.Table).filter(models.Table.id == req.tableId).first()
+        if table:
+            req.tableName = table.name
+            req.areaName = table.areaName
+    return requests
+
+@app.put("/api/admin/waiter-requests/{id}/status", response_model=schemas.WaiterRequestSchema)
+def update_waiter_request_status(id: str, status_data: Dict[str, str], db: Session = Depends(get_db)):
+    req = db.query(models.WaiterRequest).filter(models.WaiterRequest.id == id).first()
+    if not req:
+        raise HTTPException(status_code=404, detail="Request not found")
+        
+    new_status = status_data.get("status")
+    if new_status not in ["pending", "completed"]:
+        raise HTTPException(status_code=400, detail="Invalid status")
+        
+    req.status = new_status
+    db.commit()
+    db.refresh(req)
+    
+    table = db.query(models.Table).filter(models.Table.id == req.tableId).first()
+    if table:
+        req.tableName = table.name
+        req.areaName = table.areaName
+        
+    return req
+
 
 

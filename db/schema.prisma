@@ -38,6 +38,8 @@ model Venue {
   categories       Category[]
   menus            Menu[]
   staff            VenueStaff[]
+  orders           Order[]
+  waiterRequests   WaiterRequest[]
   createdAt        DateTime     @default(now())
   updatedAt        DateTime     @updatedAt
 }
@@ -49,6 +51,8 @@ model Table {
   qrToken   String   @unique // The unique token in the QR code url
   venueId   String
   venue     Venue    @relation(fields: [venueId], references: [id], onDelete: Cascade)
+  orders    Order[]
+  waiterRequests WaiterRequest[]
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 }
@@ -85,6 +89,7 @@ model MenuItem {
   category      Category              @relation(fields: [categoryId], references: [id], onDelete: Cascade)
   dietaryLabels DietaryLabel[]        @relation("MenuItemToDietaryLabel")
   translations  MenuItemTranslation[]
+  orderItems    OrderItem[]
   createdAt     DateTime              @default(now())
   updatedAt     DateTime              @updatedAt
 }
@@ -192,5 +197,42 @@ model SystemSetting {
   key   String @id
   value String
 }
+
+model Order {
+  id          String      @id @default(uuid())
+  venueId     String
+  venue       Venue       @relation(fields: [venueId], references: [id], onDelete: Cascade)
+  tableId     String?
+  table       Table?      @relation(fields: [tableId], references: [id], onDelete: SetNull)
+  status      String      @default("pending") // "pending", "preparing", "completed", "cancelled"
+  totalAmount Decimal
+  items       OrderItem[]
+  createdAt   DateTime    @default(now())
+  updatedAt   DateTime    @updatedAt
+}
+
+model OrderItem {
+  id         String   @id @default(uuid())
+  orderId    String
+  order      Order    @relation(fields: [orderId], references: [id], onDelete: Cascade)
+  menuItemId String
+  menuItem   MenuItem @relation(fields: [menuItemId], references: [id], onDelete: Cascade)
+  quantity   Int
+  price      Decimal
+  notes      String?
+}
+
+model WaiterRequest {
+  id        String   @id @default(uuid())
+  venueId   String
+  venue     Venue    @relation(fields: [venueId], references: [id], onDelete: Cascade)
+  tableId   String
+  table     Table    @relation(fields: [tableId], references: [id], onDelete: Cascade)
+  type      String   // "waiter", "bill"
+  status    String   @default("pending") // "pending", "completed"
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
 
 

@@ -74,6 +74,15 @@ export default function ItemDetailSheet({
 
   if (!isRendered || !item) return null;
 
+  const getDietaryTranslationKey = (key: string) => {
+    switch (key.toLowerCase()) {
+      case 'halal': return 'menu.halal';
+      case 'vegan': return 'menu.vegan';
+      case 'gluten-free': return 'menu.glutenFree';
+      default: return '';
+    }
+  };
+
   const getItemDetails = () => {
     if (item.translations) {
       const trans = item.translations.find(t => t.locale === locale);
@@ -156,13 +165,14 @@ export default function ItemDetailSheet({
                     const config = DIETARY_MAP[lbl.key.toLowerCase()];
                     if (!config) return null;
                     const IconComponent = config.icon;
+                    const translationKey = getDietaryTranslationKey(lbl.key);
                     return (
                       <span 
                         key={lbl.key}
                         className={`inline-flex items-center gap-1.5 text-xs border px-2.5 py-0.5 rounded-full capitalize font-semibold transition-colors duration-300 ${config.colorClass}`}
                       >
                         <IconComponent className="h-3 w-3" />
-                        <span>{config.label}</span>
+                        <span>{translationKey ? t(translationKey) : lbl.key}</span>
                       </span>
                     );
                   })}
@@ -172,7 +182,14 @@ export default function ItemDetailSheet({
                 {name}
               </h2>
             </div>
-            <span className="font-mono text-xl font-bold text-[#C9A84C] ml-4 bg-[#C9A84C]/5 px-3 py-1 rounded-xl border border-[#C9A84C]/10">
+            <span 
+              className="font-mono text-xl font-bold ml-4 px-3 py-1 rounded-xl border transition-colors duration-300"
+              style={{
+                color: brandColor || '#C9A84C',
+                backgroundColor: `${brandColor || '#C9A84C'}11`,
+                borderColor: `${brandColor || '#C9A84C'}22`
+              }}
+            >
               {getCurrencySymbol(currency)}{formattedPrice}
             </span>
           </div>
@@ -198,7 +215,10 @@ export default function ItemDetailSheet({
           {/* Allergens */}
           {item.allergens && item.allergens.length > 0 && (
             <div className="mb-6 bg-[#16213E]/30 border border-gray-800/40 p-4 rounded-2xl">
-              <h4 className="inline-flex items-center gap-1.5 text-xs font-bold text-[#C9A84C] tracking-widest uppercase mb-3">
+              <h4 
+                className="inline-flex items-center gap-1.5 text-xs font-bold tracking-widest uppercase mb-3 transition-colors duration-300"
+                style={{ color: brandColor || '#C9A84C' }}
+              >
                 <AlertTriangle className="h-4 w-4 text-amber-500" />
                 <span>{t('menu.allergens')}</span>
               </h4>
@@ -225,9 +245,21 @@ export default function ItemDetailSheet({
           <div className="flex space-x-3 mt-4">
             <button 
               onClick={() => setShowShareCard(true)}
-              className="flex-grow flex items-center justify-center space-x-2 py-4 rounded-2xl font-semibold transition-all duration-300 text-white border border-[#C9A84C]/35 hover:border-[#C9A84C]/60 hover:bg-[#C9A84C]/5 text-[15px]"
+              className="flex-grow flex items-center justify-center space-x-2 py-4 rounded-2xl font-semibold transition-all duration-300 text-white border text-[15px]"
+              style={{
+                borderColor: `${brandColor || '#C9A84C'}55`,
+                backgroundColor: 'transparent'
+              }}
+              onMouseEnter={(e) => {
+                e.currentTarget.style.borderColor = brandColor || '#C9A84C';
+                e.currentTarget.style.backgroundColor = `${brandColor || '#C9A84C'}11`;
+              }}
+              onMouseLeave={(e) => {
+                e.currentTarget.style.borderColor = `${brandColor || '#C9A84C'}55`;
+                e.currentTarget.style.backgroundColor = 'transparent';
+              }}
             >
-              <Share2 className="h-4 w-4 text-[#C9A84C]" />
+              <Share2 className="h-4 w-4" style={{ color: brandColor || '#C9A84C' }} />
               <span>{t('menu.shareInstagram')}</span>
             </button>
             

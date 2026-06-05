@@ -74,6 +74,7 @@ function MenuContent() {
 
   const categoryRefs = useRef<Record<string, HTMLDivElement | null>>({});
   const isScrollingRef = useRef<boolean>(false);
+  const activeCategoryIdRef = useRef<string>("");
 
   // Sync categories for Karaköy mock fallback if backend fails
   useEffect(() => {
@@ -164,7 +165,9 @@ function MenuContent() {
         const data = await res.json();
         setMenu(data);
         if (data.categories.length > 0) {
-          setActiveCategoryId(data.categories[0].id);
+          const firstId = data.categories[0].id;
+          setActiveCategoryId(firstId);
+          activeCategoryIdRef.current = firstId;
         }
         setIsOffline(false);
       } catch (err) {
@@ -173,7 +176,9 @@ function MenuContent() {
         const localData = MOCK_DATA[token] || MOCK_DATA.k1;
         setMenu(localData);
         if (localData.categories.length > 0) {
-          setActiveCategoryId(localData.categories[0].id);
+          const firstId = localData.categories[0].id;
+          setActiveCategoryId(firstId);
+          activeCategoryIdRef.current = firstId;
         }
       } finally {
         setLoading(false);
@@ -193,12 +198,22 @@ function MenuContent() {
       const scrollPos = window.scrollY + 120; // offset sticky bars
       const cats = menu.categories;
       
+      let foundId = "";
       for (let i = cats.length - 1; i >= 0; i--) {
         const el = categoryRefs.current[cats[i].id];
         if (el && el.offsetTop <= scrollPos) {
-          setActiveCategoryId(cats[i].id);
+          foundId = cats[i].id;
           break;
         }
+      }
+
+      if (!foundId && cats.length > 0) {
+        foundId = cats[0].id;
+      }
+
+      if (foundId && foundId !== activeCategoryIdRef.current) {
+        activeCategoryIdRef.current = foundId;
+        setActiveCategoryId(foundId);
       }
     };
 
@@ -211,6 +226,7 @@ function MenuContent() {
     if (el) {
       isScrollingRef.current = true;
       setActiveCategoryId(id);
+      activeCategoryIdRef.current = id;
       
       const targetOffset = el.offsetTop - 100;
       window.scrollTo({
@@ -366,6 +382,7 @@ function MenuContent() {
           activeFilter={activeFilter} 
           onFilterChange={setActiveFilter} 
           t={t}
+          brandColor={menu.brandColor}
         />
       </div>
 
@@ -390,6 +407,7 @@ function MenuContent() {
                     onClick={setSelectedItem} 
                     locale={locale} 
                     currency={menu.currency}
+                    brandColor={menu.brandColor}
                   />
                 ))}
               </div>

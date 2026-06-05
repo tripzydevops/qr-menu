@@ -52,7 +52,7 @@ export default function CategoryNav({
     <div className="sticky top-0 z-40 bg-[#1C1C28]/95 backdrop-blur-md border-b border-gray-800/40 py-3 px-4 overflow-hidden">
       <div 
         ref={containerRef}
-        className="flex space-x-2 overflow-x-auto no-scrollbar scroll-smooth"
+        className="flex space-x-2 overflow-x-auto no-scrollbar scroll-smooth snap-x snap-mandatory"
       >
         {categories.map((cat) => {
           const isActive = cat.id === activeCategoryId;
@@ -61,7 +61,7 @@ export default function CategoryNav({
               key={cat.id}
               data-active={isActive}
               onClick={() => onCategoryClick(cat.id)}
-              className={`flex-shrink-0 px-4 py-2 rounded-full text-sm font-medium transition-all duration-300 ${
+              className={`flex-shrink-0 px-4 py-2 rounded-full text-sm font-medium transition-all duration-300 snap-center ${
                 isActive
                   ? 'text-white scale-105'
                   : 'bg-[#2A2A3D]/50 text-gray-400 hover:text-white border border-transparent hover:border-gray-800'

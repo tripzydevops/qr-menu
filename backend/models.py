@@ -50,6 +50,9 @@ class Venue(Base):
     categories = relationship("Category", back_populates="venue", cascade="all, delete-orphan")
     menus = relationship("Menu", back_populates="venue", cascade="all, delete-orphan")
     staff = relationship("VenueStaff", back_populates="venue", cascade="all, delete-orphan")
+    orders = relationship("Order", back_populates="venue", cascade="all, delete-orphan")
+    waiterRequests = relationship("WaiterRequest", back_populates="venue", cascade="all, delete-orphan")
+
 
 class Table(Base):
     __tablename__ = "Table"
@@ -63,6 +66,9 @@ class Table(Base):
     updatedAt = Column(DateTime, default=datetime.datetime.utcnow, onupdate=datetime.datetime.utcnow)
 
     venue = relationship("Venue", back_populates="tables")
+    orders = relationship("Order", back_populates="table")
+    waiterRequests = relationship("WaiterRequest", back_populates="table", cascade="all, delete-orphan")
+
 
 class Category(Base):
     __tablename__ = "Category"
@@ -103,6 +109,8 @@ class MenuItem(Base):
     category = relationship("Category", back_populates="items")
     dietaryLabels = relationship("DietaryLabel", secondary=menu_item_dietary_label, back_populates="items")
     translations = relationship("MenuItemTranslation", back_populates="menuItem", cascade="all, delete-orphan")
+    orderItems = relationship("OrderItem", back_populates="menuItem", cascade="all, delete-orphan")
+
 
 class MenuItemTranslation(Base):
     __tablename__ = "MenuItemTranslation"
@@ -212,5 +220,51 @@ class SystemSetting(Base):
 
     key = Column(String, primary_key=True)
     value = Column(String, nullable=False)
+
+
+class Order(Base):
+    __tablename__ = "Order"
+
+    id = Column(String, primary_key=True, index=True)
+    venueId = Column(String, ForeignKey("Venue.id", ondelete="CASCADE"), nullable=False)
+    tableId = Column(String, ForeignKey("Table.id", ondelete="SET NULL"), nullable=True)
+    status = Column(String, default="pending")  # "pending", "preparing", "completed", "cancelled"
+    totalAmount = Column(Numeric(10, 2), nullable=False)
+    createdAt = Column(DateTime, default=datetime.datetime.utcnow)
+    updatedAt = Column(DateTime, default=datetime.datetime.utcnow, onupdate=datetime.datetime.utcnow)
+
+    venue = relationship("Venue", back_populates="orders")
+    table = relationship("Table", back_populates="orders")
+    items = relationship("OrderItem", back_populates="order", cascade="all, delete-orphan")
+
+
+class OrderItem(Base):
+    __tablename__ = "OrderItem"
+
+    id = Column(String, primary_key=True, index=True)
+    orderId = Column(String, ForeignKey("Order.id", ondelete="CASCADE"), nullable=False)
+    menuItemId = Column(String, ForeignKey("MenuItem.id", ondelete="CASCADE"), nullable=False)
+    quantity = Column(Integer, nullable=False)
+    price = Column(Numeric(10, 2), nullable=False)
+    notes = Column(String, nullable=True)
+
+    order = relationship("Order", back_populates="items")
+    menuItem = relationship("MenuItem", back_populates="orderItems")
+
+
+class WaiterRequest(Base):
+    __tablename__ = "WaiterRequest"
+
+    id = Column(String, primary_key=True, index=True)
+    venueId = Column(String, ForeignKey("Venue.id", ondelete="CASCADE"), nullable=False)
+    tableId = Column(String, ForeignKey("Table.id", ondelete="CASCADE"), nullable=False)
+    type = Column(String, nullable=False)  # "waiter", "bill"
+    status = Column(String, default="pending")  # "pending", "completed"
+    createdAt = Column(DateTime, default=datetime.datetime.utcnow)
+    updatedAt = Column(DateTime, default=datetime.datetime.utcnow, onupdate=datetime.datetime.utcnow)
+
+    venue = relationship("Venue", back_populates="waiterRequests")
+    table = relationship("Table", back_populates="waiterRequests")
+
 
 

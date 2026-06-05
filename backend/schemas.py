@@ -293,3 +293,61 @@ class OrganizationOnboard(BaseModel):
     adminUserId: str
     subscriptionTier: Optional[str] = "free"
 
+
+# --- ORDER & WAITER REQUEST SCHEMAS ---
+
+class OrderItemBase(BaseModel):
+    menuItemId: str
+    quantity: int
+    notes: Optional[str] = None
+
+class OrderItemCreate(OrderItemBase):
+    pass
+
+class OrderItemSchema(OrderItemBase):
+    id: str
+    orderId: str
+    price: Decimal
+    
+    class Config:
+        from_attributes = True
+
+class OrderBase(BaseModel):
+    status: str = "pending"
+
+class OrderCreate(BaseModel):
+    items: List[OrderItemCreate]
+
+class OrderSchema(OrderBase):
+    id: str
+    venueId: str
+    tableId: Optional[str] = None
+    tableName: Optional[str] = None
+    totalAmount: Decimal
+    items: List[OrderItemSchema] = []
+    createdAt: datetime
+    updatedAt: datetime
+
+    class Config:
+        from_attributes = True
+
+class WaiterRequestBase(BaseModel):
+    type: str # "waiter", "bill"
+    status: str = "pending"
+
+class WaiterRequestCreate(WaiterRequestBase):
+    pass
+
+class WaiterRequestSchema(WaiterRequestBase):
+    id: str
+    venueId: str
+    tableId: str
+    tableName: Optional[str] = None
+    areaName: Optional[str] = None
+    createdAt: datetime
+    updatedAt: datetime
+
+    class Config:
+        from_attributes = True
+
+

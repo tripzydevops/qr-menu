@@ -74,6 +74,10 @@ export default function AdminMenuPage() {
   const [itemAvailable, setItemAvailable] = useState(true);
   
   const [isUploading, setIsUploading] = useState(false);
+  
+  // Validation errors state
+  const [catErrors, setCatErrors] = useState<Record<string, string>>({});
+  const [itemErrors, setItemErrors] = useState<Record<string, string>>({});
 
   const venueId = "venue-karakoy-main"; // Seed default
   const apiUrl = process.env.NEXT_PUBLIC_API_URL || "";
@@ -98,6 +102,71 @@ export default function AdminMenuPage() {
       console.error("Error fetching menu data", e);
     } finally {
       setLoading(false);
+    }
+  };
+
+  const handleReorderCategories = async (index: number, direction: "up" | "down") => {
+    const newCategories = [...categories];
+    const targetIndex = direction === "up" ? index - 1 : index + 1;
+    
+    if (targetIndex < 0 || targetIndex >= newCategories.length) return;
+    
+    const temp = newCategories[index];
+    newCategories[index] = newCategories[targetIndex];
+    newCategories[targetIndex] = temp;
+    
+    setCategories(newCategories);
+    
+    try {
+      const categoryIds = newCategories.map(c => c.id);
+      const res = await fetch(`${apiUrl}/api/admin/categories/reorder`, {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(categoryIds)
+      });
+      if (!res.ok) {
+        throw new Error("Failed to reorder categories");
+      }
+    } catch (e) {
+      console.error(e);
+      fetchMenuData();
+    }
+  };
+
+  const handleReorderItems = async (catId: string, itemIndex: number, direction: "up" | "down") => {
+    const catIndex = categories.findIndex(c => c.id === catId);
+    if (catIndex === -1) return;
+    
+    const cat = categories[catIndex];
+    const newItems = [...cat.items];
+    const targetIndex = direction === "up" ? itemIndex - 1 : itemIndex + 1;
+    
+    if (targetIndex < 0 || targetIndex >= newItems.length) return;
+    
+    const temp = newItems[itemIndex];
+    newItems[itemIndex] = newItems[targetIndex];
+    newItems[targetIndex] = temp;
+    
+    const newCategories = [...categories];
+    newCategories[catIndex] = {
+      ...cat,
+      items: newItems
+    };
+    setCategories(newCategories);
+    
+    try {
+      const itemIds = newItems.map(i => i.id);
+      const res = await fetch(`${apiUrl}/api/admin/menu-items/reorder`, {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(itemIds)
+      });
+      if (!res.ok) {
+        throw new Error("Failed to reorder items");
+      }
+    } catch (e) {
+      console.error(e);
+      fetchMenuData();
     }
   };
 
@@ -185,7 +254,19 @@ export default function AdminMenuPage() {
   };
 
   const handleSaveCategory = async () => {
-    if (!catNameTr || !catNameEn) return;
+    const errors: Record<string, string> = {};
+    if (!catNameTr.trim()) {
+      errors.nameTr = "Kategori adı (Türkçe) zorunludur.";
+    }
+    if (!catNameEn.trim()) {
+      errors.nameEn = "Kategori adı (İngilizce) zorunludur.";
+    }
+
+    if (Object.keys(errors).length > 0) {
+      setCatErrors(errors);
+      return;
+    }
+    setCatErrors({});
 
     try {
       const isEdit = editingCategory !== null;
@@ -237,7 +318,36 @@ export default function AdminMenuPage() {
   };
 
   const handleSaveItem = async () => {
-    if (!itemNameTr || !itemNameEn || !itemPrice || !itemCategoryId) return;
+    const errors: Record<string, string> = {};
+    if (!itemNameTr.trim()) {
+      errors.nameTr = "Ürün adı (Türkçe) zorunludur.";
+    }
+    if (!itemNameEn.trim()) {
+      errors.nameEn = "Ürün adı (İngilizce) zorunludur.";
+    }
+    if (!itemPrice.trim()) {
+      errors.price = "Fiyat alanı zorunludur.";
+    } else {
+      const parsedPrice = parseFloat(itemPrice);
+      if (isNaN(parsedPrice) || parsedPrice <= 0) {
+        errors.price = "Fiyat 0'dan büyük geçerli bir sayı olmalıdır.";
+      }
+    }
+    if (itemCalories.trim()) {
+      const parsedCalories = parseInt(itemCalories);
+      if (isNaN(parsedCalories) || parsedCalories < 0 || !Number.isInteger(Number(itemCalories))) {
+        errors.calories = "Kalori değeri pozitif bir tam sayı olmalıdır.";
+      }
+    }
+    if (!itemCategoryId) {
+      errors.categoryId = "Kategori seçimi zorunludur.";
+    }
+
+    if (Object.keys(errors).length > 0) {
+      setItemErrors(errors);
+      return;
+    }
+    setItemErrors({});
 
     try {
       const isEdit = editingItem !== null;
@@ -304,6 +414,7 @@ export default function AdminMenuPage() {
     setItemAllergens([]);
     setItemDietaryIds([]);
     setItemAvailable(true);
+    setItemErrors({});
   };
 
   const openAddItemModal = (catId: string) => {
@@ -314,6 +425,7 @@ export default function AdminMenuPage() {
   };
 
   const openEditItemModal = (item: MenuItem, catId: string) => {
+    setItemErrors({});
     setEditingItem(item);
     setItemCategoryId(catId);
     setItemNameTr(item.nameTr);
@@ -359,7 +471,7 @@ export default function AdminMenuPage() {
           <p className="text-xs text-gray-400 mt-1">Mekanınızın dijital menüsünü yönetin, ürün ekleyin ve reorder yapın.</p>
         </div>
         <button 
-          onClick={() => { setEditingCategory(null); setCatNameTr(""); setCatNameEn(""); setCatModalOpen(true); }}
+          onClick={() => { setEditingCategory(null); setCatNameTr(""); setCatNameEn(""); setCatErrors({}); setCatModalOpen(true); }}
           className="flex items-center space-x-1 px-4 py-2.5 rounded-xl bg-gradient-to-r from-[#722F37] to-[#C9A84C]/80 hover:to-[#C9A84C] text-white font-semibold text-xs transition-all shadow-md shadow-[#722F37]/15"
         >
           <Plus className="h-4 w-4" />
@@ -369,11 +481,31 @@ export default function AdminMenuPage() {
 
       {/* Categories Accordion/Cards */}
       <div className="space-y-6">
-        {categories.map((cat) => (
+        {categories.map((cat, idx) => (
           <div key={cat.id} className="bg-[#16213E]/50 border border-gray-800/40 rounded-2xl overflow-hidden shadow-sm">
             {/* Category Header */}
             <div className="bg-[#16213E]/80 border-b border-gray-800/40 px-6 py-4 flex items-center justify-between">
-              <div>
+              <div className="flex items-center space-x-3">
+                {/* Category Reorder buttons */}
+                <div className="flex bg-[#2A2A3D]/40 rounded-lg p-0.5 border border-gray-800/60">
+                  <button
+                    disabled={idx === 0}
+                    onClick={() => handleReorderCategories(idx, "up")}
+                    className="p-1 rounded-md hover:bg-gray-800 disabled:opacity-25 disabled:hover:bg-transparent text-gray-400 hover:text-white transition-colors"
+                    title="Yukarı Taşı"
+                  >
+                    <ChevronUp className="h-3.5 w-3.5" />
+                  </button>
+                  <button
+                    disabled={idx === categories.length - 1}
+                    onClick={() => handleReorderCategories(idx, "down")}
+                    className="p-1 rounded-md hover:bg-gray-800 disabled:opacity-25 disabled:hover:bg-transparent text-gray-400 hover:text-white transition-colors"
+                    title="Aşağı Taşı"
+                  >
+                    <ChevronDown className="h-3.5 w-3.5" />
+                  </button>
+                </div>
+                
                 <h3 className="font-serif text-lg font-bold text-white flex items-center space-x-2">
                   <span>🍽️</span>
                   <span>{cat.nameTr}</span>
@@ -390,7 +522,7 @@ export default function AdminMenuPage() {
                   + Ürün Ekle
                 </button>
                 <button 
-                  onClick={() => { setEditingCategory(cat); setCatNameTr(cat.nameTr); setCatNameEn(cat.nameEn); setCatModalOpen(true); }}
+                  onClick={() => { setEditingCategory(cat); setCatNameTr(cat.nameTr); setCatNameEn(cat.nameEn); setCatErrors({}); setCatModalOpen(true); }}
                   className="p-2 rounded-lg bg-gray-800/40 hover:bg-gray-800 hover:text-white text-gray-400 border border-gray-800/60"
                   title="Düzenle"
                 >
@@ -409,7 +541,7 @@ export default function AdminMenuPage() {
             {/* Items table */}
             <div className="p-4 divide-y divide-gray-800/30">
               {cat.items && cat.items.length > 0 ? (
-                cat.items.map((item) => (
+                cat.items.map((item, itemIdx) => (
                   <div key={item.id} className="py-4 flex justify-between items-center first:pt-0 last:pb-0">
                     <div className="flex items-center space-x-4">
                       {/* Image Preview */}
@@ -468,6 +600,26 @@ export default function AdminMenuPage() {
                         )}
                       </button>
 
+                      {/* Item Reorder buttons */}
+                      <div className="flex bg-[#2A2A3D]/40 rounded-lg p-0.5 border border-gray-800/60">
+                        <button
+                          disabled={itemIdx === 0}
+                          onClick={() => handleReorderItems(cat.id, itemIdx, "up")}
+                          className="p-1 rounded-md hover:bg-gray-800 disabled:opacity-25 disabled:hover:bg-transparent text-gray-400 hover:text-white transition-colors"
+                          title="Yukarı Taşı"
+                        >
+                          <ChevronUp className="h-3.5 w-3.5" />
+                        </button>
+                        <button
+                          disabled={itemIdx === cat.items.length - 1}
+                          onClick={() => handleReorderItems(cat.id, itemIdx, "down")}
+                          className="p-1 rounded-md hover:bg-gray-800 disabled:opacity-25 disabled:hover:bg-transparent text-gray-400 hover:text-white transition-colors"
+                          title="Aşağı Taşı"
+                        >
+                          <ChevronDown className="h-3.5 w-3.5" />
+                        </button>
+                      </div>
+
                       {/* Action buttons */}
                       <div className="flex space-x-1.5">
                         <button 
@@ -514,9 +666,12 @@ export default function AdminMenuPage() {
                   type="text" 
                   value={catNameTr}
                   onChange={(e) => setCatNameTr(e.target.value)}
-                  className="w-full bg-[#1C1C28] border border-gray-800 rounded-xl px-4 py-2.5 text-sm text-white focus:border-[#C9A84C]/50 focus:outline-none"
+                  className={`w-full bg-[#1C1C28] border rounded-xl px-4 py-2.5 text-sm text-white focus:outline-none ${
+                    catErrors.nameTr ? "border-red-500 focus:border-red-500" : "border-gray-800 focus:border-[#C9A84C]/50"
+                  }`}
                   placeholder="örn. Başlangıçlar"
                 />
+                {catErrors.nameTr && <p className="text-red-500 text-[11px] mt-1">{catErrors.nameTr}</p>}
               </div>
               
               <div>
@@ -525,9 +680,12 @@ export default function AdminMenuPage() {
                   type="text" 
                   value={catNameEn}
                   onChange={(e) => setCatNameEn(e.target.value)}
-                  className="w-full bg-[#1C1C28] border border-gray-800 rounded-xl px-4 py-2.5 text-sm text-white focus:border-[#C9A84C]/50 focus:outline-none"
+                  className={`w-full bg-[#1C1C28] border rounded-xl px-4 py-2.5 text-sm text-white focus:outline-none ${
+                    catErrors.nameEn ? "border-red-500 focus:border-red-500" : "border-gray-800 focus:border-[#C9A84C]/50"
+                  }`}
                   placeholder="örn. Starters"
                 />
+                {catErrors.nameEn && <p className="text-red-500 text-[11px] mt-1">{catErrors.nameEn}</p>}
               </div>
             </div>
 
@@ -566,8 +724,11 @@ export default function AdminMenuPage() {
                     type="text" 
                     value={itemNameTr}
                     onChange={(e) => setItemNameTr(e.target.value)}
-                    className="w-full bg-[#1C1C28] border border-gray-800 rounded-xl px-4 py-2 text-sm text-white focus:border-[#C9A84C]/50 focus:outline-none"
+                    className={`w-full bg-[#1C1C28] border rounded-xl px-4 py-2 text-sm text-white focus:outline-none ${
+                      itemErrors.nameTr ? "border-red-500 focus:border-red-500" : "border-gray-800 focus:border-[#C9A84C]/50"
+                    }`}
                   />
+                  {itemErrors.nameTr && <p className="text-red-500 text-[11px] mt-1">{itemErrors.nameTr}</p>}
                 </div>
                 <div>
                   <label className="text-xs text-gray-400 block mb-1">Ürün Adı (EN)</label>
@@ -575,8 +736,11 @@ export default function AdminMenuPage() {
                     type="text" 
                     value={itemNameEn}
                     onChange={(e) => setItemNameEn(e.target.value)}
-                    className="w-full bg-[#1C1C28] border border-gray-800 rounded-xl px-4 py-2 text-sm text-white focus:border-[#C9A84C]/50 focus:outline-none"
+                    className={`w-full bg-[#1C1C28] border rounded-xl px-4 py-2 text-sm text-white focus:outline-none ${
+                      itemErrors.nameEn ? "border-red-500 focus:border-red-500" : "border-gray-800 focus:border-[#C9A84C]/50"
+                    }`}
                   />
+                  {itemErrors.nameEn && <p className="text-red-500 text-[11px] mt-1">{itemErrors.nameEn}</p>}
                 </div>
               </div>
 
@@ -588,8 +752,11 @@ export default function AdminMenuPage() {
                     step="0.01"
                     value={itemPrice}
                     onChange={(e) => setItemPrice(e.target.value)}
-                    className="w-full bg-[#1C1C28] border border-gray-800 rounded-xl px-4 py-2 text-sm text-white font-mono focus:border-[#C9A84C]/50 focus:outline-none"
+                    className={`w-full bg-[#1C1C28] border rounded-xl px-4 py-2 text-sm text-white font-mono focus:outline-none ${
+                      itemErrors.price ? "border-red-500 focus:border-red-500" : "border-gray-800 focus:border-[#C9A84C]/50"
+                    }`}
                   />
+                  {itemErrors.price && <p className="text-red-500 text-[11px] mt-1">{itemErrors.price}</p>}
                 </div>
                 <div>
                   <label className="text-xs text-gray-400 block mb-1">Kalori (kcal)</label>
@@ -597,9 +764,12 @@ export default function AdminMenuPage() {
                     type="number" 
                     value={itemCalories}
                     onChange={(e) => setItemCalories(e.target.value)}
-                    className="w-full bg-[#1C1C28] border border-gray-800 rounded-xl px-4 py-2 text-sm text-white font-mono focus:border-[#C9A84C]/50 focus:outline-none"
+                    className={`w-full bg-[#1C1C28] border rounded-xl px-4 py-2 text-sm text-white font-mono focus:outline-none ${
+                      itemErrors.calories ? "border-red-500 focus:border-red-500" : "border-gray-800 focus:border-[#C9A84C]/50"
+                    }`}
                     placeholder="örn. 350 (Opsiyonel)"
                   />
+                  {itemErrors.calories && <p className="text-red-500 text-[11px] mt-1">{itemErrors.calories}</p>}
                 </div>
               </div>
 
