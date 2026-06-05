@@ -1,0 +1,188 @@
+datasource db {
+  provider  = "postgresql"
+  url       = env("DATABASE_URL")
+  directUrl = env("DIRECT_URL")
+}
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+model Organization {
+  id               String   @id @default(uuid())
+  name             String
+  logoUrl          String?
+  brandColor       String?
+  subscriptionTier String?  @default("free")
+  status           String   @default("active") // "active", "suspended", "onboarding"
+  createdAt        DateTime @default(now())
+  updatedAt        DateTime @updatedAt
+  venues           Venue[]
+  users            User[]
+}
+
+model Venue {
+  id               String       @id @default(uuid())
+  name             String
+  address          String?
+  coverImageUrl    String?
+  phone            String?
+  operatingHours   Json?
+  currency         String       @default("TRY")
+  defaultLocale    String       @default("tr")
+  supportedLocales String[]     @default(["tr", "en"])
+  organizationId   String
+  organization     Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  tables           Table[]
+  categories       Category[]
+  menus            Menu[]
+  staff            VenueStaff[]
+  createdAt        DateTime     @default(now())
+  updatedAt        DateTime     @updatedAt
+}
+
+model Table {
+  id        String   @id @default(uuid())
+  name      String
+  areaName  String?
+  qrToken   String   @unique
+  venueId   String
+  venue     Venue    @relation(fields: [venueId], references: [id], onDelete: Cascade)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+model Category {
+  id           String                @id @default(uuid())
+  nameTr       String
+  nameEn       String
+  iconName     String?
+  sortOrder    Int                   @default(0)
+  venueId      String
+  venue        Venue                 @relation(fields: [venueId], references: [id], onDelete: Cascade)
+  menuId       String?
+  menu         Menu?                 @relation(fields: [menuId], references: [id], onDelete: Cascade)
+  items        MenuItem[]
+  translations CategoryTranslation[]
+  createdAt    DateTime              @default(now())
+  updatedAt    DateTime              @updatedAt
+}
+
+model MenuItem {
+  id            String                @id @default(uuid())
+  nameTr        String
+  nameEn        String
+  descriptionTr String?
+  descriptionEn String?
+  price         Decimal
+  imageUrl      String?
+  allergens     String[]
+  isAvailable   Boolean               @default(true)
+  sortOrder     Int                   @default(0)
+  calories      Int?
+  categoryId    String
+  category      Category              @relation(fields: [categoryId], references: [id], onDelete: Cascade)
+  dietaryLabels DietaryLabel[]        @relation("MenuItemToDietaryLabel")
+  translations  MenuItemTranslation[]
+  createdAt     DateTime              @default(now())
+  updatedAt     DateTime              @updatedAt
+}
+
+model MenuItemTranslation {
+  id          String   @id @default(uuid())
+  locale      String
+  name        String
+  description String?
+  menuItemId  String
+  menuItem    MenuItem @relation(fields: [menuItemId], references: [id], onDelete: Cascade)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  @@unique([menuItemId, locale])
+}
+
+model CategoryTranslation {
+  id         String   @id @default(uuid())
+  locale     String
+  name       String
+  categoryId String
+  category   Category @relation(fields: [categoryId], references: [id], onDelete: Cascade)
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+
+  @@unique([categoryId, locale])
+}
+
+model DietaryLabel {
+  id        String     @id @default(uuid())
+  key       String     @unique
+  icon      String?
+  items     MenuItem[] @relation("MenuItemToDietaryLabel")
+  createdAt DateTime   @default(now())
+  updatedAt DateTime   @updatedAt
+}
+
+model Menu {
+  id         String         @id @default(uuid())
+  name       String
+  venueId    String
+  venue      Venue          @relation(fields: [venueId], references: [id], onDelete: Cascade)
+  categories Category[]
+  schedules  MenuSchedule[]
+  isActive   Boolean        @default(true)
+  createdAt  DateTime       @default(now())
+  updatedAt  DateTime       @updatedAt
+}
+
+model MenuSchedule {
+  id        String    @id @default(uuid())
+  menuId    String
+  menu      Menu      @relation(fields: [menuId], references: [id], onDelete: Cascade)
+  dayOfWeek Int?
+  startTime String?
+  endTime   String?
+  startDate DateTime?
+  endDate   DateTime?
+  createdAt DateTime  @default(now())
+  updatedAt DateTime  @updatedAt
+}
+
+model AnalyticsEvent {
+  id        String   @id @default(uuid())
+  venueId   String
+  tableId   String?
+  locale    String?
+  path      String?
+  userAgent String?
+  createdAt DateTime @default(now())
+}
+
+enum UserRole {
+  SUPER_ADMIN
+  ORGANIZATION_ADMIN
+  VENUE_MANAGER
+}
+
+model User {
+  id             String        @id
+  email          String        @unique
+  firstName      String?
+  lastName       String?
+  role           UserRole      @default(VENUE_MANAGER)
+  organizationId String?
+  organization   Organization? @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  venues         VenueStaff[]
+  isActive       Boolean       @default(true)
+  createdAt      DateTime      @default(now())
+  updatedAt      DateTime      @updatedAt
+}
+
+model VenueStaff {
+  userId    String
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  venueId   String
+  venue     Venue    @relation(fields: [venueId], references: [id], onDelete: Cascade)
+  createdAt DateTime @default(now())
+
+  @@id([userId, venueId])
+}

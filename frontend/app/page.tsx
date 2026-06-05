@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { QrCode, Utensils, Hotel, ArrowRight, Settings, Smartphone, Award, ShieldCheck, Globe } from "lucide-react";
+import { QrCode, Utensils, Hotel, ArrowRight, Settings, Smartphone, Award, ShieldCheck, Globe, ShieldAlert } from "lucide-react";
 
 export default function Home() {
   return (
@@ -30,7 +30,7 @@ export default function Home() {
         </p>
 
         {/* Action Demo Cards */}
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-6 w-full max-w-4xl mb-12">
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6 w-full max-w-5xl mb-12">
           {/* Restaurant Demo */}
           <div className="bg-[#16213E]/45 border border-gray-800/40 p-6 rounded-2xl flex flex-col justify-between items-start text-left hover:border-[#C9A84C]/35 transition-all group duration-300 shadow-lg">
             <div>
@@ -85,6 +85,25 @@ export default function Home() {
               className="flex items-center text-[#C9A84C] font-semibold text-xs group-hover:translate-x-1 transition-transform"
             >
               Paneli Aç <ArrowRight className="ml-1.5 h-3.5 w-3.5" />
+            </Link>
+          </div>
+
+          {/* Super Admin Dashboard Demo */}
+          <div className="bg-[#16213E]/45 border border-gray-800/40 p-6 rounded-2xl flex flex-col justify-between items-start text-left hover:border-[#6366F1]/35 transition-all group duration-300 shadow-lg">
+            <div>
+              <div className="h-10 w-10 bg-[#6366F1]/10 rounded-xl flex items-center justify-center mb-4 group-hover:bg-[#6366F1]/20 transition-colors">
+                <ShieldAlert className="h-5 w-5 text-[#6366F1]" />
+              </div>
+              <h3 className="text-lg font-bold font-serif mb-2 text-white">Süper Yönetici</h3>
+              <p className="text-xs text-gray-400 mb-6 leading-relaxed">
+                SaaS platform yöneticileri için üye onboarding, plan limitleri ve genel platform istatistiklerinin yönetim paneli.
+              </p>
+            </div>
+            <Link 
+              href="/super-admin"
+              className="flex items-center text-[#6366F1] font-semibold text-xs group-hover:translate-x-1 transition-transform"
+            >
+              Platformu Yönet <ArrowRight className="ml-1.5 h-3.5 w-3.5 text-[#6366F1]" />
             </Link>
           </div>
         </div>
