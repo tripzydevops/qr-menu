@@ -116,6 +116,7 @@ export default function MenuItemCardPremium({
 
   const defaultFoodImage = 'https://images.unsplash.com/photo-1546069901-ba9599a7e63c?w=400&auto=format&fit=crop&q=80';
   const isDark = theme === "dark";
+  
   // Premium gold for dark, deep burgundy for light
   const goldAccent = '#C9A84C';
   const accentColor = isDark ? goldAccent : getReadableAccentColor(brandColor, isDark);
@@ -125,46 +126,49 @@ export default function MenuItemCardPremium({
       onClick={() => onClick(item)}
       onMouseEnter={() => setIsHovered(true)}
       onMouseLeave={() => setIsHovered(false)}
-      className={`flex flex-col rounded-2xl overflow-hidden transition-all duration-500 cursor-pointer relative group ${
+      className={`flex flex-col rounded-2xl transition-all duration-500 cursor-pointer relative group p-2.5 ${
         isDark 
-          ? "bg-gradient-to-b from-[#1A1D2B] to-[#10121A]" 
-          : "bg-[#F9F6F0] shadow-[0_2px_12px_rgba(0,0,0,0.04)]"
+          ? "bg-gradient-to-b from-[#1E202C] to-[#0F1017] shadow-[0_4px_20px_rgba(0,0,0,0.5)]" 
+          : "bg-[#FDFBF7] shadow-[0_4px_16px_rgba(92,29,36,0.04)]"
       }`}
       style={{
         border: isDark 
-          ? `1px solid ${isHovered ? goldAccent + '60' : 'rgba(201,168,76,0.12)'}` 
-          : `1px solid ${isHovered ? accentColor + '40' : 'rgba(0,0,0,0.06)'}`,
+          ? `1px solid ${isHovered ? 'rgba(201,168,76,0.7)' : 'rgba(201,168,76,0.25)'}` 
+          : `1px solid ${isHovered ? 'rgba(92,29,36,0.4)' : 'rgba(92,29,36,0.15)'}`,
         boxShadow: isHovered 
           ? isDark 
-            ? `0 8px 32px -4px rgba(201,168,76,0.15), inset 0 1px 0 rgba(201,168,76,0.08)` 
-            : `0 8px 24px -4px rgba(92,29,36,0.12)`
+            ? `0 12px 36px -4px rgba(201,168,76,0.22), inset 0 1px 0 rgba(201,168,76,0.15)` 
+            : `0 12px 28px -4px rgba(92,29,36,0.15)`
           : isDark 
-            ? `0 2px 8px rgba(0,0,0,0.3), inset 0 1px 0 rgba(201,168,76,0.04)` 
+            ? `0 4px 12px rgba(0,0,0,0.4), inset 0 1px 0 rgba(201,168,76,0.06)` 
             : undefined,
-        transform: isHovered ? 'translateY(-3px)' : 'translateY(0)',
+        transform: isHovered ? 'translateY(-4px)' : 'translateY(0)',
       }}
     >
-      {/* Image Container with Gold Frame Effect */}
-      <div className="relative w-full overflow-hidden" style={{ aspectRatio: '4/3' }}>
-        {/* Gold border frame inside image */}
-        <div 
-          className="absolute inset-0 z-10 pointer-events-none rounded-t-2xl" 
-          style={{
-            border: isDark ? `2px solid ${goldAccent}18` : 'none',
-            margin: isDark ? '6px' : '0',
-            borderRadius: isDark ? '14px' : '0',
-          }}
-        />
-        {/* Inner fine gold line */}
+      {/* Framed Image Container */}
+      <div 
+        className={`relative aspect-[4/3] rounded-xl overflow-hidden border ${
+          isDark ? 'border-[#C9A84C]/35 bg-[#12141C]' : 'border-[#5C1D24]/15 bg-[#F9F6F0]'
+        }`}
+      >
+        {/* Double Gold Frame Effect Inside Image */}
         {isDark && (
-          <div 
-            className="absolute inset-0 z-10 pointer-events-none" 
-            style={{
-              border: `1px solid ${goldAccent}10`,
-              margin: '10px',
-              borderRadius: '12px',
-            }}
-          />
+          <>
+            <div 
+              className="absolute inset-0 z-10 pointer-events-none rounded-xl" 
+              style={{
+                border: `1.5px solid ${goldAccent}35`,
+                margin: '4px',
+              }}
+            />
+            <div 
+              className="absolute inset-0 z-10 pointer-events-none rounded-lg" 
+              style={{
+                border: `0.5px solid ${goldAccent}18`,
+                margin: '8px',
+              }}
+            />
+          </>
         )}
         
         <img 
@@ -180,20 +184,13 @@ export default function MenuItemCardPremium({
         {/* Premium gradient overlay — fades image into dark card body */}
         <div className={`absolute inset-0 z-[5] ${
           isDark 
-            ? "bg-gradient-to-t from-[#10121A] via-[#10121A]/30 to-transparent" 
-            : "bg-gradient-to-t from-[#F9F6F0] via-transparent to-transparent opacity-60"
+            ? "bg-gradient-to-t from-[#0F1017]/80 via-transparent to-transparent" 
+            : "bg-gradient-to-t from-[#FDFBF7]/40 via-transparent to-transparent"
         }`} />
-
-        {/* Subtle vignette on edges */}
-        {isDark && (
-          <div className="absolute inset-0 z-[4]" style={{
-            background: 'radial-gradient(ellipse at center, transparent 50%, rgba(16,18,26,0.4) 100%)'
-          }} />
-        )}
         
         {/* Diet labels overlay */}
         {item.dietaryLabels && item.dietaryLabels.length > 0 && (
-          <div className="absolute top-3 left-3 flex flex-wrap gap-1.5 z-20">
+          <div className="absolute top-2.5 left-2.5 flex flex-wrap gap-1 z-20">
             {item.dietaryLabels.map((lbl) => {
               const config = DIETARY_MAP[lbl.key.toLowerCase()];
               if (!config) return null;
@@ -202,15 +199,15 @@ export default function MenuItemCardPremium({
                 <span 
                   key={lbl.key}
                   title={getDietaryLabel(lbl.key, locale)}
-                  className="flex items-center space-x-1 text-[7px] font-bold px-2 py-1 rounded-full uppercase tracking-[0.08em] backdrop-blur-md"
+                  className="flex items-center space-x-1 text-[7px] font-bold px-2 py-0.5 rounded-full uppercase tracking-[0.08em] backdrop-blur-md"
                   style={{
-                    background: isDark ? 'rgba(10,11,14,0.75)' : 'rgba(253,251,247,0.9)',
+                    background: isDark ? 'rgba(15,16,23,0.85)' : 'rgba(253,251,247,0.9)',
                     color: accentColor,
-                    border: `1px solid ${accentColor}30`,
-                    boxShadow: isDark ? `0 2px 8px rgba(0,0,0,0.3)` : `0 1px 4px rgba(0,0,0,0.06)`,
+                    border: `1px solid ${accentColor}40`,
+                    boxShadow: '0 2px 6px rgba(0,0,0,0.2)',
                   }}
                 >
-                  <IconComponent className="h-2.5 w-2.5" />
+                  <IconComponent className="h-2 w-2" />
                   <span>{getDietaryLabel(lbl.key, locale)}</span>
                 </span>
               );
@@ -220,27 +217,30 @@ export default function MenuItemCardPremium({
       </div>
 
       {/* Info Container — premium typography section */}
-      <div className="px-3.5 pt-3 pb-3.5 flex flex-col flex-grow justify-between relative">
+      <div className="px-1.5 pt-3 pb-1 flex flex-col flex-grow justify-between relative">
         {/* Decorative gold line separator */}
         {isDark && (
-          <div className="absolute top-0 left-3 right-3 h-px" style={{
-            background: `linear-gradient(to right, transparent, ${goldAccent}25, transparent)`
+          <div className="absolute top-0 left-0 right-0 h-px" style={{
+            background: `linear-gradient(to right, transparent, ${goldAccent}40, transparent)`
           }} />
         )}
         
-        <div>
+        <div className="space-y-1.5">
           {/* Title — luxurious serif in gold (dark) or deep wine (light) */}
           <h3 
-            className="font-serif text-sm md:text-[15px] font-bold leading-snug tracking-wide line-clamp-2 mb-1"
-            style={{ color: isDark ? goldAccent : '#1E1214' }}
+            className="font-serif text-xs md:text-sm font-bold leading-snug tracking-wide line-clamp-2 min-h-[36px]"
+            style={{ 
+              color: isDark ? '#F3F4F6' : '#1E1214',
+              fontFamily: "Georgia, 'Times New Roman', serif"
+            }}
           >
             {name}
           </h3>
           
           {/* Description — elegant light text */}
           {description && (
-            <p className={`text-[10px] line-clamp-2 leading-relaxed mb-2.5 ${
-              isDark ? 'text-gray-300' : 'text-[#6B6462]'
+            <p className={`text-[10px] line-clamp-2 leading-relaxed min-h-[30px] ${
+              isDark ? 'text-gray-400' : 'text-[#6B6462]'
             }`} style={{ fontWeight: 300 }}>
               {description}
             </p>
@@ -248,16 +248,19 @@ export default function MenuItemCardPremium({
         </div>
 
         {/* Price & Action Row */}
-        <div className="flex items-end justify-between mt-auto">
+        <div className="flex items-center justify-between pt-2.5 mt-auto">
           {/* Price — bold serif with gold emphasis */}
           <span 
-            className="font-serif text-base md:text-lg font-bold tracking-wide"
-            style={{ color: isDark ? goldAccent : accentColor }}
+            className="font-serif text-sm md:text-base font-bold tracking-wide"
+            style={{ 
+              color: isDark ? goldAccent : accentColor,
+              fontFamily: "Georgia, 'Times New Roman', serif"
+            }}
           >
             {getCurrencySymbol(currency)}{formattedPrice}
           </span>
 
-          {/* Add to Cart — elegant outlined button matching mockup */}
+          {/* Add to Cart — elegant gold gradient button matching mockup */}
           <button
             onClick={(e) => {
               e.stopPropagation();
@@ -267,16 +270,16 @@ export default function MenuItemCardPremium({
                 onClick(item);
               }
             }}
-            className="text-[9px] font-semibold tracking-[0.12em] uppercase transition-all duration-300 px-3 py-1.5 rounded-lg"
+            className="text-[9px] font-bold tracking-[0.12em] uppercase transition-all duration-300 px-3 py-1.5 rounded-lg shadow-md"
             style={{
-              color: isDark ? goldAccent : getContrastTextColor(accentColor),
-              border: isDark ? `1px solid ${goldAccent}50` : 'none',
               background: isDark 
-                ? (isHovered ? `${goldAccent}18` : 'transparent') 
-                : accentColor,
-              boxShadow: isDark 
-                ? (isHovered ? `0 0 12px ${goldAccent}15` : 'none')
-                : `0 2px 8px ${accentColor}30`,
+                ? `linear-gradient(135deg, #DFBA73 0%, #C9A84C 100%)`
+                : `linear-gradient(135deg, ${accentColor} 0%, #DFBA73 100%)`,
+              color: '#0A0B0E',
+              border: 'none',
+              boxShadow: isHovered 
+                ? `0 4px 12px rgba(201, 168, 76, 0.4)`
+                : `0 2px 6px rgba(0,0,0,0.15)`,
             }}
           >
             Add to Cart
