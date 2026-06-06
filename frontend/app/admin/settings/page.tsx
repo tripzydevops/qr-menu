@@ -39,6 +39,9 @@ export default function AdminSettingsPage() {
   const [coverImageUrl, setCoverImageUrl] = useState("");
   const [defaultLocale, setDefaultLocale] = useState("tr");
   const [brandColor, setBrandColor] = useState("#722F37");
+  const [premiumMenuEnabled, setPremiumMenuEnabled] = useState(false);
+  const [plan, setPlan] = useState("free");
+  const [premiumMenuSelected, setPremiumMenuSelected] = useState(false);
   
   // Operating Hours states
   const [hours, setHours] = useState<Record<string, { open: string; close: string }>>({
@@ -72,6 +75,9 @@ export default function AdminSettingsPage() {
           setCoverImageUrl(data.coverImageUrl || "");
           setDefaultLocale(data.defaultLocale || "tr");
           setBrandColor(data.brandColor || "#722F37");
+          setPremiumMenuEnabled(data.premiumMenuEnabled || false);
+          setPlan(data.plan || "free");
+          setPremiumMenuSelected(data.premiumMenuSelected || false);
           if (data.operatingHours) {
             setHours(data.operatingHours);
           }
@@ -127,7 +133,8 @@ export default function AdminSettingsPage() {
           defaultLocale,
           supportedLocales: ["tr", "en"],
           operatingHours: hours,
-          brandColor
+          brandColor,
+          premiumMenuSelected
         })
       });
 
@@ -251,6 +258,87 @@ export default function AdminSettingsPage() {
                 pattern="^#([A-Fa-f0-9]{6}|[A-Fa-f0-9]{3})$"
                 className="w-48 bg-[#1C1C28] border border-gray-800 rounded-xl px-4 py-2.5 text-sm text-white font-mono focus:border-[#C9A84C]/50 focus:outline-none"
               />
+            </div>
+          </div>
+        </div>
+
+        {/* Menu Card Style Selector */}
+        <div className="bg-[#16213E]/50 border border-gray-800/40 rounded-2xl p-6 shadow-sm space-y-4">
+          <h3 className="font-serif text-lg font-bold text-white flex items-center justify-between">
+            <div className="flex items-center space-x-2">
+              <span>🎴</span>
+              <span>Menü Kartı Tasarımı</span>
+            </div>
+            {(premiumMenuEnabled || plan === 'premium' || plan === 'enterprise') ? (
+              <span className="text-[10px] bg-emerald-500/10 text-emerald-400 border border-emerald-500/20 px-2 py-0.5 rounded-full font-serif font-bold uppercase">Kullanılabilir</span>
+            ) : (
+              <span className="text-[10px] bg-amber-500/10 text-amber-400 border border-amber-500/20 px-2 py-0.5 rounded-full font-serif font-bold uppercase">Premium Kilidi</span>
+            )}
+          </h3>
+          <p className="text-xs text-gray-400">Misafirlerinize gösterilecek menü kartlarının görsel şablonunu seçin.</p>
+
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            {/* Standard Layout Option */}
+            <div 
+              onClick={() => setPremiumMenuSelected(false)}
+              className={`p-4 rounded-xl border cursor-pointer transition-all duration-300 flex flex-col justify-between ${
+                !premiumMenuSelected 
+                  ? "bg-[#1C1C28]/80 border-[#C9A84C]/50 shadow-[0_0_12px_rgba(201,168,76,0.08)]" 
+                  : "bg-[#1C1C28]/30 border-gray-800 hover:border-gray-700 text-gray-400"
+              }`}
+            >
+              <div>
+                <h4 className="font-semibold text-sm text-white flex items-center space-x-1.5">
+                  <span>Standart Görünüm</span>
+                  {!premiumMenuSelected && <span className="h-2 w-2 rounded-full bg-[#C9A84C]" />}
+                </h4>
+                <p className="text-[11px] text-gray-400 mt-1">Sade, hızlı ve modern iki sütunlu kart tasarımı. Tüm paketler için standarttır.</p>
+              </div>
+              <div className="mt-4 pt-3 border-t border-gray-800/30 flex items-center justify-between">
+                <span className="text-[10px] font-semibold text-gray-500">Ücretsiz & Pro</span>
+                <span className="text-[10px] text-[#C9A84C] font-bold">Aktif</span>
+              </div>
+            </div>
+
+            {/* Premium Layout Option */}
+            <div 
+              onClick={() => {
+                if (premiumMenuEnabled || plan === 'premium' || plan === 'enterprise') {
+                  setPremiumMenuSelected(true);
+                } else {
+                  alert("Premium kart tasarımı Premium/Enterprise paketlerinde veya Super Admin onayıyla kullanılabilir.");
+                }
+              }}
+              className={`p-4 rounded-xl border transition-all duration-300 flex flex-col justify-between relative overflow-hidden group ${
+                !(premiumMenuEnabled || plan === 'premium' || plan === 'enterprise')
+                  ? "opacity-60 cursor-not-allowed bg-[#1C1C28]/10 border-gray-900"
+                  : premiumMenuSelected
+                    ? "bg-[#1C1C28]/80 border-[#C9A84C]/50 shadow-[0_0_12px_rgba(201,168,76,0.15)] cursor-pointer"
+                    : "bg-[#1C1C28]/30 border-gray-800 hover:border-gray-700 text-gray-400 cursor-pointer"
+              }`}
+            >
+              {/* Padlock indicator for locked state */}
+              {!(premiumMenuEnabled || plan === 'premium' || plan === 'enterprise') && (
+                <div className="absolute top-2 right-2 text-amber-500 text-sm">🔒</div>
+              )}
+              
+              <div>
+                <h4 className="font-semibold text-sm text-white flex items-center space-x-1.5">
+                  <span className="gold-gradient-text font-serif">Premium Lüks Şablon</span>
+                  {premiumMenuSelected && <span className="h-2 w-2 rounded-full bg-[#C9A84C]" />}
+                </h4>
+                <p className="text-[11px] text-gray-400 mt-1">Özel altın çerçeve, şık gölge efektleri ve lüks tipografi ile elit mekanlara özel tasarım.</p>
+              </div>
+              <div className="mt-4 pt-3 border-t border-gray-800/30 flex items-center justify-between">
+                <span className="text-[10px] font-semibold text-[#C9A84C] font-mono">Premium Özel</span>
+                {premiumMenuSelected ? (
+                  <span className="text-[10px] text-[#C9A84C] font-bold">Aktif</span>
+                ) : (
+                  <span className="text-[10px] text-gray-500 font-semibold">
+                    {!(premiumMenuEnabled || plan === 'premium' || plan === 'enterprise') ? "Kilitli" : "Seç"}
+                  </span>
+                )}
+              </div>
             </div>
           </div>
         </div>

@@ -124,7 +124,7 @@ export default function MenuItemCardPremium({
       onClick={() => onClick(item)}
       onMouseEnter={() => setIsHovered(true)}
       onMouseLeave={() => setIsHovered(false)}
-      className={`flex flex-col rounded-2xl overflow-hidden transition-all duration-500 cursor-pointer h-full relative group ${
+      className={`flex flex-col rounded-2xl overflow-hidden transition-all duration-500 cursor-pointer relative group ${
         isDark 
           ? "bg-gradient-to-b from-[#1A1D2B] to-[#10121A]" 
           : "bg-[#F9F6F0] shadow-[0_2px_12px_rgba(0,0,0,0.04)]"

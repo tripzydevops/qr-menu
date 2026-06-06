@@ -24,6 +24,7 @@ class Organization(Base):
     subscriptionTier = Column(String, default="free")
     status = Column(String, default="active") # "active", "suspended", "onboarding"
     premiumMenuEnabled = Column(Boolean, default=False) # Super admin override for premium card style
+    premiumMenuSelected = Column(Boolean, default=False) # Client setting to choose premium card style
     createdAt = Column(DateTime, default=datetime.datetime.utcnow)
     updatedAt = Column(DateTime, default=datetime.datetime.utcnow, onupdate=datetime.datetime.utcnow)
 

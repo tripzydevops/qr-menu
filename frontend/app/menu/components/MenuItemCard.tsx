@@ -135,7 +135,7 @@ export default function MenuItemCard({
       onClick={() => onClick(item)}
       onMouseEnter={() => setIsHovered(true)}
       onMouseLeave={() => setIsHovered(false)}
-      className={`flex flex-col border rounded-2xl overflow-hidden transition-all duration-300 cursor-pointer transform hover:-translate-y-0.5 active:scale-98 shadow-sm hover:shadow-md h-full relative ${
+      className={`flex flex-col border rounded-2xl overflow-hidden transition-all duration-300 cursor-pointer transform hover:-translate-y-0.5 active:scale-98 shadow-sm hover:shadow-md relative ${
         isDark 
           ? "bg-white/[0.02] hover:bg-white/[0.05] border-white/[0.05]" 
           : "bg-[#F9F6F0] hover:bg-[#F3EFE6] border-black/[0.05] shadow-[0_2px_8px_rgba(0,0,0,0.02)]"

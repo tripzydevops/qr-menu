@@ -145,6 +145,7 @@ def get_menu_by_qr_token(qr_token: str, request: Request, locale: Optional[str] 
         brandColor=org.brandColor,
         plan=org.subscriptionTier,
         premiumMenuEnabled=org.premiumMenuEnabled or False,
+        premiumMenuSelected=org.premiumMenuSelected or False,
         categories=categories
     )
 
@@ -302,6 +303,11 @@ def update_venue(id: str, venue_in: schemas.VenueCreate, db: Session = Depends(g
         org = db.query(models.Organization).filter(models.Organization.id == venue.organizationId).first()
         if org:
             org.brandColor = venue_in.brandColor
+
+    if venue_in.premiumMenuSelected is not None:
+        org = db.query(models.Organization).filter(models.Organization.id == venue.organizationId).first()
+        if org:
+            org.premiumMenuSelected = venue_in.premiumMenuSelected
 
     db.commit()
     db.refresh(venue)

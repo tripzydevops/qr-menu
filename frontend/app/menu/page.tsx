@@ -40,6 +40,7 @@ interface MenuData {
   brandColor: string | null;
   plan?: string | null;
   premiumMenuEnabled?: boolean;
+  premiumMenuSelected?: boolean;
   categories: Category[];
 }
 
@@ -368,13 +369,20 @@ function MenuContent() {
       {/* Premium Header Aligned to Mockup */}
       <header className="px-6 pt-8 pb-4 flex items-center justify-between z-10">
         <div className="flex items-center space-x-3">
-          <Link href="/" className={`p-2 rounded-full border transition-all ${
-            theme === "dark" 
-              ? "bg-white/[0.03] hover:bg-white/[0.08] text-white border-white/[0.08]" 
-              : "bg-black/[0.03] hover:bg-black/[0.08] text-[#1E1214] border-black/[0.08]"
-          }`}>
+          <button 
+            onClick={() => {
+              setSearchQuery("");
+              setActiveFilter("all");
+              window.scrollTo({ top: 0, behavior: 'smooth' });
+            }}
+            className={`p-2 rounded-full border transition-all ${
+              theme === "dark" 
+                ? "bg-white/[0.03] hover:bg-white/[0.08] text-white border-white/[0.08]" 
+                : "bg-black/[0.03] hover:bg-black/[0.08] text-[#1E1214] border-black/[0.08]"
+            }`}
+          >
             <ArrowLeft className="h-4 w-4" />
-          </Link>
+          </button>
           <h1 className={`font-serif text-xl font-bold tracking-widest uppercase text-glow transition-colors ${
             theme === "dark" ? "text-[#DFBA73]" : "text-[#5C1D24]"
           }`}>
@@ -515,7 +523,8 @@ function MenuContent() {
               <div className="grid grid-cols-2 gap-4">
                 {category.items.map((item) => {
                   const isPremiumPlan = menu.premiumMenuEnabled || menu.plan === 'premium' || menu.plan === 'enterprise';
-                  const CardComponent = isPremiumPlan ? MenuItemCardPremium : MenuItemCard;
+                  const showPremium = isPremiumPlan && !!menu.premiumMenuSelected;
+                  const CardComponent = showPremium ? MenuItemCardPremium : MenuItemCard;
                   return (
                     <CardComponent 
                       key={item.id} 
@@ -694,15 +703,19 @@ function MenuContent() {
           : "bg-[#FDFBF7]/95 border-black/[0.08] shadow-[0_-4px_12px_rgba(0,0,0,0.02)]"
       }`}>
         {/* Home */}
-        <Link 
-          href="/" 
+        <button 
+          onClick={() => {
+            setSearchQuery("");
+            setActiveFilter("all");
+            window.scrollTo({ top: 0, behavior: 'smooth' });
+          }}
           className={`flex flex-col items-center space-y-1 transition-colors ${
             theme === "dark" ? "text-gray-500 hover:text-white" : "text-gray-500 hover:text-[#1E1214]"
           }`}
         >
           <Home className="h-5 w-5" />
           <span className="text-[9px] uppercase tracking-wider font-semibold">Home</span>
-        </Link>
+        </button>
         
         {/* Explore */}
         <button 

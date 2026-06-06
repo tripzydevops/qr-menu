@@ -173,6 +173,7 @@ class VenueBase(BaseModel):
 class VenueCreate(VenueBase):
     organizationId: str
     brandColor: Optional[str] = None
+    premiumMenuSelected: Optional[bool] = None
 
 class VenueSchema(VenueBase):
     id: str
@@ -191,6 +192,7 @@ class OrganizationBase(BaseModel):
     subscriptionTier: Optional[str] = "free"
     status: Optional[str] = "active"
     premiumMenuEnabled: Optional[bool] = False
+    premiumMenuSelected: Optional[bool] = False
 
 class OrganizationCreate(OrganizationBase):
     pass
@@ -238,6 +240,7 @@ class GuestMenuResponse(BaseModel):
     brandColor: Optional[str] = None
     plan: Optional[str] = None
     premiumMenuEnabled: Optional[bool] = False
+    premiumMenuSelected: Optional[bool] = False
     categories: List[CategorySchema]
 
 # User Schemas
