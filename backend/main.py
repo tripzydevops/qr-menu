@@ -84,8 +84,16 @@ def get_menu_by_qr_token(qr_token: str, request: Request, locale: Optional[str] 
         print(f"Failed to log view: {e}")
 
     # 3. Get Active Scheduled Menu Categories
-    current_time_str = datetime.datetime.now().strftime("%H:%M")
-    current_day = datetime.datetime.now().weekday() # 0 = Monday, 6 = Sunday
+    try:
+        from zoneinfo import ZoneInfo
+        istanbul_tz = ZoneInfo("Europe/Istanbul")
+        now_istanbul = datetime.datetime.now(istanbul_tz)
+    except Exception:
+        # Fallback to manual UTC+3 offset if zoneinfo database is missing/unconfigured
+        now_istanbul = datetime.datetime.utcnow() + datetime.timedelta(hours=3)
+
+    current_time_str = now_istanbul.strftime("%H:%M")
+    current_day = now_istanbul.weekday() # 0 = Monday, 6 = Sunday
 
     menus = db.query(models.Menu).filter(models.Menu.venueId == venue.id, models.Menu.isActive == True).all()
     active_menu_ids = []

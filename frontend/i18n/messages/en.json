@@ -15,6 +15,7 @@
     "askBill": "Request Bill",
     "welcome": "Welcome",
     "mins": "mins",
+    "noItems": "No items match the filter.",
     "allergensList": {
       "gluten": "Gluten",
       "nuts": "Nuts",

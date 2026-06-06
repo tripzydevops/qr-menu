@@ -58,11 +58,24 @@ export async function GET(
       });
 
     // 3. Get Active Scheduled Menu Categories
+    // Convert current server time (UTC) to Europe/Istanbul timezone (UTC+3)
     const now = new Date();
-    const currentDay = (now.getDay() + 6) % 7; // Map: 0 = Monday, 6 = Sunday (like python weekday)
-    const currentHour = now.getHours().toString().padStart(2, "0");
-    const currentMin = now.getMinutes().toString().padStart(2, "0");
-    const currentTimeStr = `${currentHour}:${currentMin}`;
+    const formatter = new Intl.DateTimeFormat("en-US", {
+      timeZone: "Europe/Istanbul",
+      hour12: false,
+      weekday: "short",
+      hour: "2-digit",
+      minute: "2-digit",
+    });
+    const parts = formatter.formatToParts(now);
+    const partsMap = Object.fromEntries(parts.map(p => [p.type, p.value]));
+    
+    // Day of week mapping: Mon=0, Tue=1, ..., Sun=6
+    const weekdayMap: Record<string, number> = {
+      Mon: 0, Tue: 1, Wed: 2, Thu: 3, Fri: 4, Sat: 5, Sun: 6
+    };
+    const currentDay = weekdayMap[partsMap.weekday] ?? ((now.getDay() + 6) % 7);
+    const currentTimeStr = `${partsMap.hour}:${partsMap.minute}`;
 
     const menus = await prisma.menu.findMany({
       where: {
@@ -109,14 +122,16 @@ export async function GET(
       }
     }
 
-    // 4. Get Categories
+    // 4. Get Categories (Fall back to all categories of the venue if no menus are currently scheduled active)
     const categories = await prisma.category.findMany({
       where: {
         venueId: venue.id,
-        OR: [
-          { menuId: null },
-          { menuId: { in: activeMenuIds } },
-        ],
+        ...(activeMenuIds.length > 0 ? {
+          OR: [
+            { menuId: null },
+            { menuId: { in: activeMenuIds } },
+          ],
+        } : {}),
       },
       orderBy: {
         sortOrder: "asc",

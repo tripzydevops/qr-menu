@@ -15,6 +15,7 @@
     "askBill": "Hesap İste",
     "welcome": "Hoş Geldiniz",
     "mins": "dk",
+    "noItems": "Seçilen filtreye uygun ürün bulunamadı.",
     "allergensList": {
       "gluten": "Gluten",
       "nuts": "Kuruyemiş",
