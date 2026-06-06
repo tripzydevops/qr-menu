@@ -15,6 +15,7 @@ interface CategoryNavProps {
   onCategoryClick: (id: string) => void;
   locale: Locale;
   brandColor?: string | null;
+  theme?: "dark" | "light";
 }
 
 export default function CategoryNav({
@@ -22,7 +23,8 @@ export default function CategoryNav({
   activeCategoryId,
   onCategoryClick,
   locale,
-  brandColor
+  brandColor,
+  theme = "dark"
 }: CategoryNavProps) {
   const containerRef = useRef<HTMLDivElement>(null);
 
@@ -49,7 +51,11 @@ export default function CategoryNav({
   };
 
   return (
-    <div className="sticky top-0 z-40 bg-[#0A0B0E]/90 backdrop-blur-md border-b border-white/[0.04] py-3 px-4 overflow-hidden">
+    <div className={`sticky top-0 z-40 backdrop-blur-md border-b py-3 px-4 overflow-hidden transition-colors duration-300 ${
+      theme === "dark" 
+        ? "bg-[#12141C]/90 border-white/[0.04]" 
+        : "bg-[#FDFBF7]/95 border-black/[0.04]"
+    }`}>
       <div 
         ref={containerRef}
         className="flex space-x-2 overflow-x-auto no-scrollbar scroll-smooth snap-x snap-mandatory"
@@ -63,12 +69,14 @@ export default function CategoryNav({
               onClick={() => onCategoryClick(cat.id)}
               className={`flex-shrink-0 px-4 py-2 rounded-full text-sm font-medium transition-all duration-300 snap-center ${
                 isActive
-                  ? 'text-white scale-105'
-                  : 'bg-white/[0.02] text-gray-400 hover:text-white border border-white/[0.04]'
+                  ? 'text-white scale-105 shadow-md'
+                  : theme === "dark"
+                    ? 'bg-white/[0.02] text-gray-400 hover:text-white border border-white/[0.04]'
+                    : 'bg-black/[0.02] text-gray-600 hover:text-[#1E1214] border border-black/[0.04]'
               }`}
               style={isActive ? {
                 backgroundImage: `linear-gradient(to right, ${brandColor || '#5C1D24'}, #DFBA73cc)`,
-                boxShadow: `0 10px 15px -3px ${brandColor || '#5C1D24'}33`
+                boxShadow: `0 4px 12px -3px ${brandColor || '#5C1D24'}33`
               } : undefined}
             >
               {getCategoryName(cat)}

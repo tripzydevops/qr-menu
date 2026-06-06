@@ -20,6 +20,7 @@ interface CartDrawerProps {
   locale: Locale;
   currency: string;
   brandColor?: string | null;
+  theme?: "dark" | "light";
 }
 
 export default function CartDrawer({
@@ -32,7 +33,8 @@ export default function CartDrawer({
   token,
   locale,
   currency,
-  brandColor = '#722F37'
+  brandColor = '#722F37',
+  theme = "dark"
 }: CartDrawerProps) {
   const [submitting, setSubmitting] = useState(false);
   const [orderSuccess, setOrderSuccess] = useState(false);
@@ -94,6 +96,9 @@ export default function CartDrawer({
 
   if (!isOpen) return null;
 
+  const isDark = theme === "dark";
+  const accentColor = brandColor || (isDark ? '#DFBA73' : '#5C1D24');
+
   return (
     <div className="fixed inset-0 z-50 flex items-end justify-center select-none">
       {/* Backdrop */}
@@ -103,24 +108,41 @@ export default function CartDrawer({
       />
 
       {/* Drawer */}
-      <div className="relative w-full max-w-lg bg-[#0A0B0E] border-t border-white/[0.05] rounded-t-[2.5rem] shadow-2xl flex flex-col max-h-[85vh] z-10 animate-fade-in-up">
+      <div className={`relative w-full max-w-lg border-t rounded-t-[2.5rem] shadow-2xl flex flex-col max-h-[85vh] z-10 animate-fade-in-up ${
+        isDark 
+          ? "bg-[#0A0B0E] border-white/[0.05]" 
+          : "bg-[#FDFBF7] border-black/[0.05]"
+      }`}>
         {/* Handle */}
         <div className="absolute top-3 left-1/2 -translate-x-1/2 w-12 h-1 rounded-full bg-gray-700/60" />
 
         {/* Header */}
-        <div className="p-6 border-b border-white/[0.04] flex justify-between items-center mt-2">
+        <div className={`p-6 flex justify-between items-center mt-2 border-b ${
+          isDark ? 'border-white/[0.04]' : 'border-black/[0.04]'
+        }`}>
           <div className="flex items-center space-x-2">
-            <ShoppingBag className="h-5 w-5 text-[#DFBA73]" />
-            <h3 className="font-serif text-lg font-bold text-white">
+            <ShoppingBag className="h-5 w-5" style={{ color: accentColor }} />
+            <h3 className={`font-serif text-lg font-bold ${isDark ? 'text-white' : 'text-[#1E1214]'}`}>
               {locale === 'en' ? 'Your Basket' : 'Sepetiniz'}
             </h3>
-            <span className="bg-[#DFBA73]/10 text-[#DFBA73] text-xs font-mono font-bold px-2 py-0.5 rounded-full border border-[#DFBA73]/25">
+            <span 
+              className="text-xs font-mono font-bold px-2 py-0.5 rounded-full border"
+              style={{
+                color: accentColor,
+                backgroundColor: `${accentColor}11`,
+                borderColor: `${accentColor}33`
+              }}
+            >
               {totalItems}
             </span>
           </div>
           <button 
             onClick={onClose}
-            className="w-8 h-8 rounded-full bg-white/[0.02] text-gray-400 hover:text-white flex items-center justify-center border border-white/[0.05] transition-colors"
+            className={`w-8 h-8 rounded-full flex items-center justify-center border transition-colors ${
+              isDark 
+                ? "bg-white/[0.02] text-gray-400 hover:text-white border-white/[0.05]" 
+                : "bg-black/[0.02] text-gray-600 hover:text-black border-black/[0.05]"
+            }`}
           >
             <X className="h-4 w-4" />
           </button>
@@ -133,10 +155,10 @@ export default function CartDrawer({
               <div className="w-16 h-16 rounded-full bg-emerald-950/45 border border-emerald-800/50 flex items-center justify-center text-emerald-400">
                 <CheckCircle2 className="h-10 w-10 animate-pulse" />
               </div>
-              <h4 className="font-serif text-xl font-bold text-white">
+              <h4 className={`font-serif text-xl font-bold ${isDark ? 'text-white' : 'text-[#1E1214]'}`}>
                 {locale === 'en' ? 'Order Placed!' : 'Siparişiniz Alındı!'}
               </h4>
-              <p className="text-xs text-gray-400 max-w-xs">
+              <p className={`text-xs max-w-xs ${isDark ? 'text-gray-400' : 'text-gray-600'}`}>
                 {locale === 'en' 
                   ? 'Your order has been sent to the kitchen. Please relax while we prepare your food.' 
                   : 'Siparişiniz mutfağa iletildi. Yemekleriniz hazırlanırken keyfinize bakın.'}
@@ -145,10 +167,10 @@ export default function CartDrawer({
           ) : cartArray.length === 0 ? (
             <div className="flex flex-col items-center justify-center py-16 text-center space-y-3">
               <span className="text-4xl">🛒</span>
-              <h4 className="font-semibold text-gray-300 text-sm">
+              <h4 className={`font-semibold text-sm ${isDark ? 'text-gray-300' : 'text-gray-700'}`}>
                 {locale === 'en' ? 'Your basket is empty' : 'Sepetiniz boş'}
               </h4>
-              <p className="text-xs text-gray-500 max-w-xs">
+              <p className={`text-xs max-w-xs ${isDark ? 'text-gray-500' : 'text-gray-500'}`}>
                 {locale === 'en' 
                   ? 'Browse the menu and add items to start ordering.' 
                   : 'Sipariş vermek için menüden sepetinize ürün ekleyin.'}
@@ -164,39 +186,64 @@ export default function CartDrawer({
               )}
 
               {/* Items List */}
-              <div className="divide-y divide-white/[0.03] space-y-3.5">
+              <div className={`space-y-3.5 divide-y ${
+                isDark ? 'divide-white/[0.03]' : 'divide-black/[0.03]'
+              }`}>
                 {cartArray.map(({ item, quantity, notes }) => {
                   const name = locale === 'en' ? item.nameEn : item.nameTr;
                   return (
                     <div key={item.id} className="pt-3.5 flex justify-between items-start space-x-4">
                       <div className="flex-grow">
-                        <h5 className="font-semibold text-sm text-white leading-tight">
+                        <h5 className={`font-semibold text-sm leading-tight ${
+                          isDark ? 'text-white' : 'text-[#1E1214]'
+                        }`}>
                           {name}
                         </h5>
                         {notes && (
-                          <p className="text-[11px] text-gray-400 bg-white/[0.02] border border-white/[0.04] px-2 py-0.5 rounded w-fit mt-1.5 font-mono">
+                          <p className={`text-[11px] px-2 py-0.5 rounded w-fit mt-1.5 font-mono border ${
+                            isDark 
+                              ? 'text-gray-400 bg-white/[0.02] border-white/[0.04]' 
+                              : 'text-gray-600 bg-black/[0.02] border-black/[0.04]'
+                          }`}>
                             ✍️ {notes}
                           </p>
                         )}
-                        <span className="inline-block text-xs text-[#DFBA73] font-semibold mt-1">
+                        <span 
+                          className="inline-block text-xs font-semibold mt-1"
+                          style={{ color: accentColor }}
+                        >
                           {getCurrencySymbol(currency)}{(Number(item.price) * quantity).toFixed(2)}
                         </span>
                       </div>
                       
                       {/* Quantity Editor */}
-                      <div className="flex items-center space-x-2.5 flex-shrink-0 bg-white/[0.02] px-2.5 py-1.5 rounded-xl border border-white/[0.05]">
+                      <div className={`flex items-center space-x-2.5 flex-shrink-0 px-2.5 py-1.5 rounded-xl border ${
+                        isDark 
+                          ? 'bg-white/[0.02] border-white/[0.05]' 
+                          : 'bg-black/[0.02] border-black/[0.05]'
+                      }`}>
                         <button 
                           onClick={() => onUpdateQuantity(item.id, quantity - 1)}
-                          className="w-5.5 h-5.5 text-xs font-bold text-gray-400 hover:text-white flex items-center justify-center bg-[#0A0B0E] rounded-md"
+                          className={`w-5.5 h-5.5 text-xs font-bold flex items-center justify-center rounded-md ${
+                            isDark 
+                              ? 'bg-[#0A0B0E] text-gray-400 hover:text-white' 
+                              : 'bg-[#FDFBF7] text-gray-600 hover:text-black border border-black/[0.05]'
+                          }`}
                         >
                           -
                         </button>
-                        <span className="font-mono text-xs font-bold text-white w-4 text-center">
+                        <span className={`font-mono text-xs font-bold w-4 text-center ${
+                          isDark ? 'text-white' : 'text-[#1E1214]'
+                        }`}>
                           {quantity}
                         </span>
                         <button 
                           onClick={() => onUpdateQuantity(item.id, quantity + 1)}
-                          className="w-5.5 h-5.5 text-xs font-bold text-gray-400 hover:text-white flex items-center justify-center bg-[#0A0B0E] rounded-md"
+                          className={`w-5.5 h-5.5 text-xs font-bold flex items-center justify-center rounded-md ${
+                            isDark 
+                              ? 'bg-[#0A0B0E] text-gray-400 hover:text-white' 
+                              : 'bg-[#FDFBF7] text-gray-600 hover:text-black border border-black/[0.05]'
+                          }`}
                         >
                           +
                         </button>
@@ -218,12 +265,23 @@ export default function CartDrawer({
 
         {/* Footer actions */}
         {!orderSuccess && cartArray.length > 0 && (
-          <div className="p-6 border-t border-white/[0.04] bg-[#0A0B0E]/95 space-y-4 rounded-b-[2.5rem]">
+          <div className={`p-6 border-t rounded-b-[2.5rem] space-y-4 ${
+            isDark 
+              ? 'border-white/[0.04] bg-[#0A0B0E]/95' 
+              : 'border-black/[0.04] bg-[#FDFBF7]/95 shadow-[0_-4px_12px_rgba(0,0,0,0.02)]'
+          }`}>
             <div className="flex justify-between items-center">
-              <span className="text-xs text-gray-400">
+              <span className={`text-xs ${isDark ? 'text-gray-400' : 'text-gray-500'}`}>
                 {locale === 'en' ? 'Total Amount' : 'Toplam Tutar'}
               </span>
-              <span className="font-mono text-lg font-bold text-[#DFBA73] bg-[#DFBA73]/5 px-3 py-1 rounded-xl border border-[#DFBA73]/10">
+              <span 
+                className="font-mono text-lg font-bold px-3 py-1 rounded-xl border"
+                style={{
+                  color: accentColor,
+                  backgroundColor: `${accentColor}11`,
+                  borderColor: `${accentColor}22`
+                }}
+              >
                 {getCurrencySymbol(currency)}{totalPrice.toFixed(2)}
               </span>
             </div>
@@ -231,11 +289,16 @@ export default function CartDrawer({
             <button 
               onClick={handleCheckout}
               disabled={submitting}
-              className="w-full py-4 rounded-2xl bg-[#DFBA73] hover:bg-[#DFBA73]/85 text-[#0A0B0E] font-bold text-sm transition-colors flex items-center justify-center space-x-2 disabled:opacity-50 disabled:cursor-not-allowed shadow-xl shadow-[#DFBA73]/10"
+              className={`w-full py-4 rounded-2xl font-bold text-sm transition-colors flex items-center justify-center space-x-2 disabled:opacity-50 disabled:cursor-not-allowed shadow-xl`}
+              style={{
+                backgroundColor: accentColor,
+                color: isDark ? '#0A0B0E' : '#FFFFFF',
+                boxShadow: `0 10px 15px -3px ${accentColor}25`
+              }}
             >
               {submitting ? (
                 <>
-                  <Loader className="h-4 w-4 animate-spin text-[#0A0B0E]" />
+                  <Loader className={`h-4 w-4 animate-spin ${isDark ? 'text-[#0A0B0E]' : 'text-white'}`} />
                   <span>{locale === 'en' ? 'Placing Order...' : 'Sipariş Gönderiliyor...'}</span>
                 </>
               ) : (

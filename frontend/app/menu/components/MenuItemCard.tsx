@@ -52,6 +52,7 @@ interface MenuItemCardProps {
   locale: Locale;
   currency: string;
   brandColor?: string | null;
+  theme?: "dark" | "light";
 }
 
 const getDietaryLabel = (key: string, locale: Locale) => {
@@ -92,7 +93,8 @@ export default function MenuItemCard({
   onAddDirect,
   locale,
   currency,
-  brandColor
+  brandColor,
+  theme = "dark"
 }: MenuItemCardProps) {
   const [isHovered, setIsHovered] = React.useState(false);
 
@@ -125,20 +127,26 @@ export default function MenuItemCard({
   });
 
   const defaultFoodImage = 'https://images.unsplash.com/photo-1546069901-ba9599a7e63c?w=400&auto=format&fit=crop&q=80';
+  const isDark = theme === "dark";
+  const accentColor = brandColor || (isDark ? '#DFBA73' : '#5C1D24');
 
   return (
     <div 
       onClick={() => onClick(item)}
       onMouseEnter={() => setIsHovered(true)}
       onMouseLeave={() => setIsHovered(false)}
-      className="flex flex-col bg-white/[0.02] hover:bg-white/[0.05] border border-white/[0.05] rounded-2xl overflow-hidden transition-all duration-300 cursor-pointer transform hover:-translate-y-0.5 active:scale-98 shadow-sm hover:shadow-md h-full relative"
+      className={`flex flex-col border rounded-2xl overflow-hidden transition-all duration-300 cursor-pointer transform hover:-translate-y-0.5 active:scale-98 shadow-sm hover:shadow-md h-full relative ${
+        isDark 
+          ? "bg-white/[0.02] hover:bg-white/[0.05] border-white/[0.05]" 
+          : "bg-[#F9F6F0] hover:bg-[#F3EFE6] border-black/[0.05] shadow-[0_2px_8px_rgba(0,0,0,0.02)]"
+      }`}
       style={{
-        borderColor: isHovered ? (brandColor || '#DFBA73cc') : undefined,
-        boxShadow: isHovered ? `0 4px 15px -3px ${brandColor || '#DFBA73'}22` : undefined
+        borderColor: isHovered ? `${accentColor}cc` : undefined,
+        boxShadow: isHovered ? `0 4px 15px -3px ${accentColor}22` : undefined
       }}
     >
       {/* Image Container on Top */}
-      <div className="w-full aspect-square relative bg-[#1E293B]/40 border-b border-white/[0.03] overflow-hidden">
+      <div className={`w-full aspect-square relative bg-[#1E293B]/40 overflow-hidden border-b ${isDark ? 'border-white/[0.03]' : 'border-black/[0.03]'}`}>
         <img 
           src={item.imageUrl || defaultFoodImage} 
           alt={name}
@@ -160,7 +168,15 @@ export default function MenuItemCard({
                 <span 
                   key={lbl.key}
                   title={getDietaryLabel(lbl.key, locale)}
-                  className="bg-[#0A0B0E]/85 text-[#DFBA73] border border-[#DFBA73]/20 text-[8px] font-bold px-1.5 py-0.5 rounded-full uppercase tracking-wider flex items-center space-x-1"
+                  className={`border text-[8px] font-bold px-1.5 py-0.5 rounded-full uppercase tracking-wider flex items-center space-x-1 ${
+                    isDark 
+                      ? "bg-[#0A0B0E]/85 border-[#DFBA73]/20" 
+                      : "bg-[#FDFBF7]/95 border-[#5C1D24]/20 shadow-sm"
+                  }`}
+                  style={{
+                    color: accentColor,
+                    borderColor: `${accentColor}33`
+                  }}
                 >
                   <IconComponent className="h-2 w-2" />
                   <span>{getDietaryLabel(lbl.key, locale)}</span>
@@ -175,30 +191,36 @@ export default function MenuItemCard({
       <div className="p-3 flex flex-col flex-grow justify-between">
         <div>
           <div className="flex flex-col gap-0.5 mb-1.5">
-            <h3 className="font-serif text-[13px] md:text-sm font-bold text-white leading-tight tracking-wide line-clamp-2 min-h-[32px]">
+            <h3 className={`font-serif text-[13px] md:text-sm font-bold leading-tight tracking-wide line-clamp-2 min-h-[32px] ${
+              isDark ? 'text-white' : 'text-[#1E1214]'
+            }`}>
               {name}
             </h3>
             <span 
               className="font-mono text-xs font-semibold"
-              style={{ color: brandColor || '#DFBA73' }}
+              style={{ color: accentColor }}
             >
               {getCurrencySymbol(currency)}{formattedPrice}
             </span>
           </div>
           
           {description && (
-            <p className="text-[10px] text-gray-400 line-clamp-2 leading-relaxed font-light mb-3 min-h-[30px]">
+            <p className={`text-[10px] line-clamp-2 leading-relaxed font-light mb-3 min-h-[30px] ${
+              isDark ? 'text-gray-400' : 'text-[#5C5552]'
+            }`}>
               {description}
             </p>
           )}
         </div>
 
         {/* Rating and ADD Button Row */}
-        <div className="flex items-center justify-between mt-auto pt-2 border-t border-white/[0.03]">
+        <div className={`flex items-center justify-between mt-auto pt-2 border-t ${
+          isDark ? 'border-white/[0.03]' : 'border-black/[0.03]'
+        }`}>
           {/* Rating */}
           <div className="flex items-center space-x-0.5">
-            <span className="text-[#DFBA73] text-[10px] font-bold font-mono">4.9</span>
-            <span className="text-[#DFBA73] text-[9px]">★</span>
+            <span className="text-[10px] font-bold font-mono" style={{ color: accentColor }}>4.9</span>
+            <span className="text-[9px]" style={{ color: accentColor }}>★</span>
           </div>
 
           {/* ADD Button */}
@@ -211,7 +233,15 @@ export default function MenuItemCard({
                 onClick(item);
               }
             }}
-            className="px-3 py-1 rounded-lg bg-[#DFBA73] hover:bg-[#DFBA73]/85 text-[#0A0B0E] text-[10px] font-bold transition-all uppercase tracking-wider"
+            className={`px-3 py-1 rounded-lg text-[10px] font-bold transition-all uppercase tracking-wider ${
+              isDark 
+                ? "bg-[#DFBA73] hover:bg-[#DFBA73]/85 text-[#0A0B0E]" 
+                : "bg-[#5C1D24] hover:bg-[#5C1D24]/85 text-white"
+            }`}
+            style={{
+              backgroundColor: brandColor ? accentColor : undefined,
+              color: brandColor ? (isDark ? '#0A0B0E' : '#FFFFFF') : undefined
+            }}
           >
             ADD
           </button>

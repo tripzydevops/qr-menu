@@ -1349,31 +1349,102 @@ async def import_menu_scrape(payload: Dict[str, str]):
                                     parsed_items = []
                                     for item in items_val:
                                         if isinstance(item, dict):
-                                            i_name = None
-                                            for k in name_keys + ["productName", "defaultTitle"]:
-                                                if k in item and isinstance(item[k], str):
-                                                    i_name = item[k]
-                                                    break
+                                            # 1. Extract name
+                                            i_name = item.get("defaultTitle") or item.get("name")
+                                            if isinstance(item.get("title"), dict):
+                                                i_name = item["title"].get("tr_TR") or item["title"].get("en_US") or i_name
+                                            elif isinstance(item.get("title"), str):
+                                                i_name = item["title"]
+                                                
+                                            # 2. Extract description and image
+                                            i_desc = item.get("description") or item.get("desc")
+                                            i_img = None
+                                            if isinstance(item.get("imageUrls"), list) and len(item["imageUrls"]) > 0:
+                                                i_img = item["imageUrls"][0]
+                                            elif isinstance(item.get("imageUrl"), str):
+                                                i_img = item["imageUrl"]
+                                                
+                                            # 3. Check for nested product dictionary (variation structure)
+                                            nested_prod = item.get("product")
+                                            if isinstance(nested_prod, dict):
+                                                if not i_name:
+                                                    i_name = nested_prod.get("defaultTitle") or nested_prod.get("name")
+                                                    if isinstance(nested_prod.get("title"), dict):
+                                                        i_name = nested_prod["title"].get("tr_TR") or nested_prod["title"].get("en_US") or i_name
+                                                if not i_desc:
+                                                    i_desc = nested_prod.get("description") or nested_prod.get("desc")
+                                                if not i_img:
+                                                    if isinstance(nested_prod.get("imageUrls"), list) and len(nested_prod["imageUrls"]) > 0:
+                                                        i_img = nested_prod["imageUrls"][0]
+                                                    elif isinstance(nested_prod.get("imageUrl"), str):
+                                                        i_img = nested_prod["imageUrl"]
+                                                        
+                                            # 4. Extract price
                                             i_price = None
-                                            for k in ["price", "amount", "total", "unitPrice"]:
-                                                if k in item:
-                                                    try:
-                                                        if isinstance(item[k], (int, float)):
-                                                            i_price = float(item[k])
-                                                        elif isinstance(item[k], dict) and "value" in item[k]:
-                                                            i_price = float(item[k]["value"])
-                                                    except:
-                                                        pass
+                                            for pk in ["unitPrice", "price", "amount", "total"]:
+                                                if pk in item:
+                                                    val = item[pk]
+                                                    if isinstance(val, (int, float)):
+                                                        i_price = float(val)
+                                                    elif isinstance(val, dict):
+                                                        if "value" in val:
+                                                            i_price = float(val["value"])
+                                                        elif "amount" in val:
+                                                            i_price = float(val["amount"])
+                                                    if i_price is not None:
+                                                        break
+                                            
+                                            # 5. Extract price from nested variations list if not found
+                                            if i_price is None:
+                                                vars_list = item.get("variations") or item.get("productVariations")
+                                                if isinstance(vars_list, list) and len(vars_list) > 0:
+                                                    first_var = vars_list[0]
+                                                    if isinstance(first_var, dict):
+                                                        for pk in ["unitPrice", "price", "amount", "total"]:
+                                                            if pk in first_var:
+                                                                val = first_var[pk]
+                                                                if isinstance(val, (int, float)):
+                                                                    i_price = float(val)
+                                                                elif isinstance(val, dict):
+                                                                    if "value" in val:
+                                                                        i_price = float(val["value"])
+                                                                    elif "amount" in val:
+                                                                        i_price = float(val["amount"])
+                                                                if i_price is not None:
+                                                                    break
+                                            
+                                            # 6. Extract calories
+                                            i_calories = item.get("calories")
+                                            if not i_calories and isinstance(nested_prod, dict):
+                                                i_calories = nested_prod.get("calories")
+                                            try:
+                                                if i_calories:
+                                                    i_calories = int(i_calories)
+                                            except:
+                                                i_calories = None
+                                                
+                                            # 7. Extract allergens
+                                            i_allergens = item.get("allergens") or item.get("allergen")
+                                            if not i_allergens and isinstance(nested_prod, dict):
+                                                i_allergens = nested_prod.get("allergens") or nested_prod.get("allergen")
+                                            if isinstance(i_allergens, str):
+                                                i_allergens = [a.strip().lower() for a in i_allergens.split(",") if a.strip()]
+                                            elif not isinstance(i_allergens, list):
+                                                i_allergens = []
+                                                
+                                            # 8. Append if name and price are valid
                                             if i_name and i_price is not None:
-                                                 parsed_items.append({
-                                                     "nameTr": i_name,
-                                                     "nameEn": i_name,
-                                                     "price": i_price,
-                                                     "descriptionTr": item.get("description") or item.get("desc") or None,
-                                                     "descriptionEn": None,
-                                                     "allergens": [],
-                                                     "calories": None
-                                                 })
+                                                parsed_items.append({
+                                                    "nameTr": i_name,
+                                                    "nameEn": i_name,
+                                                    "price": i_price,
+                                                    "descriptionTr": i_desc,
+                                                    "descriptionEn": None,
+                                                    "imageUrl": i_img,
+                                                    "allergens": i_allergens,
+                                                    "calories": i_calories
+                                                })
+                                                
                                     if parsed_items:
                                         res_cats.append({
                                             "nameTr": name_val,

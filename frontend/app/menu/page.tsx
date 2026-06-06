@@ -2,7 +2,7 @@
 
 import { useEffect, useState, useRef, Suspense } from "react";
 import { useSearchParams } from "next/navigation";
-import { Globe, ShieldAlert, Coffee, ArrowLeft, ShoppingBag, Bell, Receipt, CheckCircle, Home, Search, User, Wine } from "lucide-react";
+import { Globe, ShieldAlert, Coffee, ArrowLeft, ShoppingBag, Bell, Receipt, CheckCircle, Home, Search, User, Wine, Sun, Moon } from "lucide-react";
 import Link from "next/link";
 
 import { useLocale } from "../../i18n/useLocale";
@@ -78,6 +78,7 @@ function MenuContent() {
   const [showCart, setShowCart] = useState<boolean>(false);
   const [serviceStatus, setServiceStatus] = useState<string | null>(null); // "calling", "success_waiter", "success_bill", "error"
   const [searchQuery, setSearchQuery] = useState("");
+  const [theme, setTheme] = useState<"dark" | "light">("dark");
 
   useEffect(() => {
     if (serviceStatus && serviceStatus !== "calling") {
@@ -358,40 +359,73 @@ function MenuContent() {
   const filteredCategories = getFilteredCategories();
 
   return (
-    <div className="flex-grow flex flex-col bg-[#0A0B0E] min-h-screen pb-28 relative select-none animate-fade-in">
+    <div className={`flex-grow flex flex-col min-h-screen pb-28 relative select-none animate-fade-in transition-colors duration-300 ${
+      theme === 'dark' ? 'bg-[#12141C] text-[#E2E8F0]' : 'bg-[#FDFBF7] text-[#1E1214]'
+    }`}>
       {/* Premium Header Aligned to Mockup */}
       <header className="px-6 pt-8 pb-4 flex items-center justify-between z-10">
         <div className="flex items-center space-x-3">
-          <Link href="/" className="p-2 rounded-full bg-white/[0.03] hover:bg-white/[0.08] text-white border border-white/[0.08] transition-all">
+          <Link href="/" className={`p-2 rounded-full border transition-all ${
+            theme === "dark" 
+              ? "bg-white/[0.03] hover:bg-white/[0.08] text-white border-white/[0.08]" 
+              : "bg-black/[0.03] hover:bg-black/[0.08] text-[#1E1214] border-black/[0.08]"
+          }`}>
             <ArrowLeft className="h-4 w-4" />
           </Link>
-          <h1 className="font-serif text-xl font-bold tracking-widest text-[#DFBA73] uppercase text-glow">
+          <h1 className={`font-serif text-xl font-bold tracking-widest uppercase text-glow transition-colors ${
+            theme === "dark" ? "text-[#DFBA73]" : "text-[#5C1D24]"
+          }`}>
             {menu.venueName === "Karaköy Merkez" ? "SAVOR" : menu.venueName.toUpperCase()}
           </h1>
         </div>
         
-        {/* Right side: Language selection & Profile */}
-        <div className="flex items-center space-x-3">
+        {/* Right side: Language selection, Theme Toggle & Profile */}
+        <div className="flex items-center space-x-2.5">
+          {/* Theme Toggle Button */}
+          <button 
+            onClick={() => setTheme(theme === "dark" ? "light" : "dark")}
+            className={`p-2 rounded-full border transition-all ${
+              theme === "dark" 
+                ? "bg-white/[0.03] text-amber-400 border-white/[0.08] hover:bg-white/[0.08]" 
+                : "bg-black/[0.03] text-[#5C1D24] border-black/[0.08] hover:bg-black/[0.08]"
+            }`}
+            title={theme === "dark" ? "Light Mode" : "Dark Mode"}
+          >
+            {theme === "dark" ? <Sun className="h-4 w-4" /> : <Moon className="h-4 w-4" />}
+          </button>
+
           {/* Active Locale dropdown */}
           <div className="relative">
             <button 
               onClick={() => setShowLangMenu(!showLangMenu)}
-              className="flex items-center space-x-1.5 px-3 py-1.5 rounded-full bg-white/[0.03] text-white border border-white/[0.08] hover:border-[#DFBA73]/40 transition-all font-semibold uppercase text-xs"
+              className={`flex items-center space-x-1.5 px-3 py-1.5 rounded-full border transition-all font-semibold uppercase text-xs ${
+                theme === "dark" 
+                  ? "bg-white/[0.03] text-white border-white/[0.08] hover:border-[#DFBA73]/40" 
+                  : "bg-black/[0.03] text-[#1E1214] border-black/[0.08] hover:border-[#5C1D24]/40"
+              }`}
             >
-              <Globe className="h-3.5 w-3.5 text-[#DFBA73]" />
+              <Globe className={`h-3.5 w-3.5 ${theme === "dark" ? "text-[#DFBA73]" : "text-[#5C1D24]"}`} />
               <span>{locale}</span>
             </button>
             {showLangMenu && (
-              <div className="absolute right-0 mt-2 w-28 bg-[#0A0B0E] border border-white/[0.08] rounded-xl overflow-hidden shadow-2xl z-55">
+              <div className={`absolute right-0 mt-2 w-28 border rounded-xl overflow-hidden shadow-2xl z-55 ${
+                theme === "dark" ? "bg-[#0A0B0E] border-white/[0.08]" : "bg-white border-black/[0.08]"
+              }`}>
                 <button 
                   onClick={() => { setLocale('tr'); setShowLangMenu(false); }}
-                  className="w-full text-left px-4 py-2.5 text-xs font-semibold hover:bg-white/[0.02] text-white border-b border-white/[0.04]"
+                  className={`w-full text-left px-4 py-2.5 text-xs font-semibold border-b ${
+                    theme === "dark" 
+                      ? "hover:bg-white/[0.02] text-white border-white/[0.04]" 
+                      : "hover:bg-black/[0.02] text-[#1E1214] border-black/[0.04]"
+                  }`}
                 >
                   Türkçe
                 </button>
                 <button 
                   onClick={() => { setLocale('en'); setShowLangMenu(false); }}
-                  className="w-full text-left px-4 py-2.5 text-xs font-semibold hover:bg-white/[0.02] text-white"
+                  className={`w-full text-left px-4 py-2.5 text-xs font-semibold ${
+                    theme === "dark" ? "hover:bg-white/[0.02] text-white" : "hover:bg-black/[0.02] text-[#1E1214]"
+                  }`}
                 >
                   English
                 </button>
@@ -399,7 +433,11 @@ function MenuContent() {
             )}
           </div>
 
-          <div className="h-9 w-9 rounded-full bg-[#DFBA73]/15 border border-[#DFBA73]/30 flex items-center justify-center text-[#DFBA73] hover:bg-[#DFBA73]/30 transition-all cursor-pointer">
+          <div className={`h-9 w-9 rounded-full border flex items-center justify-center transition-all cursor-pointer ${
+            theme === "dark" 
+              ? "bg-[#DFBA73]/15 border-[#DFBA73]/30 text-[#DFBA73] hover:bg-[#DFBA73]/30" 
+              : "bg-[#5C1D24]/10 border-[#5C1D24]/20 text-[#5C1D24] hover:bg-[#5C1D24]/20"
+          }`}>
             <User className="h-4 w-4" />
           </div>
         </div>
@@ -416,7 +454,11 @@ function MenuContent() {
             placeholder={locale === "en" ? "Search dishes..." : "Yemeklerde ara..."}
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
-            className="w-full pl-10 pr-4 py-3 rounded-xl bg-white/[0.03] border border-white/[0.08] focus:border-[#DFBA73]/40 focus:outline-none text-xs font-medium placeholder-gray-500 text-white transition-all duration-300"
+            className={`w-full pl-10 pr-4 py-3 rounded-xl border focus:outline-none text-xs font-medium transition-all duration-300 ${
+              theme === "dark" 
+                ? "bg-white/[0.03] border-white/[0.08] focus:border-[#DFBA73]/40 text-white placeholder-gray-500" 
+                : "bg-black/[0.02] border-black/[0.08] focus:border-[#5C1D24]/40 text-[#1E1214] placeholder-gray-400"
+            }`}
           />
         </div>
       </div>
@@ -437,6 +479,7 @@ function MenuContent() {
           onCategoryClick={scrollToCategory} 
           locale={locale}
           brandColor={menu.brandColor}
+          theme={theme}
         />
       )}
 
@@ -447,6 +490,7 @@ function MenuContent() {
           onFilterChange={setActiveFilter} 
           t={t}
           brandColor={menu.brandColor}
+          theme={theme}
         />
       </div>
 
@@ -459,7 +503,9 @@ function MenuContent() {
               ref={(el) => { categoryRefs.current[category.id] = el; }}
               className="space-y-4 pt-2"
             >
-              <h3 className="font-serif text-xl font-bold text-[#E8E8E8] tracking-wide border-b border-gray-800/50 pb-2">
+              <h3 className={`font-serif text-xl font-bold tracking-wide border-b pb-2 transition-colors ${
+                theme === "dark" ? "text-[#E8E8E8] border-gray-800/50" : "text-[#1E1214] border-black/[0.08]"
+              }`}>
                 {locale === 'en' ? category.nameEn : category.nameTr}
               </h3>
 
@@ -473,30 +519,41 @@ function MenuContent() {
                     locale={locale} 
                     currency={menu.currency}
                     brandColor={menu.brandColor}
+                    theme={theme}
                   />
                 ))}
 
                 {/* If Main Courses category and no search query, inject the mockup's Wine Pairing recommendation */}
                 {category.id === "cat-mains" && !searchQuery && (
-                  <div className="col-span-2 glass-card border border-[#DFBA73]/30 p-4 rounded-2xl relative overflow-hidden flex gap-4 mt-2">
+                  <div className={`col-span-2 border p-4 rounded-2xl relative overflow-hidden flex gap-4 mt-2 transition-all ${
+                    theme === "dark" 
+                      ? "bg-white/[0.02] border-[#DFBA73]/30" 
+                      : "bg-[#F9F6F0] border-[#5C1D24]/20 shadow-md shadow-[#5C1D24]/5"
+                  }`}>
                     <div className="absolute top-0 right-0 w-24 h-24 bg-[#DFBA73]/5 rounded-full blur-xl pointer-events-none" />
                     
                     {/* Left: Wine Glass Icon & Title */}
                     <div className="flex-grow">
                       <div className="flex items-center space-x-2 mb-1.5">
-                        <Wine className="h-4 w-4 text-[#DFBA73] animate-pulse" />
-                        <span className="text-[9px] font-mono tracking-widest font-bold text-[#DFBA73] uppercase">AI SOMMELIER RECOMMENDS</span>
+                        <Wine className={`h-4 w-4 animate-pulse ${theme === "dark" ? "text-[#DFBA73]" : "text-[#5C1D24]"}`} />
+                        <span className={`text-[9px] font-mono tracking-widest font-bold uppercase ${
+                          theme === "dark" ? "text-[#DFBA73]" : "text-[#5C1D24]"
+                        }`}>AI SOMMELIER RECOMMENDS</span>
                       </div>
-                      <span className="text-[10px] text-gray-500 font-mono block mb-1">For Wagyu Filet:</span>
-                      <h4 className="font-serif text-[13px] font-bold text-white mb-0.5">Domaine Serene Pinot Noir</h4>
-                      <span className="text-[11px] font-semibold text-[#DFBA73] font-mono block mb-1.5">₺3.900 / $120 Şişe</span>
-                      <p className="text-[10px] text-gray-400 leading-relaxed font-light">
+                      <span className={`text-[10px] font-mono block mb-1 ${theme === "dark" ? "text-gray-500" : "text-gray-600"}`}>For Wagyu Filet:</span>
+                      <h4 className={`font-serif text-[13px] font-bold mb-0.5 ${theme === "dark" ? "text-white" : "text-[#1E1214]"}`}>Domaine Serene Pinot Noir</h4>
+                      <span className={`text-[11px] font-semibold font-mono block mb-1.5 ${theme === "dark" ? "text-[#DFBA73]" : "text-[#5C1D24]"}`}>₺3.900 / $120 Şişe</span>
+                      <p className={`text-[10px] leading-relaxed font-light ${theme === "dark" ? "text-gray-400" : "text-gray-600"}`}>
                         2018 Pinot Noir - Elegant, complex, hints of cherry & oak. Pairs perfectly.
                       </p>
                     </div>
 
                     {/* Right: Wine Bottle Image */}
-                    <div className="w-20 h-20 rounded-xl overflow-hidden bg-gradient-to-br from-[#4A151B] to-[#12141A] p-1.5 flex items-center justify-center shrink-0 border border-white/[0.05]">
+                    <div className={`w-20 h-20 rounded-xl overflow-hidden p-1.5 flex items-center justify-center shrink-0 border transition-all ${
+                      theme === "dark" 
+                        ? "bg-gradient-to-br from-[#4A151B] to-[#12141A] border-white/[0.05]" 
+                        : "bg-gradient-to-br from-[#FDFBF7] to-[#F9F6F0] border-black/[0.04]"
+                    }`}>
                       <img 
                         src="https://images.unsplash.com/photo-1510812431401-41d2bd2722f3?w=300&auto=format&fit=crop&q=80" 
                         alt="Pinot Noir" 
@@ -527,16 +584,23 @@ function MenuContent() {
         brandColor={menu.brandColor}
         venueName={menu.venueName}
         onAddToOrder={handleAddToOrder}
+        theme={theme}
       />
 
       {/* Floating Bottom Cart Bar */}
       {Object.keys(cart).length > 0 && !showCart && (
         <div 
-          className="fixed bottom-6 left-1/2 -translate-x-1/2 w-[90%] max-w-md bg-[#DFBA73] text-[#0A0B0E] p-4 rounded-2xl flex items-center justify-between shadow-2xl z-40 animate-fade-in-up border border-[#DFBA73]/50 hover:bg-[#DFBA73]/85 transition-all cursor-pointer" 
           onClick={() => setShowCart(true)}
+          className={`fixed bottom-16 left-1/2 -translate-x-1/2 w-[90%] max-w-md p-4 rounded-2xl flex items-center justify-between shadow-2xl z-40 animate-fade-in-up border transition-all cursor-pointer ${
+            theme === "dark" 
+              ? "bg-[#DFBA73] text-[#0A0B0E] border-[#DFBA73]/50 hover:bg-[#DFBA73]/85" 
+              : "bg-[#5C1D24] text-white border-[#5C1D24]/50 hover:bg-[#5C1D24]/85"
+          }`}
         >
           <div className="flex items-center space-x-3">
-            <div className="bg-[#0A0B0E] text-[#DFBA73] h-9 w-9 rounded-xl flex items-center justify-center font-bold text-sm">
+            <div className={`h-9 w-9 rounded-xl flex items-center justify-center font-bold text-sm ${
+              theme === "dark" ? "bg-[#0A0B0E] text-[#DFBA73]" : "bg-white text-[#5C1D24]"
+            }`}>
               {Object.values(cart).reduce((sum, i) => sum + i.quantity, 0)}
             </div>
             <div>
@@ -551,34 +615,48 @@ function MenuContent() {
       )}
 
       {/* Floating Service Buttons */}
-      <div className="fixed right-4 bottom-24 z-40 flex flex-col space-y-3">
+      <div className="fixed right-4 bottom-28 z-40 flex flex-col space-y-3">
         <button 
           onClick={() => handleCallService("waiter")}
           disabled={serviceStatus === "calling"}
-          className="h-12 w-12 rounded-full bg-white/[0.02] border border-white/[0.08] hover:border-[#DFBA73]/50 text-white flex items-center justify-center shadow-xl hover:bg-white/[0.05] backdrop-blur-md transition-all"
+          className={`h-12 w-12 rounded-full border flex items-center justify-center shadow-xl backdrop-blur-md transition-all ${
+            theme === "dark" 
+              ? "bg-[#0A0B0E]/60 border-white/[0.08] hover:border-[#DFBA73]/50 text-white" 
+              : "bg-white/80 border-black/[0.08] hover:border-[#5C1D24]/50 text-[#5C1D24]"
+          }`}
           title={locale === 'en' ? 'Call Waiter' : 'Garson Çağır'}
         >
-          <Bell className="h-5 w-5 text-[#DFBA73]" />
+          <Bell className={`h-5 w-5 ${theme === "dark" ? "text-[#DFBA73]" : "text-[#5C1D24]"}`} />
         </button>
         <button 
           onClick={() => handleCallService("bill")}
           disabled={serviceStatus === "calling"}
-          className="h-12 w-12 rounded-full bg-white/[0.02] border border-white/[0.08] hover:border-[#DFBA73]/50 text-white flex items-center justify-center shadow-xl hover:bg-white/[0.05] backdrop-blur-md transition-all"
+          className={`h-12 w-12 rounded-full border flex items-center justify-center shadow-xl backdrop-blur-md transition-all ${
+            theme === "dark" 
+              ? "bg-[#0A0B0E]/60 border-white/[0.08] hover:border-[#DFBA73]/50 text-white" 
+              : "bg-white/80 border-black/[0.08] hover:border-[#5C1D24]/50 text-[#5C1D24]"
+          }`}
           title={locale === 'en' ? 'Request Bill' : 'Hesap İste'}
         >
-          <Receipt className="h-5 w-5 text-[#DFBA73]" />
+          <Receipt className={`h-5 w-5 ${theme === "dark" ? "text-[#DFBA73]" : "text-[#5C1D24]"}`} />
         </button>
       </div>
 
       {/* Service Request Toasts */}
       {serviceStatus && (
-        <div className="fixed top-24 left-1/2 -translate-x-1/2 z-55 w-[85%] max-w-sm bg-[#0A0B0E]/95 border border-white/[0.08] rounded-2xl p-4 shadow-2xl animate-fade-in flex items-center space-x-3 backdrop-blur-md">
+        <div className={`fixed top-24 left-1/2 -translate-x-1/2 z-55 w-[85%] max-w-sm border rounded-2xl p-4 shadow-2xl animate-fade-in flex items-center space-x-3 backdrop-blur-md transition-all ${
+          theme === "dark" 
+            ? "bg-[#0A0B0E]/95 border-white/[0.08] text-white" 
+            : "bg-white/95 border-black/[0.08] text-[#1E1214]"
+        }`}>
           {serviceStatus === "calling" ? (
-            <div className="h-5 w-5 border-2 border-[#DFBA73] border-t-transparent rounded-full animate-spin" />
+            <div className={`h-5 w-5 border-2 rounded-full animate-spin ${
+              theme === "dark" ? "border-[#DFBA73] border-t-transparent" : "border-[#5C1D24] border-t-transparent"
+            }`} />
           ) : (
-            <CheckCircle className="h-5 w-5 text-emerald-400 animate-bounce" />
+            <CheckCircle className="h-5 w-5 text-emerald-500 animate-bounce" />
           )}
-          <span className="text-xs font-semibold text-white">
+          <span className="text-xs font-semibold">
             {serviceStatus === "calling" && (locale === 'en' ? "Sending request..." : "İstek gönderiliyor...")}
             {serviceStatus === "success_waiter" && (locale === 'en' ? "Waiter called. A staff member is on the way!" : "Garson çağrıldı. Görevli masanıza yönlendiriliyor!")}
             {serviceStatus === "success_bill" && (locale === 'en' ? "Bill requested. Waiter will bring the check!" : "Hesap istendi. Garson hesabı getirecektir!")}
@@ -599,12 +677,22 @@ function MenuContent() {
         locale={locale}
         currency={menu.currency}
         brandColor={menu.brandColor}
+        theme={theme}
       />
 
       {/* Premium Bottom Tab Navigation Bar Aligned to Mockup */}
-      <div className="fixed bottom-0 left-0 right-0 z-40 bg-[#0A0B0E]/90 border-t border-white/[0.08] py-2.5 px-6 flex justify-around items-center backdrop-blur-lg">
+      <div className={`fixed bottom-0 left-0 right-0 z-40 border-t py-2.5 px-6 flex justify-around items-center backdrop-blur-lg transition-colors duration-300 ${
+        theme === "dark" 
+          ? "bg-[#0A0B0E]/90 border-white/[0.08]" 
+          : "bg-[#FDFBF7]/95 border-black/[0.08] shadow-[0_-4px_12px_rgba(0,0,0,0.02)]"
+      }`}>
         {/* Home */}
-        <Link href="/" className="flex flex-col items-center space-y-1 text-gray-500 hover:text-white transition-colors">
+        <Link 
+          href="/" 
+          className={`flex flex-col items-center space-y-1 transition-colors ${
+            theme === "dark" ? "text-gray-500 hover:text-white" : "text-gray-500 hover:text-[#1E1214]"
+          }`}
+        >
           <Home className="h-5 w-5" />
           <span className="text-[9px] uppercase tracking-wider font-semibold">Home</span>
         </Link>
@@ -615,7 +703,9 @@ function MenuContent() {
             const inputEl = document.querySelector('input[type="text"]') as HTMLInputElement;
             if (inputEl) inputEl.focus();
           }}
-          className="flex flex-col items-center space-y-1 text-gray-500 hover:text-white transition-colors"
+          className={`flex flex-col items-center space-y-1 transition-colors ${
+            theme === "dark" ? "text-gray-500 hover:text-white" : "text-gray-500 hover:text-[#1E1214]"
+          }`}
         >
           <Search className="h-5 w-5" />
           <span className="text-[9px] uppercase tracking-wider font-semibold">Explore</span>
@@ -626,31 +716,47 @@ function MenuContent() {
           onClick={() => {
             scrollToCategory("cat-mains");
           }}
-          className="flex flex-col items-center space-y-0.5 text-[#DFBA73] relative group focus:outline-none"
+          className={`flex flex-col items-center space-y-0.5 relative group focus:outline-none`}
         >
-          <div className="p-1 rounded-xl bg-[#DFBA73]/10 border border-[#DFBA73]/20 group-hover:bg-[#DFBA73]/20 transition-all">
-            <Wine className="h-4.5 w-4.5 text-[#DFBA73]" />
+          <div className={`p-1 rounded-xl border transition-all ${
+            theme === "dark" 
+              ? "bg-[#DFBA73]/10 border-[#DFBA73]/20 hover:bg-[#DFBA73]/20 text-[#DFBA73]" 
+              : "bg-[#5C1D24]/10 border-[#5C1D24]/20 hover:bg-[#5C1D24]/20 text-[#5C1D24]"
+          }`}>
+            <Wine className="h-4.5 w-4.5" />
           </div>
-          <span className="text-[9px] uppercase tracking-wider font-bold text-[#DFBA73] mt-0.5">Sommelier</span>
-          <span className="absolute -top-1 -right-1 h-1.5 w-1.5 rounded-full bg-[#DFBA73] animate-pulse" />
+          <span className={`text-[9px] uppercase tracking-wider font-bold mt-0.5 ${
+            theme === "dark" ? "text-[#DFBA73]" : "text-[#5C1D24]"
+          }`}>Sommelier</span>
+          <span className={`absolute -top-1 -right-1 h-1.5 w-1.5 rounded-full animate-pulse ${
+            theme === "dark" ? "bg-[#DFBA73]" : "bg-[#5C1D24]"
+          }`} />
         </button>
         
         {/* Cart */}
         <button 
           onClick={() => setShowCart(true)} 
-          className="flex flex-col items-center space-y-1 text-gray-500 hover:text-white transition-colors relative"
+          className={`flex flex-col items-center space-y-1 relative transition-colors ${
+            theme === "dark" ? "text-gray-500 hover:text-white" : "text-gray-500 hover:text-[#1E1214]"
+          }`}
         >
           <ShoppingBag className="h-5 w-5" />
           <span className="text-[9px] uppercase tracking-wider font-semibold">Cart</span>
           {Object.keys(cart).length > 0 && (
-            <span className="absolute -top-1 -right-1 bg-[#DFBA73] text-[#0A0B0E] h-4 w-4 rounded-full text-[9px] font-bold flex items-center justify-center">
+            <span className={`absolute -top-1 -right-1 h-4 w-4 rounded-full text-[9px] font-bold flex items-center justify-center ${
+              theme === "dark" ? "bg-[#DFBA73] text-[#0A0B0E]" : "bg-[#5C1D24] text-white"
+            }`}>
               {Object.values(cart).reduce((sum, i) => sum + i.quantity, 0)}
             </span>
           )}
         </button>
         
         {/* Account */}
-        <button className="flex flex-col items-center space-y-1 text-gray-500 hover:text-white transition-colors">
+        <button 
+          className={`flex flex-col items-center space-y-1 transition-colors ${
+            theme === "dark" ? "text-gray-500 hover:text-white" : "text-gray-500 hover:text-[#1E1214]"
+          }`}
+        >
           <User className="h-5 w-5" />
           <span className="text-[9px] uppercase tracking-wider font-semibold">Account</span>
         </button>

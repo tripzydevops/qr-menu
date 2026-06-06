@@ -38,6 +38,7 @@ interface ItemDetailSheetProps {
   brandColor?: string | null;
   venueName: string;
   onAddToOrder: (item: MenuItem, quantity: number, notes: string) => void;
+  theme?: "dark" | "light";
 }
 
 const ALLERGEN_MAP: Record<string, { icon: string; labelKey: string }> = {
@@ -49,6 +50,27 @@ const ALLERGEN_MAP: Record<string, { icon: string; labelKey: string }> = {
   fish: { icon: '🐟', labelKey: 'menu.allergensList.fish' }
 };
 
+const getDietaryBadgeStyles = (key: string, isDark: boolean) => {
+  switch (key.toLowerCase()) {
+    case 'halal':
+      return isDark 
+        ? 'bg-emerald-950/65 text-emerald-400 border-emerald-900/30'
+        : 'bg-emerald-50 text-emerald-700 border-emerald-200/50';
+    case 'vegan':
+      return isDark 
+        ? 'bg-green-950/65 text-green-400 border-green-900/30'
+        : 'bg-green-50 text-green-700 border-green-200/50';
+    case 'gluten-free':
+      return isDark 
+        ? 'bg-amber-950/65 text-amber-400 border-amber-900/30'
+        : 'bg-amber-50 text-amber-700 border-amber-200/50';
+    default:
+      return isDark 
+        ? 'bg-white/[0.02] text-white border-white/[0.05]'
+        : 'bg-black/[0.02] text-[#1E1214] border-black/[0.05]';
+  }
+};
+
 export default function ItemDetailSheet({
   isOpen,
   item,
@@ -58,7 +80,8 @@ export default function ItemDetailSheet({
   t,
   brandColor = '#722F37',
   venueName,
-  onAddToOrder
+  onAddToOrder,
+  theme = "dark"
 }: ItemDetailSheetProps) {
   const [showShareCard, setShowShareCard] = useState(false);
   const [isRendered, setIsRendered] = useState(false);
@@ -109,6 +132,8 @@ export default function ItemDetailSheet({
   });
 
   const defaultFoodImage = 'https://images.unsplash.com/photo-1546069901-ba9599a7e63c?w=800&auto=format&fit=crop&q=80';
+  const isDark = theme === "dark";
+  const accentColor = brandColor || (isDark ? '#DFBA73' : '#5C1D24');
 
   return (
     <div className="fixed inset-0 z-50 flex items-end justify-center">
@@ -122,8 +147,12 @@ export default function ItemDetailSheet({
 
       {/* Sheet Container */}
       <div 
-        className={`relative w-full max-w-lg bg-[#0A0B0E] border-t border-white/[0.05] rounded-t-[2.5rem] shadow-2xl overflow-y-auto no-scrollbar max-h-[92vh] transition-transform duration-300 transform ${
+        className={`relative w-full max-w-lg border-t rounded-t-[2.5rem] shadow-2xl overflow-y-auto no-scrollbar max-h-[92vh] transition-transform duration-300 transform ${
           isOpen ? 'translate-y-0' : 'translate-y-full'
+        } ${
+          isDark 
+            ? "bg-[#0A0B0E] border-white/[0.05]" 
+            : "bg-[#FDFBF7] border-black/[0.05]"
         }`}
       >
         {/* Handle */}
@@ -139,12 +168,18 @@ export default function ItemDetailSheet({
               (e.target as HTMLImageElement).src = defaultFoodImage;
             }}
           />
-          <div className="absolute inset-0 bg-gradient-to-t from-[#0A0B0E] via-[#0A0B0E]/20 to-transparent" />
+          <div className={`absolute inset-0 bg-gradient-to-t via-transparent to-transparent ${
+            isDark ? 'from-[#0A0B0E] via-[#0A0B0E]/20' : 'from-[#FDFBF7] via-[#FDFBF7]/20'
+          }`} />
           
           {/* Close button top right */}
           <button 
             onClick={onClose}
-            className="absolute top-5 right-5 w-9 h-9 rounded-full bg-[#0A0B0E]/60 backdrop-blur-md text-white flex items-center justify-center border border-white/[0.05] hover:bg-[#0A0B0E] transition-colors"
+            className={`absolute top-5 right-5 w-9 h-9 rounded-full backdrop-blur-md flex items-center justify-center border hover:scale-105 transition-all ${
+              isDark 
+                ? "bg-[#0A0B0E]/60 text-white border-white/[0.05] hover:bg-[#0A0B0E]" 
+                : "bg-[#FDFBF7]/60 text-[#1E1214] border-black/[0.05] hover:bg-[#FDFBF7]"
+            }`}
           >
             <X className="h-4 w-4" />
           </button>
@@ -165,7 +200,9 @@ export default function ItemDetailSheet({
                     return (
                       <span 
                         key={lbl.key}
-                        className={`inline-flex items-center gap-1.5 text-xs border px-2.5 py-0.5 rounded-full capitalize font-semibold transition-colors duration-300 ${config.colorClass}`}
+                        className={`inline-flex items-center gap-1.5 text-xs border px-2.5 py-0.5 rounded-full capitalize font-semibold transition-colors duration-300 ${
+                          getDietaryBadgeStyles(lbl.key, isDark)
+                        }`}
                       >
                         <IconComponent className="h-3 w-3" />
                         <span>{config.label}</span>
@@ -174,28 +211,39 @@ export default function ItemDetailSheet({
                   })}
                 </div>
               )}
-              <h2 className="font-serif text-2xl font-bold text-white leading-tight">
+              <h2 className={`font-serif text-2xl font-bold leading-tight ${isDark ? 'text-white' : 'text-[#1E1214]'}`}>
                 {name}
               </h2>
             </div>
-            <span className="font-mono text-xl font-bold text-[#DFBA73] ml-4 bg-[#DFBA73]/5 px-3 py-1 rounded-xl border border-[#DFBA73]/10">
+            <span 
+              className={`font-mono text-xl font-bold ml-4 px-3 py-1 rounded-xl border`}
+              style={{
+                color: accentColor,
+                backgroundColor: `${accentColor}11`,
+                borderColor: `${accentColor}22`
+              }}
+            >
               {getCurrencySymbol(currency)}{formattedPrice}
             </span>
           </div>
 
           {/* Calories Banner */}
           {item.calories !== null && item.calories > 0 && (
-            <div className="flex items-center space-x-2 bg-white/[0.02] border border-white/[0.04] px-3 py-2 rounded-xl text-xs text-gray-300 w-fit mb-4">
+            <div className={`flex items-center space-x-2 border px-3 py-2 rounded-xl text-xs w-fit mb-4 ${
+              isDark 
+                ? "bg-white/[0.02] border-white/[0.04] text-gray-300" 
+                : "bg-black/[0.02] border-black/[0.04] text-[#5C5552]"
+            }`}>
               <Flame className="h-4 w-4 text-orange-500" />
-              <span className="font-semibold text-white">{item.calories}</span>
-              <span className="text-gray-400">{t('menu.calories')}</span>
+              <span className={`font-semibold ${isDark ? 'text-white' : 'text-[#1E1214]'}`}>{item.calories}</span>
+              <span className={`${isDark ? 'text-gray-400' : 'text-gray-500'}`}>{t('menu.calories')}</span>
             </div>
           )}
 
           {/* Description */}
           {description && (
             <div className="mb-6">
-              <p className="text-[14px] text-gray-300 leading-relaxed font-light">
+              <p className={`text-[14px] leading-relaxed font-light ${isDark ? 'text-gray-300' : 'text-[#5C5552]'}`}>
                 {description}
               </p>
             </div>
@@ -203,8 +251,13 @@ export default function ItemDetailSheet({
 
           {/* Allergens */}
           {item.allergens && item.allergens.length > 0 && (
-            <div className="mb-6 bg-white/[0.01] border border-white/[0.04] p-4 rounded-2xl">
-              <h4 className="inline-flex items-center gap-1.5 text-xs font-bold text-[#DFBA73] tracking-widest uppercase mb-3">
+            <div className={`mb-6 border p-4 rounded-2xl ${
+              isDark ? 'bg-white/[0.01] border-white/[0.04]' : 'bg-black/[0.01] border-black/[0.04]'
+            }`}>
+              <h4 
+                className="inline-flex items-center gap-1.5 text-xs font-bold tracking-widest uppercase mb-3"
+                style={{ color: accentColor }}
+              >
                 <AlertTriangle className="h-4 w-4 text-amber-500" />
                 <span>{t('menu.allergens')}</span>
               </h4>
@@ -212,12 +265,26 @@ export default function ItemDetailSheet({
                 {item.allergens.map((a) => {
                   const allergen = ALLERGEN_MAP[a.toLowerCase()];
                   return allergen ? (
-                    <div key={a} className="flex items-center space-x-2 bg-white/[0.02] px-3 py-2 rounded-xl text-xs text-white border border-white/[0.04]">
+                    <div 
+                      key={a} 
+                      className={`flex items-center space-x-2 px-3 py-2 rounded-xl text-xs border ${
+                        isDark 
+                          ? "bg-white/[0.02] text-white border-white/[0.04]" 
+                          : "bg-black/[0.02] text-[#1E1214] border-black/[0.04]"
+                      }`}
+                    >
                       <span className="text-sm">{allergen.icon}</span>
                       <span>{t(allergen.labelKey)}</span>
                     </div>
                   ) : (
-                    <div key={a} className="flex items-center space-x-2 bg-white/[0.02] px-3 py-2 rounded-xl text-xs text-white border border-white/[0.04]">
+                    <div 
+                      key={a} 
+                      className={`flex items-center space-x-2 px-3 py-2 rounded-xl text-xs border ${
+                        isDark 
+                          ? "bg-white/[0.02] text-white border-white/[0.04]" 
+                          : "bg-black/[0.02] text-[#1E1214] border-black/[0.04]"
+                      }`}
+                    >
                       <span>🍽️</span>
                       <span className="capitalize">{a}</span>
                     </div>
@@ -229,7 +296,9 @@ export default function ItemDetailSheet({
 
           {/* Notes Input */}
           <div className="mb-6">
-            <label className="block text-xs font-bold text-gray-400 uppercase tracking-wider mb-2">
+            <label className={`block text-xs font-bold uppercase tracking-wider mb-2 ${
+              isDark ? 'text-gray-400' : 'text-gray-500'
+            }`}>
               {locale === 'en' ? 'Special Instructions' : 'Özel Notlar'}
             </label>
             <input 
@@ -237,29 +306,46 @@ export default function ItemDetailSheet({
               value={notes}
               onChange={(e) => setNotes(e.target.value)}
               placeholder={locale === 'en' ? 'E.g., no onions, extra sauce...' : 'Örn: soğan istemiyorum, az tereyağlı...'}
-              className="w-full bg-white/[0.01] border border-white/[0.08] focus:border-[#DFBA73]/50 rounded-xl px-4 py-3.5 text-sm text-white focus:outline-none transition-colors"
+              className={`w-full rounded-xl px-4 py-3.5 text-sm focus:outline-none transition-colors border ${
+                isDark 
+                  ? "bg-white/[0.01] border-white/[0.08] text-white focus:border-white/[0.2]" 
+                  : "bg-black/[0.01] border-black/[0.08] text-[#1E1214] focus:border-black/[0.2]"
+              }`}
+              style={{
+                borderColor: notes ? accentColor : undefined
+              }}
             />
           </div>
 
           {/* Actions */}
           <div className="flex flex-col space-y-3 mt-4">
-            <div className="flex items-center justify-between bg-white/[0.01] border border-white/[0.04] p-2 rounded-2xl">
-              <span className="text-xs font-semibold text-gray-300 ml-2">
+            <div className={`flex items-center justify-between border p-2 rounded-2xl ${
+              isDark ? 'bg-white/[0.01] border-white/[0.04]' : 'bg-black/[0.01] border-black/[0.04]'
+            }`}>
+              <span className={`text-xs font-semibold ml-2 ${isDark ? 'text-gray-300' : 'text-gray-600'}`}>
                 {locale === 'en' ? 'Quantity' : 'Adet'}
               </span>
               <div className="flex items-center space-x-3.5 mr-1">
                 <button 
                   onClick={() => setQuantity(Math.max(1, quantity - 1))}
-                  className="w-8 h-8 rounded-xl bg-white/[0.02] text-white flex items-center justify-center font-bold border border-white/[0.05] hover:bg-white/[0.06] transition-colors"
+                  className={`w-8 h-8 rounded-xl flex items-center justify-center font-bold border transition-colors ${
+                    isDark 
+                      ? "bg-white/[0.02] text-white border-white/[0.05] hover:bg-white/[0.06]" 
+                      : "bg-black/[0.02] text-[#1E1214] border-black/[0.05] hover:bg-black/[0.06]"
+                  }`}
                 >
                   -
                 </button>
-                <span className="font-mono text-sm font-bold text-white w-4 text-center">
+                <span className={`font-mono text-sm font-bold w-4 text-center ${isDark ? 'text-white' : 'text-[#1E1214]'}`}>
                   {quantity}
                 </span>
                 <button 
                   onClick={() => setQuantity(quantity + 1)}
-                  className="w-8 h-8 rounded-xl bg-white/[0.02] text-white flex items-center justify-center font-bold border border-white/[0.05] hover:bg-white/[0.06] transition-colors"
+                  className={`w-8 h-8 rounded-xl flex items-center justify-center font-bold border transition-colors ${
+                    isDark 
+                      ? "bg-white/[0.02] text-white border-white/[0.05] hover:bg-white/[0.06]" 
+                      : "bg-black/[0.02] text-[#1E1214] border-black/[0.05] hover:bg-black/[0.06]"
+                  }`}
                 >
                   +
                 </button>
@@ -272,16 +358,25 @@ export default function ItemDetailSheet({
                   onAddToOrder(item, quantity, notes);
                   onClose();
                 }}
-                className="flex-grow py-4 rounded-2xl font-bold bg-[#DFBA73] hover:bg-[#DFBA73]/85 text-[#0A0B0E] transition-colors duration-300 text-[14px] shadow-lg shadow-[#DFBA73]/15"
+                className={`flex-grow py-4 rounded-2xl font-bold transition-colors duration-300 text-[14px] shadow-lg`}
+                style={{
+                  backgroundColor: accentColor,
+                  color: isDark ? '#0A0B0E' : '#FFFFFF',
+                  boxShadow: `0 10px 15px -3px ${accentColor}25`
+                }}
               >
                 {locale === 'en' ? 'Add to Order' : 'Siparişe Ekle'} • {getCurrencySymbol(currency)}{(Number(item.price) * quantity).toFixed(2)}
               </button>
               
               <button 
                 onClick={() => setShowShareCard(true)}
-                className="p-4 rounded-2xl font-semibold transition-all duration-300 text-white border border-[#DFBA73]/35 hover:border-[#DFBA73]/60 hover:bg-[#DFBA73]/5 text-[15px]"
+                className={`p-4 rounded-2xl font-semibold transition-all duration-300 border hover:bg-opacity-5`}
+                style={{
+                  borderColor: `${accentColor}55`,
+                  color: accentColor
+                }}
               >
-                <Share2 className="h-5 w-5 text-[#DFBA73]" />
+                <Share2 className="h-5 w-5" />
               </button>
             </div>
           </div>

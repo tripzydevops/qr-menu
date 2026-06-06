@@ -433,79 +433,79 @@ export default function Home() {
       </section>
 
       {/* Unique Capabilities / Features Grid */}
-      <section id="features" className="px-6 py-24 bg-[#0A0B0E] border-y border-white/[0.04] relative">
+      <section id="features" className="px-6 py-24 bg-[#FDFBF7] border-y border-black/[0.04] relative">
         <div className="max-w-7xl mx-auto">
           <div className="text-center mb-20">
-            <span className="text-[10px] text-[#DFBA73] font-mono tracking-widest uppercase block mb-2 font-bold">Tripzy Farkı</span>
-            <h2 className="text-3xl md:text-5xl font-serif font-bold text-white">Neden Klasik QR Menü Değil?</h2>
-            <p className="text-xs md:text-sm text-gray-400 max-w-xl mx-auto mt-4 leading-relaxed font-light">
+            <span className="text-[10px] text-[#5C1D24] font-mono tracking-widest uppercase block mb-2 font-bold">Tripzy Farkı</span>
+            <h2 className="text-3xl md:text-5xl font-serif font-bold text-[#1E1214]">Neden Klasik QR Menü Değil?</h2>
+            <p className="text-xs md:text-sm text-gray-600 max-w-xl mx-auto mt-4 leading-relaxed font-light">
               Konuk ağırlama sektörünün (HoReCa) gerçek sorunlarını, gelişmiş teknoloji ve otonom akıl yürütmeyle çözüyoruz.
             </p>
           </div>
 
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
             {/* Feature 1 */}
-            <div className="glass-card glass-card-hover p-8 rounded-2xl relative group">
-              <div className="h-12 w-12 bg-[#5C1D24]/10 rounded-xl flex items-center justify-center mb-6 group-hover:bg-[#5C1D24]/20 transition-colors border border-[#DFBA73]/20">
-                <Sparkles className="h-5 w-5 text-[#DFBA73]" />
+            <div className="bg-white border border-black/[0.04] p-8 rounded-2xl relative group hover:shadow-xl hover:shadow-black/[0.02] transition-all duration-300">
+              <div className="h-12 w-12 bg-[#5C1D24]/10 rounded-xl flex items-center justify-center mb-6 group-hover:bg-[#5C1D24]/20 transition-colors border border-[#DFBA73]/30">
+                <Sparkles className="h-5 w-5 text-[#5C1D24]" />
               </div>
-              <h3 className="text-lg font-bold font-serif mb-3 text-white">Cold Start Sorununu Çözer</h3>
-              <p className="text-xs text-gray-400 leading-relaxed font-light">
+              <h3 className="text-lg font-bold font-serif mb-3 text-[#1E1214]">Cold Start Sorununu Çözer</h3>
+              <p className="text-xs text-gray-600 leading-relaxed font-light">
                 Müşteriniz restorana ilk kez gelse bile, genel lifestyle sinyallerini (zaman dilimi, seyahat modu, hava durumu, bütçe aralığı) analiz ederek kişiselleştirilmiş menü sıralaması ve tavsiyeler sunar.
               </p>
             </div>
 
             {/* Feature 2 */}
-            <div className="glass-card glass-card-hover p-8 rounded-2xl relative group">
-              <div className="h-12 w-12 bg-[#DFBA73]/10 rounded-xl flex items-center justify-center mb-6 group-hover:bg-[#DFBA73]/20 transition-colors border border-[#DFBA73]/20">
-                <Bot className="h-5 w-5 text-[#DFBA73]" />
+            <div className="bg-white border border-black/[0.04] p-8 rounded-2xl relative group hover:shadow-xl hover:shadow-black/[0.02] transition-all duration-300">
+              <div className="h-12 w-12 bg-[#DFBA73]/15 rounded-xl flex items-center justify-center mb-6 group-hover:bg-[#DFBA73]/25 transition-colors border border-[#DFBA73]/40">
+                <Bot className="h-5 w-5 text-[#5C1D24]" />
               </div>
-              <h3 className="text-lg font-bold font-serif mb-3 text-white">Otonom Sommelier & Garson</h3>
-              <p className="text-xs text-gray-400 leading-relaxed font-light">
+              <h3 className="text-lg font-bold font-serif mb-3 text-[#1E1214]">Otonom Sommelier & Garson</h3>
+              <p className="text-xs text-gray-600 leading-relaxed font-light">
                 Gemini tabanlı entegre akıl yürütme motoru, misafirlere *"Hangi mezeleriniz glutensiz?"* veya *"Bu yemeğin yanında hangi şarabı önerirsiniz?"* gibi sorulara detaylı açıklamalarla cevap verir.
               </p>
             </div>
 
             {/* Feature 3 */}
-            <div className="glass-card glass-card-hover p-8 rounded-2xl relative group">
-              <div className="h-12 w-12 bg-indigo-600/10 rounded-xl flex items-center justify-center mb-6 group-hover:bg-indigo-600/20 transition-colors border border-indigo-600/20">
-                <Hotel className="h-5 w-5 text-indigo-400" />
+            <div className="bg-white border border-black/[0.04] p-8 rounded-2xl relative group hover:shadow-xl hover:shadow-black/[0.02] transition-all duration-300">
+              <div className="h-12 w-12 bg-indigo-50 rounded-xl flex items-center justify-center mb-6 group-hover:bg-indigo-100 transition-colors border border-indigo-200">
+                <Hotel className="h-5 w-5 text-indigo-700" />
               </div>
-              <h3 className="text-lg font-bold font-serif mb-3 text-white">Çapraz Domain Profil Aktarımı</h3>
-              <p className="text-xs text-gray-400 leading-relaxed font-light">
+              <h3 className="text-lg font-bold font-serif mb-3 text-[#1E1214]">Çapraz Domain Profil Aktarımı</h3>
+              <p className="text-xs text-gray-600 leading-relaxed font-light">
                 Otelle entegre çalışan sistemimiz, misafirin PMS (Property Management System) üzerindeki tercihlerini (örneğin alerji, veganlık) restorandaki QR menüye otomatik yansıtarak kusursuz bir deneyim sunar.
               </p>
             </div>
 
             {/* Feature 4 */}
-            <div className="glass-card glass-card-hover p-8 rounded-2xl relative group">
-              <div className="h-12 w-12 bg-white/[0.04] rounded-xl flex items-center justify-center mb-6 group-hover:bg-white/[0.08] transition-colors border border-white/[0.06]">
-                <Smartphone className="h-5 w-5 text-gray-400" />
+            <div className="bg-white border border-black/[0.04] p-8 rounded-2xl relative group hover:shadow-xl hover:shadow-black/[0.02] transition-all duration-300">
+              <div className="h-12 w-12 bg-gray-50 rounded-xl flex items-center justify-center mb-6 group-hover:bg-gray-100 transition-colors border border-gray-200">
+                <Smartphone className="h-5 w-5 text-gray-600" />
               </div>
-              <h3 className="text-lg font-bold font-serif mb-3 text-white">PWA & Çevrimdışı Çalışma</h3>
-              <p className="text-xs text-gray-400 leading-relaxed font-light">
+              <h3 className="text-lg font-bold font-serif mb-3 text-[#1E1214]">PWA & Çevrimdışı Çalışma</h3>
+              <p className="text-xs text-gray-600 leading-relaxed font-light">
                 İnternet bağlantısı koptuğunda dahi çalışan gelişmiş Service Worker yapısı ve local-storage entegrasyonu sayesinde sipariş ve menü akışı kesintiye uğramaz.
               </p>
             </div>
 
             {/* Feature 5 */}
-            <div className="glass-card glass-card-hover p-8 rounded-2xl relative group">
-              <div className="h-12 w-12 bg-[#DFBA73]/5 rounded-xl flex items-center justify-center mb-6 group-hover:bg-[#DFBA73]/15 transition-colors border border-white/[0.05]">
-                <Globe className="h-5 w-5 text-[#DFBA73]" />
+            <div className="bg-white border border-black/[0.04] p-8 rounded-2xl relative group hover:shadow-xl hover:shadow-black/[0.02] transition-all duration-300">
+              <div className="h-12 w-12 bg-[#DFBA73]/10 rounded-xl flex items-center justify-center mb-6 group-hover:bg-[#DFBA73]/20 transition-colors border border-[#DFBA73]/30">
+                <Globe className="h-5 w-5 text-[#5C1D24]" />
               </div>
-              <h3 className="text-lg font-bold font-serif mb-3 text-white">i18n Akıllı Dil Algılama</h3>
-              <p className="text-xs text-gray-400 leading-relaxed font-light">
+              <h3 className="text-lg font-bold font-serif mb-3 text-[#1E1214]">i18n Akıllı Dil Algılama</h3>
+              <p className="text-xs text-gray-600 leading-relaxed font-light">
                 Turistin cihaz dilini otomatik analiz ederek anında Türkçe, İngilizce veya Almanca menü sunumuna geçer. Çeviri hatalarını ve karmaşayı ortadan kaldırır.
               </p>
             </div>
 
             {/* Feature 6 */}
-            <div className="glass-card glass-card-hover p-8 rounded-2xl relative group">
-              <div className="h-12 w-12 bg-emerald-600/10 rounded-xl flex items-center justify-center mb-6 group-hover:bg-emerald-600/20 transition-colors border border-emerald-600/20">
-                <Database className="h-5 w-5 text-emerald-400" />
+            <div className="bg-white border border-black/[0.04] p-8 rounded-2xl relative group hover:shadow-xl hover:shadow-black/[0.02] transition-all duration-300">
+              <div className="h-12 w-12 bg-emerald-50 rounded-xl flex items-center justify-center mb-6 group-hover:bg-emerald-100 transition-colors border border-emerald-200">
+                <Database className="h-5 w-5 text-emerald-700" />
               </div>
-              <h3 className="text-lg font-bold font-serif mb-3 text-white">Supabase & pgvector Hızı</h3>
-              <p className="text-xs text-gray-400 leading-relaxed font-light">
+              <h3 className="text-lg font-bold font-serif mb-3 text-[#1E1214]">Supabase & pgvector Hızı</h3>
+              <p className="text-xs text-gray-600 leading-relaxed font-light">
                 Vektör araması ile yemekleri isimleriyle değil içerikleriyle arayın. *"Hafif, acısız ve zeytinyağlı ne var?"* araması milisaniyeler içinde Supabase pgvector ile eşleşir.
               </p>
             </div>
@@ -514,11 +514,11 @@ export default function Home() {
       </section>
 
       {/* Competitor Analysis Dashboard */}
-      <section id="competitors" className="px-6 py-24 max-w-7xl mx-auto z-10 relative">
+      <section id="competitors" className="px-6 py-24 bg-[#FDFBF7] max-w-7xl mx-auto z-10 relative">
         <div className="text-center mb-16">
-          <span className="text-[10px] text-[#DFBA73] font-mono tracking-widest uppercase block mb-2 font-bold">Detaylı Karşılaştırma</span>
-          <h2 className="text-3xl md:text-5xl font-serif font-bold text-white">Rakiplerimiz ve Tripzy Farkı</h2>
-          <p className="text-xs md:text-sm text-gray-400 max-w-xl mx-auto mt-4 leading-relaxed font-light">
+          <span className="text-[10px] text-[#5C1D24] font-mono tracking-widest uppercase block mb-2 font-bold">Detaylı Karşılaştırma</span>
+          <h2 className="text-3xl md:text-5xl font-serif font-bold text-[#1E1214]">Rakiplerimiz ve Tripzy Farkı</h2>
+          <p className="text-xs md:text-sm text-gray-600 max-w-xl mx-auto mt-4 leading-relaxed font-light">
             Türkiye pazarındaki HoReCa yazılımları ile Tripzy QR Menu SaaS özelliklerini şeffaf olarak kıyaslayın.
           </p>
         </div>
@@ -534,14 +534,14 @@ export default function Home() {
               placeholder="Simpra, icibot..."
               value={compSearchQuery}
               onChange={(e) => setCompSearchQuery(e.target.value)}
-              className="w-full pl-12 pr-4 py-3 rounded-xl bg-white/[0.02] border border-white/[0.08] focus:border-[#DFBA73]/50 focus:outline-none text-xs font-semibold placeholder-gray-600 text-white font-mono transition-all duration-300"
+              className="w-full pl-12 pr-4 py-3 rounded-xl bg-black/[0.02] border border-black/[0.08] focus:border-[#DFBA73]/50 focus:outline-none text-xs font-semibold placeholder-gray-400 text-[#1E1214] font-mono transition-all duration-300"
             />
           </div>
-          <div className="flex space-x-2 bg-white/[0.02] p-1.5 rounded-xl border border-white/[0.05] backdrop-blur-md">
+          <div className="flex space-x-2 bg-black/[0.02] p-1.5 rounded-xl border border-black/[0.05] backdrop-blur-md">
             <button
               onClick={() => setSegment("restaurant")}
               className={`px-4 py-2 rounded-lg text-xs font-semibold transition-all duration-200 ${
-                segment === "restaurant" ? "bg-[#5C1D24] text-white shadow" : "text-gray-400 hover:text-white"
+                segment === "restaurant" ? "bg-[#5C1D24] text-white shadow" : "text-gray-500 hover:text-white"
               }`}
             >
               Restoran / Kafe
@@ -549,7 +549,7 @@ export default function Home() {
             <button
               onClick={() => setSegment("hotel")}
               className={`px-4 py-2 rounded-lg text-xs font-semibold transition-all duration-200 ${
-                segment === "hotel" ? "bg-[#5C1D24] text-white shadow" : "text-gray-400 hover:text-white"
+                segment === "hotel" ? "bg-[#5C1D24] text-white shadow" : "text-gray-500 hover:text-white"
               }`}
             >
               Otel / Resort
@@ -558,10 +558,10 @@ export default function Home() {
         </div>
 
         {/* Comparison Table */}
-        <div className="bg-white/[0.01] border border-white/[0.05] rounded-2xl overflow-hidden shadow-2xl backdrop-blur-md">
+        <div className="bg-[#F9F6F0] border border-black/[0.05] rounded-2xl overflow-hidden shadow-xl backdrop-blur-md">
           <div className="overflow-x-auto">
             <table className="w-full text-left text-xs">
-              <thead className="bg-white/[0.02] text-gray-400 uppercase font-mono tracking-wider text-[9px] border-b border-white/[0.04]">
+              <thead className="bg-black/[0.02] text-gray-600 uppercase font-mono tracking-wider text-[9px] border-b border-black/[0.04]">
                 <tr>
                   <th className="p-4 md:p-6 font-semibold">Platform Adı</th>
                   <th className="p-4 font-semibold">Fiyatlandırma Modeli</th>
@@ -572,7 +572,7 @@ export default function Home() {
                   <th className="p-4 font-semibold">Aktivasyon Süresi</th>
                 </tr>
               </thead>
-              <tbody className="divide-y divide-white/[0.03]">
+              <tbody className="divide-y divide-black/[0.03]">
                 {filteredCompetitors.map((comp, idx) => {
                   const isTripzy = comp.name.includes("Tripzy");
                   return (
@@ -580,42 +580,42 @@ export default function Home() {
                       key={idx}
                       className={`transition-colors ${
                         isTripzy 
-                          ? "bg-[#5C1D24]/10 text-white font-semibold border-l-4 border-[#DFBA73]" 
-                          : "text-gray-400 hover:bg-white/[0.01]"
+                          ? "bg-[#5C1D24]/5 text-[#5C1D24] font-semibold border-l-4 border-[#DFBA73]" 
+                          : "text-gray-600 hover:bg-black/[0.01]"
                       }`}
                     >
-                      <td className="p-4 md:p-6 font-medium text-white flex items-center space-x-2">
-                        {isTripzy && <Zap className="h-4 w-4 text-[#DFBA73] animate-pulse" />}
+                      <td className="p-4 md:p-6 font-medium text-[#1E1214] flex items-center space-x-2">
+                        {isTripzy && <Zap className="h-4 w-4 text-[#5C1D24] animate-pulse" />}
                         <span>{comp.name}</span>
                       </td>
-                      <td className="p-4 font-mono text-gray-300">{comp.pricing}</td>
+                      <td className="p-4 font-mono text-gray-700">{comp.pricing}</td>
                       <td className="p-4">
-                        <span className={isTripzy ? "text-[#DFBA73] font-semibold" : "font-light"}>{comp.aiRec}</span>
+                        <span className={isTripzy ? "text-[#5C1D24] font-semibold" : "font-light"}>{comp.aiRec}</span>
                       </td>
                       <td className="p-4">
                         {comp.coldStart === "Evet (Lifestyle & Çapraz Domain)" ? (
-                          <span className="px-2.5 py-0.5 rounded-full bg-green-500/10 text-green-400 border border-green-500/20 text-[9px] font-semibold tracking-wider font-mono">DESTEKLİ</span>
+                          <span className="px-2.5 py-0.5 rounded-full bg-green-500/10 text-green-700 border border-green-500/20 text-[9px] font-semibold tracking-wider font-mono">DESTEKLİ</span>
                         ) : (
-                          <span className="text-gray-600 font-light">Hayır</span>
+                          <span className="text-gray-400 font-light">Hayır</span>
                         )}
                       </td>
                       <td className="p-4">
                         {comp.pwaOffline.startsWith("Evet") ? (
-                          <span className="text-emerald-400 flex items-center space-x-1 font-semibold"><Check className="h-4 w-4" /> <span>Evet</span></span>
+                          <span className="text-emerald-600 flex items-center space-x-1 font-semibold"><Check className="h-4 w-4" /> <span>Evet</span></span>
                         ) : comp.pwaOffline.startsWith("Kısmi") ? (
-                          <span className="text-yellow-500">Kısmi</span>
+                          <span className="text-yellow-600">Kısmi</span>
                         ) : (
-                          <span className="text-gray-600 flex items-center space-x-1 font-light"><X className="h-4 w-4 text-red-500/50" /> <span>Hayır</span></span>
+                          <span className="text-gray-400 flex items-center space-x-1 font-light"><X className="h-4 w-4 text-red-500/50" /> <span>Hayır</span></span>
                         )}
                       </td>
                       <td className="p-4">
                         {comp.pmsSync.startsWith("Evet") || comp.pmsSync.startsWith("Var") ? (
-                          <span className="text-emerald-400 font-semibold">{comp.pmsSync}</span>
+                          <span className="text-emerald-600 font-semibold">{comp.pmsSync}</span>
                         ) : (
-                          <span className="text-gray-600 font-light">Desteklemiyor</span>
+                          <span className="text-gray-400 font-light">Desteklemiyor</span>
                         )}
                       </td>
-                      <td className="p-4 font-light text-gray-300">{comp.setupFriction}</td>
+                      <td className="p-4 font-light text-gray-600">{comp.setupFriction}</td>
                     </tr>
                   );
                 })}
@@ -626,13 +626,13 @@ export default function Home() {
       </section>
 
       {/* ROI / Pricing Calculator */}
-      <section id="roi-calculator" className="px-6 py-24 bg-[#0A0B0E] border-y border-white/[0.04] relative">
+      <section id="roi-calculator" className="px-6 py-24 bg-[#FDFBF7] border-y border-black/[0.04] relative">
         <div className="max-w-7xl mx-auto">
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-12 items-center">
             <div>
-              <span className="text-[10px] text-[#DFBA73] font-mono tracking-widest uppercase block mb-2 font-bold">Yatırım Geri Dönüşü (ROI)</span>
-              <h2 className="text-3xl md:text-5xl font-serif font-bold mb-6 text-white">Maliyetlerinizi Düşürün, Satışları Katlayın</h2>
-              <p className="text-sm text-gray-400 leading-relaxed mb-8 font-light">
+              <span className="text-[10px] text-[#5C1D24] font-mono tracking-widest uppercase block mb-2 font-bold">Yatırım Geri Dönüşü (ROI)</span>
+              <h2 className="text-3xl md:text-5xl font-serif font-bold mb-6 text-[#1E1214]">Maliyetlerinizi Düşürün, Satışları Katlayın</h2>
+              <p className="text-sm text-gray-600 leading-relaxed mb-8 font-light">
                 Tripzy'nin sabit ücretli SaaS altyapısı, masa başı ek lisanslar veya fahiş donanım/kurulum ücretleri talep etmez. 
                 Aynı zamanda Gemini AI entegre sommelier ve yemek öneri asistanı sayesinde ortalama sepet büyüklüğünü kanıtlanmış bir şekilde %15-22 oranında artırır.
               </p>
@@ -641,8 +641,8 @@ export default function Home() {
               <div className="space-y-6">
                 <div>
                   <div className="flex justify-between text-xs font-semibold mb-2">
-                    <span className="text-gray-300">Mekan / Şube Sayısı:</span>
-                    <span className="text-[#DFBA73] font-mono">{venues} Şube</span>
+                    <span className="text-gray-700">Mekan / Şube Sayısı:</span>
+                    <span className="text-[#5C1D24] font-mono">{venues} Şube</span>
                   </div>
                   <input
                     type="range"
@@ -650,14 +650,14 @@ export default function Home() {
                     max="10"
                     value={venues}
                     onChange={(e) => setVenues(parseInt(e.target.value))}
-                    className="w-full accent-[#DFBA73] bg-white/[0.05] rounded-lg appearance-none h-1.5 cursor-pointer"
+                    className="w-full accent-[#5C1D24] bg-black/[0.05] rounded-lg appearance-none h-1.5 cursor-pointer"
                   />
                 </div>
 
                 <div>
                   <div className="flex justify-between text-xs font-semibold mb-2">
-                    <span className="text-gray-300">{segment === "restaurant" ? "Masa" : "Oda/Kabin"} Sayısı:</span>
-                    <span className="text-[#DFBA73] font-mono">{tables} Ünite</span>
+                    <span className="text-gray-700">{segment === "restaurant" ? "Masa" : "Oda/Kabin"} Sayısı:</span>
+                    <span className="text-[#5C1D24] font-mono">{tables} Ünite</span>
                   </div>
                   <input
                     type="range"
@@ -666,14 +666,14 @@ export default function Home() {
                     step="5"
                     value={tables}
                     onChange={(e) => setTables(parseInt(e.target.value))}
-                    className="w-full accent-[#DFBA73] bg-white/[0.05] rounded-lg appearance-none h-1.5 cursor-pointer"
+                    className="w-full accent-[#5C1D24] bg-black/[0.05] rounded-lg appearance-none h-1.5 cursor-pointer"
                   />
                 </div>
 
                 <div>
                   <div className="flex justify-between text-xs font-semibold mb-2">
-                    <span className="text-gray-300">Aylık Ortalama Sipariş:</span>
-                    <span className="text-[#DFBA73] font-mono">{monthlyOrders} Sipariş</span>
+                    <span className="text-gray-700">Aylık Ortalama Sipariş:</span>
+                    <span className="text-[#5C1D24] font-mono">{monthlyOrders} Sipariş</span>
                   </div>
                   <input
                     type="range"
@@ -682,14 +682,14 @@ export default function Home() {
                     step="100"
                     value={monthlyOrders}
                     onChange={(e) => setMonthlyOrders(parseInt(e.target.value))}
-                    className="w-full accent-[#DFBA73] bg-white/[0.05] rounded-lg appearance-none h-1.5 cursor-pointer"
+                    className="w-full accent-[#5C1D24] bg-black/[0.05] rounded-lg appearance-none h-1.5 cursor-pointer"
                   />
                 </div>
 
                 <div>
                   <div className="flex justify-between text-xs font-semibold mb-2">
-                    <span className="text-gray-300">Ortalama Adisyon/Sipariş Tutarı:</span>
-                    <span className="text-[#DFBA73] font-mono">{avgTicket} TL</span>
+                    <span className="text-gray-700">Ortalama Adisyon/Sipariş Tutarı:</span>
+                    <span className="text-[#5C1D24] font-mono">{avgTicket} TL</span>
                   </div>
                   <input
                     type="range"
@@ -698,54 +698,54 @@ export default function Home() {
                     step="50"
                     value={avgTicket}
                     onChange={(e) => setAvgTicket(parseInt(e.target.value))}
-                    className="w-full accent-[#DFBA73] bg-white/[0.05] rounded-lg appearance-none h-1.5 cursor-pointer"
+                    className="w-full accent-[#5C1D24] bg-black/[0.05] rounded-lg appearance-none h-1.5 cursor-pointer"
                   />
                 </div>
               </div>
             </div>
 
             {/* Math Output Panel */}
-            <div className="glass-card p-8 rounded-2xl border border-white/[0.06] shadow-2xl relative overflow-hidden space-y-6">
-              <div className="absolute top-0 right-0 w-32 h-32 bg-[#DFBA73]/5 rounded-full blur-2xl pointer-events-none" />
+            <div className="bg-[#F9F6F0] border border-black/[0.05] p-8 rounded-2xl shadow-xl relative overflow-hidden space-y-6">
+              <div className="absolute top-0 right-0 w-32 h-32 bg-[#DFBA73]/10 rounded-full blur-2xl pointer-events-none" />
               
-              <h4 className="text-lg font-bold font-serif border-b border-white/[0.04] pb-4 flex items-center space-x-2 text-white">
-                <Coins className="h-5 w-5 text-[#DFBA73]" />
+              <h4 className="text-lg font-bold font-serif border-b border-black/[0.04] pb-4 flex items-center space-x-2 text-[#1E1214]">
+                <Coins className="h-5 w-5 text-[#5C1D24]" />
                 <span>Simüle Edilen Aylık Kazanç Analizi</span>
               </h4>
 
               <div className="grid grid-cols-2 gap-4">
-                <div className="bg-white/[0.02] border border-white/[0.04] p-4 rounded-xl">
+                <div className="bg-black/[0.02] border border-black/[0.04] p-4 rounded-xl">
                   <span className="text-[10px] text-gray-500 uppercase block mb-1 font-semibold">Klasik Sistem Maliyeti</span>
-                  <span className="text-lg font-mono font-bold text-red-400">
+                  <span className="text-lg font-mono font-bold text-red-600">
                     {getCompetitorCost().toLocaleString("tr-TR")} TL
                   </span>
                 </div>
-                <div className="bg-white/[0.02] border border-white/[0.04] p-4 rounded-xl">
+                <div className="bg-black/[0.02] border border-black/[0.04] p-4 rounded-xl">
                   <span className="text-[10px] text-gray-500 uppercase block mb-1 font-semibold">Tripzy SaaS Maliyeti</span>
-                  <span className="text-lg font-mono font-bold text-emerald-400">
+                  <span className="text-lg font-mono font-bold text-emerald-600">
                     {getTripzyCost().toLocaleString("tr-TR")} TL
                   </span>
                 </div>
               </div>
 
-              <div className="bg-[#5C1D24]/10 border border-[#DFBA73]/20 p-5 rounded-xl flex items-center justify-between">
+              <div className="bg-[#5C1D24]/5 border border-[#DFBA73]/30 p-5 rounded-xl flex items-center justify-between">
                 <div>
-                  <span className="text-[10px] text-[#DFBA73] uppercase tracking-wider block mb-1 font-bold">Aylık Ek AI Satış Geliri</span>
-                  <span className="text-xs text-gray-500 leading-normal block max-w-xs font-light">
+                  <span className="text-[10px] text-[#5C1D24] uppercase tracking-wider block mb-1 font-bold">Aylık Ek AI Satış Geliri</span>
+                  <span className="text-xs text-gray-600 leading-normal block max-w-xs font-light">
                     Garson tavsiyeleri ile ortalama sepette %18 artış simüle edilmiştir.
                   </span>
                 </div>
-                <span className="text-xl md:text-2xl font-mono font-bold text-[#DFBA73]">
+                <span className="text-xl md:text-2xl font-mono font-bold text-[#5C1D24]">
                   +{getAiRevenueUplift().toLocaleString("tr-TR")} TL
                 </span>
               </div>
 
-              <div className="bg-gradient-to-tr from-[#5C1D24]/30 to-[#DFBA73]/10 border border-[#DFBA73]/25 p-6 rounded-2xl text-center space-y-2 relative overflow-hidden shadow-xl">
-                <span className="text-xs text-[#DFBA73] font-semibold uppercase tracking-widest block">Net Aylık Finansal Fayda</span>
-                <span className="text-3xl md:text-4xl font-mono font-bold tracking-tight text-white text-glow block">
+              <div className="bg-gradient-to-tr from-[#5C1D24]/10 to-[#DFBA73]/5 border border-[#DFBA73]/20 p-6 rounded-2xl text-center space-y-2 relative overflow-hidden shadow-md">
+                <span className="text-xs text-[#5C1D24] font-semibold uppercase tracking-widest block">Net Aylık Finansal Fayda</span>
+                <span className="text-3xl md:text-4xl font-mono font-bold tracking-tight text-[#1E1214] block">
                   {netMonthlyBenefit > 0 ? `+${netMonthlyBenefit.toLocaleString("tr-TR")}` : netMonthlyBenefit.toLocaleString("tr-TR")} TL
                 </span>
-                <p className="text-[10px] text-gray-400 font-light">
+                <p className="text-[10px] text-gray-600 font-light">
                   (Tripzy Tasarrufu + AI Satış Artışı dahil tahmini kazançtır)
                 </p>
               </div>
@@ -1064,20 +1064,20 @@ export default function Home() {
       </section>
 
       {/* Footer */}
-      <footer className="bg-[#0A0B0E] border-t border-white/[0.04] py-12 px-6">
+      <footer className="bg-[#FDFBF7] border-t border-black/[0.04] py-12 px-6">
         <div className="max-w-7xl mx-auto flex flex-col md:flex-row justify-between items-center gap-6 text-center md:text-left">
           <div>
             <div className="flex items-center justify-center md:justify-start space-x-2 mb-2">
               <div className="h-6 w-6 bg-gradient-to-tr from-[#5C1D24] to-[#DFBA73] rounded-lg flex items-center justify-center text-xs text-white">T</div>
-              <span className="font-serif font-bold text-sm tracking-widest text-white uppercase">Tripzy QR Menu</span>
+              <span className="font-serif font-bold text-sm tracking-widest text-[#1E1214] uppercase">Tripzy QR Menu</span>
             </div>
-            <p className="text-[10px] text-gray-600 font-mono">
+            <p className="text-[10px] text-gray-500 font-mono">
               Tripzy.travel Ecosystem. All rights reserved. 2026.
             </p>
           </div>
 
           <div className="text-[10px] text-gray-500 font-mono leading-relaxed max-w-sm">
-            <p>Masa QR kod test token'ları: <span className="bg-white/[0.02] border border-white/[0.05] px-1.5 py-0.5 rounded text-[#DFBA73]">k1</span>, <span className="bg-white/[0.02] border border-white/[0.05] px-1.5 py-0.5 rounded text-[#DFBA73]">k2</span>, <span className="bg-white/[0.02] border border-white/[0.05] px-1.5 py-0.5 rounded text-[#DFBA73]">k3</span>, <span className="bg-white/[0.02] border border-white/[0.05] px-1.5 py-0.5 rounded text-[#DFBA73]">k4</span>, <span className="bg-white/[0.02] border border-white/[0.05] px-1.5 py-0.5 rounded text-[#DFBA73]">k5</span></p>
+            <p>Masa QR kod test token'ları: <span className="bg-black/[0.02] border border-black/[0.05] px-1.5 py-0.5 rounded text-[#5C1D24] font-semibold">k1</span>, <span className="bg-black/[0.02] border border-black/[0.05] px-1.5 py-0.5 rounded text-[#5C1D24] font-semibold">k2</span>, <span className="bg-black/[0.02] border border-black/[0.05] px-1.5 py-0.5 rounded text-[#5C1D24] font-semibold">k3</span>, <span className="bg-black/[0.02] border border-black/[0.05] px-1.5 py-0.5 rounded text-[#5C1D24] font-semibold">k4</span>, <span className="bg-black/[0.02] border border-black/[0.05] px-1.5 py-0.5 rounded text-[#5C1D24] font-semibold">k5</span></p>
           </div>
         </div>
       </footer>
