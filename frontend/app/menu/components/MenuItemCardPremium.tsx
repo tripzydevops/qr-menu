@@ -1,6 +1,7 @@
 import React from 'react';
 import { Leaf, Wheat, Flame } from 'lucide-react';
 import { Locale } from '../../../i18n/config';
+import { getReadableAccentColor, getContrastTextColor } from '@/lib/colors';
 
 // Custom SVG crescent moon and star for Halal matching Lucide's style
 const HalalIcon = (props: React.SVGProps<SVGSVGElement>) => (
@@ -117,7 +118,7 @@ export default function MenuItemCardPremium({
   const isDark = theme === "dark";
   // Premium gold for dark, deep burgundy for light
   const goldAccent = '#C9A84C';
-  const accentColor = isDark ? goldAccent : (brandColor || '#5C1D24');
+  const accentColor = isDark ? goldAccent : getReadableAccentColor(brandColor, isDark);
 
   return (
     <div 
@@ -239,7 +240,7 @@ export default function MenuItemCardPremium({
           {/* Description — elegant light text */}
           {description && (
             <p className={`text-[10px] line-clamp-2 leading-relaxed mb-2.5 ${
-              isDark ? 'text-gray-400/90' : 'text-[#6B6462]'
+              isDark ? 'text-gray-300' : 'text-[#6B6462]'
             }`} style={{ fontWeight: 300 }}>
               {description}
             </p>
@@ -268,7 +269,7 @@ export default function MenuItemCardPremium({
             }}
             className="text-[9px] font-semibold tracking-[0.12em] uppercase transition-all duration-300 px-3 py-1.5 rounded-lg"
             style={{
-              color: isDark ? goldAccent : '#FFFFFF',
+              color: isDark ? goldAccent : getContrastTextColor(accentColor),
               border: isDark ? `1px solid ${goldAccent}50` : 'none',
               background: isDark 
                 ? (isHovered ? `${goldAccent}18` : 'transparent') 

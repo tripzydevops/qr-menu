@@ -199,6 +199,9 @@ export async function GET(
       organizationName: org.name,
       logoUrl: org.logoUrl,
       brandColor: org.brandColor,
+      plan: org.subscriptionTier,
+      premiumMenuEnabled: org.premiumMenuEnabled || false,
+      premiumMenuSelected: org.premiumMenuSelected || false,
       categories: mappedCategories,
     });
   } catch (error: any) {

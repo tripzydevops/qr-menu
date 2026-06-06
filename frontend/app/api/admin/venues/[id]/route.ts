@@ -18,6 +18,7 @@ export async function PUT(
       defaultLocale,
       supportedLocales,
       brandColor,
+      premiumMenuSelected,
     } = body;
 
     const venue = await prisma.venue.findUnique({
@@ -42,11 +43,14 @@ export async function PUT(
           supportedLocales: supportedLocales !== undefined ? supportedLocales : venue.supportedLocales,
         },
       }),
-      ...(brandColor !== undefined
+      ...(brandColor !== undefined || premiumMenuSelected !== undefined
         ? [
             prisma.organization.update({
               where: { id: venue.organizationId },
-              data: { brandColor },
+              data: {
+                ...(brandColor !== undefined ? { brandColor } : {}),
+                ...(premiumMenuSelected !== undefined ? { premiumMenuSelected } : {}),
+              },
             }),
           ]
         : []),

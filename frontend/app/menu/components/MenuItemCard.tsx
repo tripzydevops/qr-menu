@@ -1,6 +1,7 @@
 import React from 'react';
 import { Leaf, Wheat, Flame } from 'lucide-react';
 import { Locale } from '../../../i18n/config';
+import { getReadableAccentColor, getContrastTextColor } from '@/lib/colors';
 
 // Custom SVG crescent moon and star for Halal matching Lucide's style
 const HalalIcon = (props: React.SVGProps<SVGSVGElement>) => (
@@ -128,7 +129,7 @@ export default function MenuItemCard({
 
   const defaultFoodImage = 'https://images.unsplash.com/photo-1546069901-ba9599a7e63c?w=400&auto=format&fit=crop&q=80';
   const isDark = theme === "dark";
-  const accentColor = brandColor || (isDark ? '#DFBA73' : '#5C1D24');
+  const accentColor = getReadableAccentColor(brandColor, isDark);
 
   return (
     <div 
@@ -206,7 +207,7 @@ export default function MenuItemCard({
           
           {description && (
             <p className={`text-[10px] line-clamp-2 leading-relaxed font-light mb-3 min-h-[30px] ${
-              isDark ? 'text-gray-400' : 'text-[#5C5552]'
+              isDark ? 'text-gray-300' : 'text-[#5C5552]'
             }`}>
               {description}
             </p>
@@ -240,7 +241,7 @@ export default function MenuItemCard({
             }`}
             style={{
               backgroundColor: brandColor ? accentColor : undefined,
-              color: brandColor ? (isDark ? '#0A0B0E' : '#FFFFFF') : undefined
+              color: brandColor ? getContrastTextColor(accentColor) : undefined
             }}
           >
             ADD

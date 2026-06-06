@@ -8,7 +8,7 @@ export async function PUT(
   try {
     const { id } = params;
     const body = await request.json();
-    const { name, logoUrl, brandColor, subscriptionTier, status } = body;
+    const { name, logoUrl, brandColor, subscriptionTier, status, premiumMenuEnabled } = body;
 
     if (!name) {
       return NextResponse.json(
@@ -33,6 +33,7 @@ export async function PUT(
         brandColor: brandColor !== undefined ? brandColor : null,
         subscriptionTier: subscriptionTier !== undefined ? subscriptionTier : "free",
         status: status !== undefined ? status : "active",
+        premiumMenuEnabled: premiumMenuEnabled !== undefined ? premiumMenuEnabled : undefined,
       },
     });
 

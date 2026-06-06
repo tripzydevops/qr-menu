@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useState, useRef, Suspense } from "react";
-import { useSearchParams } from "next/navigation";
+import { useSearchParams, useRouter } from "next/navigation";
 import { Globe, ShieldAlert, Coffee, ArrowLeft, ShoppingBag, Bell, Receipt, CheckCircle, Home, Search, User, Wine, Sun, Moon } from "lucide-react";
 import Link from "next/link";
 
@@ -66,6 +66,7 @@ const MOCK_DATA: Record<string, MenuData> = {
 
 function MenuContent() {
   const searchParams = useSearchParams();
+  const router = useRouter();
   const token = searchParams.get("token") || "k1";
 
   const { locale, setLocale, t } = useLocale();
@@ -371,9 +372,11 @@ function MenuContent() {
         <div className="flex items-center space-x-3">
           <button 
             onClick={() => {
-              setSearchQuery("");
-              setActiveFilter("all");
-              window.scrollTo({ top: 0, behavior: 'smooth' });
+              if (typeof window !== "undefined" && window.history.length > 1) {
+                router.back();
+              } else {
+                router.push("/");
+              }
             }}
             className={`p-2 rounded-full border transition-all ${
               theme === "dark" 
@@ -444,11 +447,14 @@ function MenuContent() {
             )}
           </div>
 
-          <div className={`h-9 w-9 rounded-full border flex items-center justify-center transition-all cursor-pointer ${
-            theme === "dark" 
-              ? "bg-[#DFBA73]/15 border-[#DFBA73]/30 text-[#DFBA73] hover:bg-[#DFBA73]/30" 
-              : "bg-[#5C1D24]/10 border-[#5C1D24]/20 text-[#5C1D24] hover:bg-[#5C1D24]/20"
-          }`}>
+          <div 
+            onClick={() => router.push("/admin")}
+            className={`h-9 w-9 rounded-full border flex items-center justify-center transition-all cursor-pointer ${
+              theme === "dark" 
+                ? "bg-[#DFBA73]/15 border-[#DFBA73]/30 text-[#DFBA73] hover:bg-[#DFBA73]/30" 
+                : "bg-[#5C1D24]/10 border-[#5C1D24]/20 text-[#5C1D24] hover:bg-[#5C1D24]/20"
+            }`}
+          >
             <User className="h-4 w-4" />
           </div>
         </div>
@@ -705,9 +711,7 @@ function MenuContent() {
         {/* Home */}
         <button 
           onClick={() => {
-            setSearchQuery("");
-            setActiveFilter("all");
-            window.scrollTo({ top: 0, behavior: 'smooth' });
+            router.push("/");
           }}
           className={`flex flex-col items-center space-y-1 transition-colors ${
             theme === "dark" ? "text-gray-500 hover:text-white" : "text-gray-500 hover:text-[#1E1214]"
@@ -773,6 +777,7 @@ function MenuContent() {
         
         {/* Account */}
         <button 
+          onClick={() => router.push("/admin")}
           className={`flex flex-col items-center space-y-1 transition-colors ${
             theme === "dark" ? "text-gray-500 hover:text-white" : "text-gray-500 hover:text-[#1E1214]"
           }`}

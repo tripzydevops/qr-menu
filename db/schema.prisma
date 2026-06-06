@@ -10,16 +10,18 @@ generator client {
 }
 
 model Organization {
-  id               String   @id @default(uuid())
-  name             String
-  logoUrl          String?
-  brandColor       String?
-  subscriptionTier String?  @default("free")
-  status           String   @default("active") // "active", "suspended", "onboarding"
-  createdAt        DateTime @default(now())
-  updatedAt        DateTime @updatedAt
-  venues           Venue[]
-  users            User[]
+  id                  String   @id @default(uuid())
+  name                String
+  logoUrl             String?
+  brandColor          String?
+  subscriptionTier    String?  @default("free")
+  status              String   @default("active") // "active", "suspended", "onboarding"
+  premiumMenuEnabled  Boolean  @default(false)
+  premiumMenuSelected Boolean  @default(false)
+  createdAt           DateTime @default(now())
+  updatedAt           DateTime @updatedAt
+  venues              Venue[]
+  users               User[]
 }
 
 model Venue {
