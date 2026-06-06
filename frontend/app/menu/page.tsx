@@ -11,6 +11,7 @@ import MenuSkeleton from "./components/MenuSkeleton";
 import CategoryNav from "./components/CategoryNav";
 import DietaryFilter from "./components/DietaryFilter";
 import MenuItemCard, { MenuItem } from "./components/MenuItemCard";
+import MenuItemCardPremium from "./components/MenuItemCardPremium";
 import ItemDetailSheet from "./components/ItemDetailSheet";
 import CartDrawer from "./components/CartDrawer";
 
@@ -37,6 +38,8 @@ interface MenuData {
   organizationName: string;
   logoUrl: string | null;
   brandColor: string | null;
+  plan?: string | null;
+  premiumMenuEnabled?: boolean;
   categories: Category[];
 }
 
@@ -510,18 +513,22 @@ function MenuContent() {
               </h3>
 
               <div className="grid grid-cols-2 gap-4">
-                {category.items.map((item) => (
-                  <MenuItemCard 
-                    key={item.id} 
-                    item={item} 
-                    onClick={setSelectedItem} 
-                    onAddDirect={(item) => handleAddToOrder(item, 1, "")}
-                    locale={locale} 
-                    currency={menu.currency}
-                    brandColor={menu.brandColor}
-                    theme={theme}
-                  />
-                ))}
+                {category.items.map((item) => {
+                  const isPremiumPlan = menu.premiumMenuEnabled || menu.plan === 'premium' || menu.plan === 'enterprise';
+                  const CardComponent = isPremiumPlan ? MenuItemCardPremium : MenuItemCard;
+                  return (
+                    <CardComponent 
+                      key={item.id} 
+                      item={item} 
+                      onClick={setSelectedItem} 
+                      onAddDirect={(item) => handleAddToOrder(item, 1, "")}
+                      locale={locale} 
+                      currency={menu.currency}
+                      brandColor={menu.brandColor}
+                      theme={theme}
+                    />
+                  );
+                })}
 
                 {/* If Main Courses category and no search query, inject the mockup's Wine Pairing recommendation */}
                 {category.id === "cat-mains" && !searchQuery && (

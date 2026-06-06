@@ -190,6 +190,7 @@ class OrganizationBase(BaseModel):
     brandColor: Optional[str] = None
     subscriptionTier: Optional[str] = "free"
     status: Optional[str] = "active"
+    premiumMenuEnabled: Optional[bool] = False
 
 class OrganizationCreate(OrganizationBase):
     pass
@@ -235,6 +236,8 @@ class GuestMenuResponse(BaseModel):
     organizationName: str
     logoUrl: Optional[str] = None
     brandColor: Optional[str] = None
+    plan: Optional[str] = None
+    premiumMenuEnabled: Optional[bool] = False
     categories: List[CategorySchema]
 
 # User Schemas

@@ -20,6 +20,7 @@ interface Organization {
   logoUrl: string | null;
   brandColor: string | null;
   subscriptionTier: string;
+  premiumMenuEnabled: boolean;
   status: string;
   createdAt: string;
 }
@@ -49,6 +50,7 @@ export default function SuperAdminOrganizationsPage() {
   const [editBrandColor, setEditBrandColor] = useState("");
   const [editPlanTier, setEditPlanTier] = useState("free");
   const [editStatus, setEditStatus] = useState("active");
+  const [editPremiumMenu, setEditPremiumMenu] = useState(false);
 
   const apiUrl = process.env.NEXT_PUBLIC_API_URL || "";
 
@@ -174,6 +176,7 @@ export default function SuperAdminOrganizationsPage() {
     setEditBrandColor(org.brandColor || "");
     setEditPlanTier(org.subscriptionTier);
     setEditStatus(org.status);
+    setEditPremiumMenu(org.premiumMenuEnabled || false);
     setEditModalOpen(true);
   };
 
@@ -195,7 +198,8 @@ export default function SuperAdminOrganizationsPage() {
           logoUrl: editLogoUrl || null,
           brandColor: editBrandColor || null,
           subscriptionTier: editPlanTier,
-          status: editStatus
+          status: editStatus,
+          premiumMenuEnabled: editPremiumMenu
         })
       });
 
@@ -294,19 +298,26 @@ export default function SuperAdminOrganizationsPage() {
                     </td>
                     <td className="py-4.5 px-6 font-mono text-gray-400">{org.id}</td>
                     <td className="py-4.5 px-6">
-                      <button 
-                        onClick={() => handleChangePlan(org.id, org.subscriptionTier)}
-                        className={`flex items-center space-x-1.5 px-2.5 py-1 rounded-full font-serif font-bold text-[10px] uppercase border transition-all duration-300 ${
-                          org.subscriptionTier === "premium"
-                            ? "bg-[#C9A84C]/10 text-[#C9A84C] border-[#C9A84C]/20"
-                            : org.subscriptionTier === "pro"
-                              ? "bg-[#6366F1]/10 text-indigo-400 border-[#6366F1]/20"
-                              : "bg-gray-800/50 text-gray-400 border-gray-700/30"
-                        }`}
-                      >
-                        <TrendingUp className="h-3 w-3" />
-                        <span>{org.subscriptionTier}</span>
-                      </button>
+                      <div className="flex items-center space-x-2">
+                        <button 
+                          onClick={() => handleChangePlan(org.id, org.subscriptionTier)}
+                          className={`flex items-center space-x-1.5 px-2.5 py-1 rounded-full font-serif font-bold text-[10px] uppercase border transition-all duration-300 ${
+                            org.subscriptionTier === "premium"
+                              ? "bg-[#C9A84C]/10 text-[#C9A84C] border-[#C9A84C]/20"
+                              : org.subscriptionTier === "pro"
+                                ? "bg-[#6366F1]/10 text-indigo-400 border-[#6366F1]/20"
+                                : "bg-gray-800/50 text-gray-400 border-gray-700/30"
+                          }`}
+                        >
+                          <TrendingUp className="h-3 w-3" />
+                          <span>{org.subscriptionTier}</span>
+                        </button>
+                        {org.premiumMenuEnabled && (
+                          <span className="px-1.5 py-0.5 rounded text-[8px] font-bold uppercase tracking-wider bg-[#C9A84C]/15 text-[#C9A84C] border border-[#C9A84C]/20" title="Premium menü kartı aktif">
+                            ✦ PREMIUM UI
+                          </span>
+                        )}
+                      </div>
                     </td>
                     <td className="py-4.5 px-6">
                       <span className={`px-2.5 py-1 rounded-full font-semibold text-[10px] uppercase ${
@@ -572,6 +583,32 @@ export default function SuperAdminOrganizationsPage() {
                     <option value="suspended">Askıda</option>
                     <option value="onboarding">Kuruluyor</option>
                   </select>
+                </div>
+              </div>
+
+              {/* Premium Menu Toggle */}
+              <div className="space-y-1.5">
+                <label className="text-gray-400 font-semibold">Premium Menü Kartı</label>
+                <div className="flex items-center justify-between bg-[#121224] border border-[#2C2C4E]/40 px-4 py-3 rounded-xl">
+                  <div>
+                    <span className={`text-xs font-semibold ${editPremiumMenu ? 'text-[#C9A84C]' : 'text-gray-400'}`}>
+                      {editPremiumMenu ? 'Aktif — Premium Kart Tasarımı' : 'Pasif — Standart Kart Tasarımı'}
+                    </span>
+                    <p className="text-[10px] text-gray-500 mt-0.5">Plan paketinden bağımsız olarak premium kart tasarımını etkinleştir.</p>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={() => setEditPremiumMenu(!editPremiumMenu)}
+                    className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors duration-300 focus:outline-none ${
+                      editPremiumMenu ? 'bg-[#C9A84C]' : 'bg-[#2C2C4E]/60'
+                    }`}
+                  >
+                    <span
+                      className={`inline-block h-4 w-4 transform rounded-full bg-white shadow-sm transition-transform duration-300 ${
+                        editPremiumMenu ? 'translate-x-6' : 'translate-x-1'
+                      }`}
+                    />
+                  </button>
                 </div>
               </div>
             </div>

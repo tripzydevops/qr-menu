@@ -65,19 +65,6 @@ const getDietaryLabel = (key: string, locale: Locale) => {
   }
 };
 
-const getAllergenLabel = (key: string, locale: Locale) => {
-  const isTr = locale === 'tr';
-  switch (key.toLowerCase()) {
-    case 'gluten': return isTr ? 'Gluten' : 'Gluten';
-    case 'dairy': return isTr ? 'Süt Ürünü' : 'Dairy';
-    case 'nuts': return isTr ? 'Kuruyemiş' : 'Nuts';
-    case 'sesame': return isTr ? 'Susam' : 'Sesame';
-    case 'eggs': return isTr ? 'Yumurta' : 'Eggs';
-    case 'fish': return isTr ? 'Balık' : 'Fish';
-    default: return key;
-  }
-};
-
 const ALLERGEN_MAP: Record<string, { icon: string; label: string }> = {
   gluten: { icon: '🌾', label: 'Gluten' },
   dairy: { icon: '🥛', label: 'Dairy' },
@@ -87,7 +74,7 @@ const ALLERGEN_MAP: Record<string, { icon: string; label: string }> = {
   fish: { icon: '🐟', label: 'Fish' }
 };
 
-export default function MenuItemCard({
+export default function MenuItemCardPremium({
   item,
   onClick,
   onAddDirect,
@@ -128,38 +115,84 @@ export default function MenuItemCard({
 
   const defaultFoodImage = 'https://images.unsplash.com/photo-1546069901-ba9599a7e63c?w=400&auto=format&fit=crop&q=80';
   const isDark = theme === "dark";
-  const accentColor = brandColor || (isDark ? '#DFBA73' : '#5C1D24');
+  // Premium gold for dark, deep burgundy for light
+  const goldAccent = '#C9A84C';
+  const accentColor = isDark ? goldAccent : (brandColor || '#5C1D24');
 
   return (
     <div 
       onClick={() => onClick(item)}
       onMouseEnter={() => setIsHovered(true)}
       onMouseLeave={() => setIsHovered(false)}
-      className={`flex flex-col border rounded-2xl overflow-hidden transition-all duration-300 cursor-pointer transform hover:-translate-y-0.5 active:scale-98 shadow-sm hover:shadow-md h-full relative ${
+      className={`flex flex-col rounded-2xl overflow-hidden transition-all duration-500 cursor-pointer h-full relative group ${
         isDark 
-          ? "bg-white/[0.02] hover:bg-white/[0.05] border-white/[0.05]" 
-          : "bg-[#F9F6F0] hover:bg-[#F3EFE6] border-black/[0.05] shadow-[0_2px_8px_rgba(0,0,0,0.02)]"
+          ? "bg-gradient-to-b from-[#1A1D2B] to-[#10121A]" 
+          : "bg-[#F9F6F0] shadow-[0_2px_12px_rgba(0,0,0,0.04)]"
       }`}
       style={{
-        borderColor: isHovered ? `${accentColor}cc` : undefined,
-        boxShadow: isHovered ? `0 4px 15px -3px ${accentColor}22` : undefined
+        border: isDark 
+          ? `1px solid ${isHovered ? goldAccent + '60' : 'rgba(201,168,76,0.12)'}` 
+          : `1px solid ${isHovered ? accentColor + '40' : 'rgba(0,0,0,0.06)'}`,
+        boxShadow: isHovered 
+          ? isDark 
+            ? `0 8px 32px -4px rgba(201,168,76,0.15), inset 0 1px 0 rgba(201,168,76,0.08)` 
+            : `0 8px 24px -4px rgba(92,29,36,0.12)`
+          : isDark 
+            ? `0 2px 8px rgba(0,0,0,0.3), inset 0 1px 0 rgba(201,168,76,0.04)` 
+            : undefined,
+        transform: isHovered ? 'translateY(-3px)' : 'translateY(0)',
       }}
     >
-      {/* Image Container on Top */}
-      <div className={`w-full aspect-square relative bg-[#1E293B]/40 overflow-hidden border-b ${isDark ? 'border-white/[0.03]' : 'border-black/[0.03]'}`}>
+      {/* Image Container with Gold Frame Effect */}
+      <div className="relative w-full overflow-hidden" style={{ aspectRatio: '4/3' }}>
+        {/* Gold border frame inside image */}
+        <div 
+          className="absolute inset-0 z-10 pointer-events-none rounded-t-2xl" 
+          style={{
+            border: isDark ? `2px solid ${goldAccent}18` : 'none',
+            margin: isDark ? '6px' : '0',
+            borderRadius: isDark ? '14px' : '0',
+          }}
+        />
+        {/* Inner fine gold line */}
+        {isDark && (
+          <div 
+            className="absolute inset-0 z-10 pointer-events-none" 
+            style={{
+              border: `1px solid ${goldAccent}10`,
+              margin: '10px',
+              borderRadius: '12px',
+            }}
+          />
+        )}
+        
         <img 
           src={item.imageUrl || defaultFoodImage} 
           alt={name}
-          className="w-full h-full object-cover transition-transform duration-500 hover:scale-105"
+          className="w-full h-full object-cover transition-transform duration-700 group-hover:scale-110"
           loading="lazy"
           onError={(e) => {
             (e.target as HTMLImageElement).src = defaultFoodImage;
           }}
         />
         
+        {/* Premium gradient overlay — fades image into dark card body */}
+        <div className={`absolute inset-0 z-[5] ${
+          isDark 
+            ? "bg-gradient-to-t from-[#10121A] via-[#10121A]/30 to-transparent" 
+            : "bg-gradient-to-t from-[#F9F6F0] via-transparent to-transparent opacity-60"
+        }`} />
+
+        {/* Subtle vignette on edges */}
+        {isDark && (
+          <div className="absolute inset-0 z-[4]" style={{
+            background: 'radial-gradient(ellipse at center, transparent 50%, rgba(16,18,26,0.4) 100%)'
+          }} />
+        )}
+        
         {/* Diet labels overlay */}
         {item.dietaryLabels && item.dietaryLabels.length > 0 && (
-          <div className="absolute top-2 left-2 flex flex-wrap gap-1">
+          <div className="absolute top-3 left-3 flex flex-wrap gap-1.5 z-20">
             {item.dietaryLabels.map((lbl) => {
               const config = DIETARY_MAP[lbl.key.toLowerCase()];
               if (!config) return null;
@@ -168,17 +201,15 @@ export default function MenuItemCard({
                 <span 
                   key={lbl.key}
                   title={getDietaryLabel(lbl.key, locale)}
-                  className={`border text-[8px] font-bold px-1.5 py-0.5 rounded-full uppercase tracking-wider flex items-center space-x-1 ${
-                    isDark 
-                      ? "bg-[#0A0B0E]/85 border-[#DFBA73]/20" 
-                      : "bg-[#FDFBF7]/95 border-[#5C1D24]/20 shadow-sm"
-                  }`}
+                  className="flex items-center space-x-1 text-[7px] font-bold px-2 py-1 rounded-full uppercase tracking-[0.08em] backdrop-blur-md"
                   style={{
+                    background: isDark ? 'rgba(10,11,14,0.75)' : 'rgba(253,251,247,0.9)',
                     color: accentColor,
-                    borderColor: `${accentColor}33`
+                    border: `1px solid ${accentColor}30`,
+                    boxShadow: isDark ? `0 2px 8px rgba(0,0,0,0.3)` : `0 1px 4px rgba(0,0,0,0.06)`,
                   }}
                 >
-                  <IconComponent className="h-2 w-2" />
+                  <IconComponent className="h-2.5 w-2.5" />
                   <span>{getDietaryLabel(lbl.key, locale)}</span>
                 </span>
               );
@@ -187,67 +218,71 @@ export default function MenuItemCard({
         )}
       </div>
 
-      {/* Info Container at Bottom */}
-      <div className="p-3 flex flex-col flex-grow justify-between">
+      {/* Info Container — premium typography section */}
+      <div className="px-3.5 pt-3 pb-3.5 flex flex-col flex-grow justify-between relative">
+        {/* Decorative gold line separator */}
+        {isDark && (
+          <div className="absolute top-0 left-3 right-3 h-px" style={{
+            background: `linear-gradient(to right, transparent, ${goldAccent}25, transparent)`
+          }} />
+        )}
+        
         <div>
-          <div className="flex flex-col gap-0.5 mb-1.5">
-            <h3 className={`font-serif text-[13px] md:text-sm font-bold leading-tight tracking-wide line-clamp-2 min-h-[32px] ${
-              isDark ? 'text-white' : 'text-[#1E1214]'
-            }`}>
-              {name}
-            </h3>
-            <span 
-              className="font-mono text-xs font-semibold"
-              style={{ color: accentColor }}
-            >
-              {getCurrencySymbol(currency)}{formattedPrice}
-            </span>
-          </div>
+          {/* Title — luxurious serif in gold (dark) or deep wine (light) */}
+          <h3 
+            className="font-serif text-sm md:text-[15px] font-bold leading-snug tracking-wide line-clamp-2 mb-1"
+            style={{ color: isDark ? goldAccent : '#1E1214' }}
+          >
+            {name}
+          </h3>
           
+          {/* Description — elegant light text */}
           {description && (
-            <p className={`text-[10px] line-clamp-2 leading-relaxed font-light mb-3 min-h-[30px] ${
-              isDark ? 'text-gray-400' : 'text-[#5C5552]'
-            }`}>
+            <p className={`text-[10px] line-clamp-2 leading-relaxed mb-2.5 ${
+              isDark ? 'text-gray-400/90' : 'text-[#6B6462]'
+            }`} style={{ fontWeight: 300 }}>
               {description}
             </p>
           )}
         </div>
 
-        {/* Rating and ADD Button Row */}
-        <div className={`flex items-center justify-between mt-auto pt-2 border-t ${
-          isDark ? 'border-white/[0.03]' : 'border-black/[0.03]'
-        }`}>
-          {/* Rating */}
-          <div className="flex items-center space-x-0.5">
-            <span className="text-[10px] font-bold font-mono" style={{ color: accentColor }}>4.9</span>
-            <span className="text-[9px]" style={{ color: accentColor }}>★</span>
-          </div>
+        {/* Price & Action Row */}
+        <div className="flex items-end justify-between mt-auto">
+          {/* Price — bold serif with gold emphasis */}
+          <span 
+            className="font-serif text-base md:text-lg font-bold tracking-wide"
+            style={{ color: isDark ? goldAccent : accentColor }}
+          >
+            {getCurrencySymbol(currency)}{formattedPrice}
+          </span>
 
-          {/* ADD Button */}
+          {/* Add to Cart — elegant outlined button matching mockup */}
           <button
             onClick={(e) => {
-              e.stopPropagation(); // prevent opening details sheet
+              e.stopPropagation();
               if (onAddDirect) {
                 onAddDirect(item);
               } else {
                 onClick(item);
               }
             }}
-            className={`px-3 py-1 rounded-lg text-[10px] font-bold transition-all uppercase tracking-wider ${
-              isDark 
-                ? "bg-[#DFBA73] hover:bg-[#DFBA73]/85 text-[#0A0B0E]" 
-                : "bg-[#5C1D24] hover:bg-[#5C1D24]/85 text-white"
-            }`}
+            className="text-[9px] font-semibold tracking-[0.12em] uppercase transition-all duration-300 px-3 py-1.5 rounded-lg"
             style={{
-              backgroundColor: brandColor ? accentColor : undefined,
-              color: brandColor ? (isDark ? '#0A0B0E' : '#FFFFFF') : undefined
+              color: isDark ? goldAccent : '#FFFFFF',
+              border: isDark ? `1px solid ${goldAccent}50` : 'none',
+              background: isDark 
+                ? (isHovered ? `${goldAccent}18` : 'transparent') 
+                : accentColor,
+              boxShadow: isDark 
+                ? (isHovered ? `0 0 12px ${goldAccent}15` : 'none')
+                : `0 2px 8px ${accentColor}30`,
             }}
           >
-            ADD
+            Add to Cart
           </button>
         </div>
       </div>
     </div>
   );
 }
-export type { MenuItem, DietaryLabel };
+
