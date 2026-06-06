@@ -4,6 +4,7 @@ import { Locale } from '../../../i18n/config';
 import { TranslateFn } from '../../../i18n/useLocale';
 import { MenuItem } from './MenuItemCard';
 import ShareCard from './ShareCard';
+import { getReadableAccentColor, getContrastTextColor } from '@/lib/colors';
 
 // Custom SVG crescent moon and star for Halal matching Lucide's style
 const HalalIcon = (props: React.SVGProps<SVGSVGElement>) => (
@@ -133,7 +134,7 @@ export default function ItemDetailSheet({
 
   const defaultFoodImage = 'https://images.unsplash.com/photo-1546069901-ba9599a7e63c?w=800&auto=format&fit=crop&q=80';
   const isDark = theme === "dark";
-  const accentColor = brandColor || (isDark ? '#DFBA73' : '#5C1D24');
+  const accentColor = getReadableAccentColor(brandColor, isDark);
 
   return (
     <div className="fixed inset-0 z-50 flex items-end justify-center">
@@ -358,10 +359,10 @@ export default function ItemDetailSheet({
                   onAddToOrder(item, quantity, notes);
                   onClose();
                 }}
-                className={`flex-grow py-4 rounded-2xl font-bold transition-colors duration-300 text-[14px] shadow-lg`}
+                className="flex-grow py-4 rounded-2xl font-bold transition-colors duration-300 text-[14px] shadow-lg"
                 style={{
                   backgroundColor: accentColor,
-                  color: isDark ? '#0A0B0E' : '#FFFFFF',
+                  color: getContrastTextColor(accentColor),
                   boxShadow: `0 10px 15px -3px ${accentColor}25`
                 }}
               >

@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import { ShoppingBag, X, Trash2, CheckCircle2, ChevronRight, AlertCircle, Loader } from 'lucide-react';
 import { Locale } from '../../../i18n/config';
 import { MenuItem } from './MenuItemCard';
+import { getReadableAccentColor, getContrastTextColor } from '@/lib/colors';
 
 interface CartItem {
   item: MenuItem;
@@ -97,7 +98,7 @@ export default function CartDrawer({
   if (!isOpen) return null;
 
   const isDark = theme === "dark";
-  const accentColor = brandColor || (isDark ? '#DFBA73' : '#5C1D24');
+  const accentColor = getReadableAccentColor(brandColor, isDark);
 
   return (
     <div className="fixed inset-0 z-50 flex items-end justify-center select-none">
@@ -289,16 +290,16 @@ export default function CartDrawer({
             <button 
               onClick={handleCheckout}
               disabled={submitting}
-              className={`w-full py-4 rounded-2xl font-bold text-sm transition-colors flex items-center justify-center space-x-2 disabled:opacity-50 disabled:cursor-not-allowed shadow-xl`}
+              className="w-full py-4 rounded-2xl font-bold text-sm transition-colors flex items-center justify-center space-x-2 disabled:opacity-50 disabled:cursor-not-allowed shadow-xl"
               style={{
                 backgroundColor: accentColor,
-                color: isDark ? '#0A0B0E' : '#FFFFFF',
+                color: getContrastTextColor(accentColor),
                 boxShadow: `0 10px 15px -3px ${accentColor}25`
               }}
             >
               {submitting ? (
                 <>
-                  <Loader className={`h-4 w-4 animate-spin ${isDark ? 'text-[#0A0B0E]' : 'text-white'}`} />
+                  <Loader className="h-4 w-4 animate-spin" />
                   <span>{locale === 'en' ? 'Placing Order...' : 'Sipariş Gönderiliyor...'}</span>
                 </>
               ) : (

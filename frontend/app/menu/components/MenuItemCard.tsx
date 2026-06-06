@@ -1,6 +1,7 @@
 import React from 'react';
 import { Leaf, Wheat, Flame } from 'lucide-react';
 import { Locale } from '../../../i18n/config';
+import { getReadableAccentColor, getContrastTextColor } from '@/lib/colors';
 
 // Custom SVG crescent moon and star for Halal matching Lucide's style
 const HalalIcon = (props: React.SVGProps<SVGSVGElement>) => (
@@ -128,7 +129,7 @@ export default function MenuItemCard({
 
   const defaultFoodImage = 'https://images.unsplash.com/photo-1546069901-ba9599a7e63c?w=400&auto=format&fit=crop&q=80';
   const isDark = theme === "dark";
-  const accentColor = brandColor || (isDark ? '#DFBA73' : '#5C1D24');
+  const accentColor = getReadableAccentColor(brandColor, isDark);
 
   return (
     <div 
@@ -170,8 +171,8 @@ export default function MenuItemCard({
                   title={getDietaryLabel(lbl.key, locale)}
                   className={`border text-[8px] font-bold px-1.5 py-0.5 rounded-full uppercase tracking-wider flex items-center space-x-1 ${
                     isDark 
-                      ? "bg-[#0A0B0E]/85 border-[#DFBA73]/20" 
-                      : "bg-[#FDFBF7]/95 border-[#5C1D24]/20 shadow-sm"
+                      ? "bg-[#0A0B0E]/85 border-white/[0.05]" 
+                      : "bg-[#FDFBF7]/95 border-black/[0.05] shadow-sm"
                   }`}
                   style={{
                     color: accentColor,
@@ -233,14 +234,10 @@ export default function MenuItemCard({
                 onClick(item);
               }
             }}
-            className={`px-3 py-1 rounded-lg text-[10px] font-bold transition-all uppercase tracking-wider ${
-              isDark 
-                ? "bg-[#DFBA73] hover:bg-[#DFBA73]/85 text-[#0A0B0E]" 
-                : "bg-[#5C1D24] hover:bg-[#5C1D24]/85 text-white"
-            }`}
+            className="px-3 py-1 rounded-lg text-[10px] font-bold transition-all uppercase tracking-wider shadow-sm hover:shadow"
             style={{
-              backgroundColor: brandColor ? accentColor : undefined,
-              color: brandColor ? (isDark ? '#0A0B0E' : '#FFFFFF') : undefined
+              backgroundColor: accentColor,
+              color: getContrastTextColor(accentColor)
             }}
           >
             ADD

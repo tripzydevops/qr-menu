@@ -1,6 +1,7 @@
 import React from 'react';
 import { LayoutGrid, Wheat, Leaf, Milk, Sparkles, Egg } from 'lucide-react';
 import { TranslateFn } from '../../../i18n/useLocale';
+import { getReadableAccentColor } from '@/lib/colors';
 
 interface DietaryFilterProps {
   activeFilter: string;
@@ -28,7 +29,7 @@ export default function DietaryFilter({
   ];
 
   const isDark = theme === "dark";
-  const accentColor = brandColor || (isDark ? '#DFBA73' : '#5C1D24');
+  const accentColor = getReadableAccentColor(brandColor, isDark);
 
   return (
     <div className="flex space-x-5 overflow-x-auto no-scrollbar py-3 mb-6 px-2 justify-start md:justify-center w-full">
