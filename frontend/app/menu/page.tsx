@@ -60,6 +60,9 @@ const MOCK_DATA: Record<string, MenuData> = {
     organizationName: "Karaköy Lokantası",
     logoUrl: "https://images.unsplash.com/photo-1555396273-367ea4eb4db5?w=200&auto=format&fit=crop&q=80",
     brandColor: "#722F37",
+    plan: "premium",
+    premiumMenuEnabled: true,
+    premiumMenuSelected: true,
     categories: [] // Seeding has them, we'll populate basic items
   }
 };
