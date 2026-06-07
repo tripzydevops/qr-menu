@@ -65,7 +65,9 @@ export default function AdminSettingsPage() {
         // Note: the venue fetch endpoint on backend is not explicitly implemented as GET /api/venues/{id}
         // but wait! The API GET /api/menu/{token} contains the full venue details!
         // We can fetch from GET /api/menu/k1 which is open/demo and load the details!
-        const res = await fetch(`${apiUrl}/api/menu/k1`);
+        const res = await fetch(`${apiUrl}/api/menu/k1`, {
+          cache: "no-store",
+        });
         if (res.ok) {
           const data = await res.json();
           setName(data.venueName);

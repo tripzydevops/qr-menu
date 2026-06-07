@@ -71,6 +71,8 @@ function MenuContent() {
   const searchParams = useSearchParams();
   const router = useRouter();
   const token = searchParams.get("token") || "k1";
+  const isPreview = searchParams.get("preview") === "true" || 
+                    (typeof document !== "undefined" && document.referrer.includes("/admin"));
 
   const { locale, setLocale, t } = useLocale();
   const [menu, setMenu] = useState<MenuData | null>(null);
@@ -237,7 +239,9 @@ function MenuContent() {
         setLoading(true);
         // API requests are now relative (empty string fallback) to run on same origin
         const apiUrl = process.env.NEXT_PUBLIC_API_URL || "";
-        const res = await fetch(`${apiUrl}/api/menu/${token}?locale=${locale}`);
+        const res = await fetch(`${apiUrl}/api/menu/${token}?locale=${locale}`, {
+          cache: "no-store",
+        });
         
         if (!res.ok) {
           throw new Error("Invalid response");
@@ -375,7 +379,9 @@ function MenuContent() {
         <div className="flex items-center space-x-3">
           <button 
             onClick={() => {
-              if (typeof window !== "undefined" && window.history.length > 1) {
+              if (isPreview) {
+                router.push("/admin");
+              } else if (typeof window !== "undefined" && window.history.length > 1) {
                 router.back();
               } else {
                 router.push("/");
