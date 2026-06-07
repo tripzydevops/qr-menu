@@ -74,3 +74,19 @@ To achieve full launch readiness in the Turkish market, the following items rema
 3.  **Analytics & User Signals (Layer 1):**
     *   Connect the frontend signal buffer to the backend `AnalyticsEvent` model to capture diner scrolling, viewing, and interaction streams.
     *   Apply the "Cold Start" preference resolver on the guest menu using lifestyle signals.
+
+---
+
+## 5. Note on Prisma Introspection Mismatch Warning
+
+During the build process or client generation, Prisma may output the following warning:
+`Warning: Your database has 22 tables, but you have only defined 14 models in your Schema.`
+
+### Why this happens
+This warning is completely expected when using Supabase PostgreSQL. Supabase automatically manages several internal system schemas (`auth.*` for user management, `storage.*` for media, `graphql.*`, etc.) which contain tables like `auth.users`, `auth.sessions`, and `storage.objects`. 
+
+Prisma connects to the PostgreSQL instance and detects all available tables across these schemas, but our `db/schema.prisma` intentionally only defines the **17 models** that our application layer directly queries (e.g. `Organization`, `Venue`, `Table`, `Category`, `MenuItem`, `Order`, `WaiterRequest`, etc.). 
+
+### Conclusion
+This warning is entirely harmless, does not affect runtime execution, and can be safely ignored. We intentionally exclude internal system tables from our schema to prevent code clutter and avoid unnecessary client generation.
+

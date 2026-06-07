@@ -383,10 +383,23 @@ function MenuContent() {
 
   const filteredCategories = getFilteredCategories();
 
+  // ── Compute premium state once at page level ──
+  const templateParam = searchParams.get("template");
+  const isPremiumPlan = menu.premiumMenuEnabled || menu.plan === 'premium' || menu.plan === 'enterprise';
+  const showPremium = templateParam === "premium"
+    ? true
+    : templateParam === "standard"
+      ? false
+      : (isPremiumPlan && !!menu.premiumMenuSelected);
+
+  const pageClass = [
+    'flex-grow flex flex-col min-h-screen pb-28 relative select-none animate-fade-in transition-colors duration-300',
+    theme === 'dark' ? 'bg-[#12141C] text-[#E2E8F0]' : 'bg-[#FDFBF7] text-[#1E1214]',
+    showPremium && theme === 'dark' ? 'premium-page-glow' : '',
+  ].filter(Boolean).join(' ');
+
   return (
-    <div className={`flex-grow flex flex-col min-h-screen pb-28 relative select-none animate-fade-in transition-colors duration-300 ${
-      theme === 'dark' ? 'bg-[#12141C] text-[#E2E8F0]' : 'bg-[#FDFBF7] text-[#1E1214]'
-    }`}>
+    <div className={pageClass}>
       {/* Premium Header Aligned to Mockup */}
       <header className="px-6 pt-8 pb-4 flex items-center justify-between z-10">
         <div className="flex items-center space-x-3">
@@ -510,6 +523,20 @@ function MenuContent() {
         </div>
       )}
 
+      {/* Premium Experience Badge */}
+      {showPremium && (
+        <div className="px-6 mb-3">
+          <div className={`inline-flex items-center gap-2 px-4 py-1.5 rounded-full text-[9px] font-bold uppercase tracking-[0.2em] ${
+            theme === 'dark'
+              ? 'bg-[#C9A84C]/10 text-[#DFBA73] border border-[#C9A84C]/20'
+              : 'bg-[#5C1D24]/10 text-[#5C1D24] border border-[#5C1D24]/15'
+          }`}>
+            <span className="animate-gold-pulse">✦</span>
+            <span>{locale === 'tr' ? 'Premium Deneyim' : 'Premium Experience'}</span>
+          </div>
+        </div>
+      )}
+
       {/* Category Nav */}
       {menu.categories.length > 0 && (
         <CategoryNav 
@@ -534,91 +561,102 @@ function MenuContent() {
       </div>
 
       {/* Items list container */}
-      <main className="px-4 max-w-2xl mx-auto w-full flex-grow space-y-10">
+      <main className={`px-4 max-w-2xl mx-auto w-full flex-grow ${showPremium ? 'space-y-14' : 'space-y-10'}`}>
         {filteredCategories.length > 0 ? (
           filteredCategories.map((category) => (
             <div 
               key={category.id} 
               ref={(el) => { categoryRefs.current[category.id] = el; }}
-              className="space-y-4 pt-2"
+              className={showPremium ? 'space-y-6 pt-3' : 'space-y-4 pt-2'}
             >
-              <h3 className={`font-serif text-xl font-bold tracking-wide border-b pb-2 transition-colors ${
-                theme === "dark" ? "text-[#E8E8E8] border-gray-800/50" : "text-[#1E1214] border-black/[0.08]"
-              }`}>
-                {locale === 'en' ? category.nameEn : category.nameTr}
-              </h3>
+              {/* Category Header — Premium gets gold ornamental dividers */}
+              {showPremium ? (
+                <div className="flex items-center gap-4 py-3">
+                  <div className="flex-1 h-px" style={{ background: `linear-gradient(to right, transparent, ${theme === 'dark' ? 'rgba(201,168,76,0.3)' : 'rgba(92,29,36,0.2)'})` }} />
+                  <h3 
+                    className="font-serif text-base md:text-lg font-bold tracking-[0.15em] uppercase text-center whitespace-nowrap"
+                    style={{ 
+                      color: theme === 'dark' ? '#DFBA73' : '#5C1D24',
+                      fontFamily: "var(--font-playfair), 'Playfair Display', Georgia, serif",
+                      textShadow: theme === 'dark' ? '0 0 20px rgba(201,168,76,0.15)' : 'none',
+                    }}
+                  >
+                    {locale === 'en' ? category.nameEn : category.nameTr}
+                  </h3>
+                  <div className="flex-1 h-px" style={{ background: `linear-gradient(to left, transparent, ${theme === 'dark' ? 'rgba(201,168,76,0.3)' : 'rgba(92,29,36,0.2)'})` }} />
+                </div>
+              ) : (
+                <h3 className={`font-serif text-xl font-bold tracking-wide border-b pb-2 transition-colors ${
+                  theme === "dark" ? "text-[#E8E8E8] border-gray-800/50" : "text-[#1E1214] border-black/[0.08]"
+                }`}>
+                  {locale === 'en' ? category.nameEn : category.nameTr}
+                </h3>
+              )}
 
-              {(() => {
-                const templateParam = searchParams.get("template");
-                const isPremiumPlan = menu.premiumMenuEnabled || menu.plan === 'premium' || menu.plan === 'enterprise';
-                const showPremium = templateParam === "premium"
-                  ? true
-                  : templateParam === "standard"
-                    ? false
-                    : (isPremiumPlan && !!menu.premiumMenuSelected);
-                
-                return (
-                  <div className={showPremium ? "grid grid-cols-1 gap-6 max-w-md mx-auto" : "grid grid-cols-2 gap-4"}>
-                    {category.items.map((item) => {
-                      const CardComponent = showPremium ? MenuItemCardPremium : MenuItemCard;
-                      return (
-                        <CardComponent 
-                          key={item.id} 
-                          item={item} 
-                          onClick={setSelectedItem} 
-                          onAddDirect={(item) => handleAddToOrder(item, 1, "")}
-                          locale={locale} 
-                          currency={menu.currency}
-                          brandColor={menu.brandColor}
-                          theme={theme}
-                        />
-                      );
-                    })}
+              {/* Card Grid — Premium: single column, max-w-lg, gap-8 | Standard: 2-col, gap-4 */}
+              <div className={showPremium ? "grid grid-cols-1 gap-8 max-w-lg mx-auto" : "grid grid-cols-2 gap-4"}>
+                {category.items.map((item) => {
+                  const CardComponent = showPremium ? MenuItemCardPremium : MenuItemCard;
+                  return (
+                    <CardComponent 
+                      key={item.id} 
+                      item={item} 
+                      onClick={setSelectedItem} 
+                      onAddDirect={(item) => handleAddToOrder(item, 1, "")}
+                      locale={locale} 
+                      currency={menu.currency}
+                      brandColor={menu.brandColor}
+                      theme={theme}
+                    />
+                  );
+                })}
 
-                    {/* If Main Courses category and no search query, inject the mockup's Wine Pairing recommendation */}
-                    {category.id === "cat-mains" && !searchQuery && (
-                      <div className={`border p-4 rounded-2xl relative overflow-hidden flex gap-4 mt-2 transition-all ${
-                        showPremium ? "col-span-1" : "col-span-2"
-                      } ${
-                        theme === "dark" 
-                          ? "bg-white/[0.02] border-[#DFBA73]/30" 
-                          : "bg-[#F9F6F0] border-[#5C1D24]/20 shadow-md shadow-[#5C1D24]/5"
-                      }`}>
-                        <div className="absolute top-0 right-0 w-24 h-24 bg-[#DFBA73]/5 rounded-full blur-xl pointer-events-none" />
-                        
-                        {/* Left: Wine Glass Icon & Title */}
-                        <div className="flex-grow">
-                          <div className="flex items-center space-x-2 mb-1.5">
-                            <Wine className={`h-4 w-4 animate-pulse ${theme === "dark" ? "text-[#DFBA73]" : "text-[#5C1D24]"}`} />
-                            <span className={`text-[9px] font-mono tracking-widest font-bold uppercase ${
-                              theme === "dark" ? "text-[#DFBA73]" : "text-[#5C1D24]"
-                            }`}>AI SOMMELIER RECOMMENDS</span>
-                          </div>
-                          <span className={`text-[10px] font-mono block mb-1 ${theme === "dark" ? "text-gray-500" : "text-gray-600"}`}>For Wagyu Filet:</span>
-                          <h4 className={`font-serif text-[13px] font-bold mb-0.5 ${theme === "dark" ? "text-white" : "text-[#1E1214]"}`}>Domaine Serene Pinot Noir</h4>
-                          <span className={`text-[11px] font-semibold font-mono block mb-1.5 ${theme === "dark" ? "text-[#DFBA73]" : "text-[#5C1D24]"}`}>₺3.900 / $120 Şişe</span>
-                          <p className={`text-[10px] leading-relaxed font-light ${theme === "dark" ? "text-gray-400" : "text-gray-600"}`}>
-                            2018 Pinot Noir - Elegant, complex, hints of cherry & oak. Pairs perfectly.
-                          </p>
-                        </div>
-
-                        {/* Right: Wine Bottle Image */}
-                        <div className={`w-20 h-20 rounded-xl overflow-hidden p-1.5 flex items-center justify-center shrink-0 border transition-all ${
-                          theme === "dark" 
-                            ? "bg-gradient-to-br from-[#4A151B] to-[#12141A] border-white/[0.05]" 
-                            : "bg-gradient-to-br from-[#FDFBF7] to-[#F9F6F0] border-black/[0.04]"
-                        }`}>
-                          <img 
-                            src="https://images.unsplash.com/photo-1510812431401-41d2bd2722f3?w=300&auto=format&fit=crop&q=80" 
-                            alt="Pinot Noir" 
-                            className="h-full object-contain"
-                          />
-                        </div>
+                {/* If Main Courses category and no search query, inject the Wine Pairing recommendation */}
+                {category.id === "cat-mains" && !searchQuery && (
+                  <div className={`border p-4 rounded-2xl relative overflow-hidden flex gap-4 mt-2 transition-all ${
+                    showPremium ? "col-span-1" : "col-span-2"
+                  } ${
+                    showPremium 
+                      ? theme === "dark"
+                        ? "premium-glass-card border-[#C9A84C]/20"
+                        : "bg-[#FFFDF8] border-[#C9A84C]/15 shadow-lg shadow-[#C9A84C]/5"
+                      : theme === "dark" 
+                        ? "bg-white/[0.02] border-[#DFBA73]/30" 
+                        : "bg-[#F9F6F0] border-[#5C1D24]/20 shadow-md shadow-[#5C1D24]/5"
+                  }`}>
+                    <div className="absolute top-0 right-0 w-24 h-24 bg-[#DFBA73]/5 rounded-full blur-xl pointer-events-none" />
+                    
+                    {/* Left: Wine Glass Icon & Title */}
+                    <div className="flex-grow relative z-10">
+                      <div className="flex items-center space-x-2 mb-1.5">
+                        <Wine className={`h-4 w-4 animate-pulse ${theme === "dark" ? "text-[#DFBA73]" : "text-[#5C1D24]"}`} />
+                        <span className={`text-[9px] font-mono tracking-widest font-bold uppercase ${
+                          theme === "dark" ? "text-[#DFBA73]" : "text-[#5C1D24]"
+                        }`}>AI SOMMELIER RECOMMENDS</span>
                       </div>
-                    )}
+                      <span className={`text-[10px] font-mono block mb-1 ${theme === "dark" ? "text-gray-500" : "text-gray-600"}`}>For Wagyu Filet:</span>
+                      <h4 className={`font-serif text-[13px] font-bold mb-0.5 ${theme === "dark" ? "text-white" : "text-[#1E1214]"}`}>Domaine Serene Pinot Noir</h4>
+                      <span className={`text-[11px] font-semibold font-mono block mb-1.5 ${theme === "dark" ? "text-[#DFBA73]" : "text-[#5C1D24]"}`}>₺3.900 / $120 Şişe</span>
+                      <p className={`text-[10px] leading-relaxed font-light ${theme === "dark" ? "text-gray-400" : "text-gray-600"}`}>
+                        2018 Pinot Noir - Elegant, complex, hints of cherry & oak. Pairs perfectly.
+                      </p>
+                    </div>
+
+                    {/* Right: Wine Bottle Image */}
+                    <div className={`w-20 h-20 rounded-xl overflow-hidden p-1.5 flex items-center justify-center shrink-0 border transition-all ${
+                      theme === "dark" 
+                        ? "bg-gradient-to-br from-[#4A151B] to-[#12141A] border-white/[0.05]" 
+                        : "bg-gradient-to-br from-[#FDFBF7] to-[#F9F6F0] border-black/[0.04]"
+                    }`}>
+                      <img 
+                        src="https://images.unsplash.com/photo-1510812431401-41d2bd2722f3?w=300&auto=format&fit=crop&q=80" 
+                        alt="Pinot Noir" 
+                        className="h-full object-contain"
+                      />
+                    </div>
                   </div>
-                );
-              })()}
+                )}
+              </div>
             </div>
           ))
         ) : (

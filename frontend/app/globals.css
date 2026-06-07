@@ -82,6 +82,174 @@ body {
   .burgundy-glow {
     box-shadow: 0 0 40px -5px rgba(92, 29, 36, 0.25);
   }
+
+  /* ── Premium-Exclusive Utilities ── */
+
+  .premium-glass-card {
+    background: linear-gradient(
+      145deg,
+      rgba(18, 20, 28, 0.85) 0%,
+      rgba(10, 11, 14, 0.92) 100%
+    );
+    backdrop-filter: blur(24px) saturate(1.4);
+    -webkit-backdrop-filter: blur(24px) saturate(1.4);
+    border: 1px solid rgba(201, 168, 76, 0.12);
+    position: relative;
+    overflow: hidden;
+  }
+
+  .premium-glass-card::before {
+    content: '';
+    position: absolute;
+    inset: 0;
+    background: radial-gradient(
+      ellipse at 20% 0%,
+      rgba(201, 168, 76, 0.06) 0%,
+      transparent 60%
+    );
+    pointer-events: none;
+    z-index: 0;
+  }
+
+  .premium-glass-card:hover {
+    border-color: rgba(201, 168, 76, 0.35);
+    box-shadow:
+      0 0 40px -8px rgba(201, 168, 76, 0.2),
+      0 25px 60px -15px rgba(0, 0, 0, 0.7),
+      inset 0 1px 0 rgba(201, 168, 76, 0.1);
+  }
+
+  /* Animated gold border glow */
+  .premium-border-glow {
+    position: relative;
+  }
+  .premium-border-glow::after {
+    content: '';
+    position: absolute;
+    inset: -1px;
+    border-radius: inherit;
+    background: linear-gradient(
+      135deg,
+      rgba(201, 168, 76, 0.3) 0%,
+      rgba(223, 186, 115, 0.05) 25%,
+      rgba(201, 168, 76, 0.25) 50%,
+      rgba(223, 186, 115, 0.05) 75%,
+      rgba(201, 168, 76, 0.3) 100%
+    );
+    background-size: 300% 300%;
+    animation: borderShimmer 6s ease-in-out infinite;
+    z-index: -1;
+    pointer-events: none;
+  }
+
+  /* Gold shimmer sweep for CTA button */
+  .premium-btn-shimmer {
+    position: relative;
+    overflow: hidden;
+  }
+  .premium-btn-shimmer::after {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: -100%;
+    width: 50%;
+    height: 100%;
+    background: linear-gradient(
+      90deg,
+      transparent,
+      rgba(255, 255, 255, 0.25),
+      transparent
+    );
+    animation: btnShimmer 3s ease-in-out infinite;
+  }
+
+  /* Premium page ambient glow */
+  .premium-page-glow {
+    position: relative;
+  }
+  .premium-page-glow::before {
+    content: '';
+    position: fixed;
+    top: -120px;
+    left: 50%;
+    transform: translateX(-50%);
+    width: 600px;
+    height: 400px;
+    background: radial-gradient(
+      ellipse,
+      rgba(201, 168, 76, 0.06) 0%,
+      rgba(201, 168, 76, 0.02) 40%,
+      transparent 70%
+    );
+    pointer-events: none;
+    z-index: 0;
+  }
+
+  /* Corner ornament positioning helpers */
+  .premium-ornament-tl {
+    position: absolute;
+    top: 8px;
+    left: 8px;
+    width: 20px;
+    height: 20px;
+    opacity: 0.25;
+    pointer-events: none;
+    z-index: 10;
+  }
+  .premium-ornament-tr {
+    position: absolute;
+    top: 8px;
+    right: 8px;
+    width: 20px;
+    height: 20px;
+    opacity: 0.25;
+    pointer-events: none;
+    z-index: 10;
+    transform: scaleX(-1);
+  }
+  .premium-ornament-bl {
+    position: absolute;
+    bottom: 8px;
+    left: 8px;
+    width: 20px;
+    height: 20px;
+    opacity: 0.25;
+    pointer-events: none;
+    z-index: 10;
+    transform: scaleY(-1);
+  }
+  .premium-ornament-br {
+    position: absolute;
+    bottom: 8px;
+    right: 8px;
+    width: 20px;
+    height: 20px;
+    opacity: 0.25;
+    pointer-events: none;
+    z-index: 10;
+    transform: scale(-1);
+  }
+}
+
+/* ── Premium Keyframes ── */
+@keyframes borderShimmer {
+  0%, 100% { background-position: 0% 50%; }
+  50% { background-position: 100% 50%; }
+}
+
+@keyframes btnShimmer {
+  0% { left: -100%; }
+  50%, 100% { left: 150%; }
+}
+
+@keyframes premiumFloat {
+  0%, 100% { transform: translateY(0px); }
+  50% { transform: translateY(-4px); }
+}
+
+@keyframes goldPulse {
+  0%, 100% { opacity: 0.15; }
+  50% { opacity: 0.3; }
 }
 
 

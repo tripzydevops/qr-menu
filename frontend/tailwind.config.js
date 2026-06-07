@@ -48,6 +48,9 @@ module.exports = {
         "slide-up": "slideUp 0.5s cubic-bezier(0.16, 1, 0.3, 1) forwards",
         "fade-in": "fadeIn 0.3s ease-out forwards",
         "shimmer": "shimmer 2s infinite linear",
+        "premium-float": "premiumFloat 4s ease-in-out infinite",
+        "gold-pulse": "goldPulse 3s ease-in-out infinite",
+        "fade-in-up": "fadeInUp 0.6s cubic-bezier(0.16, 1, 0.3, 1) forwards",
       },
       keyframes: {
         slideUp: {
@@ -61,6 +64,18 @@ module.exports = {
         shimmer: {
           "0%": { backgroundPosition: "-200% 0" },
           "100%": { backgroundPosition: "200% 0" },
+        },
+        premiumFloat: {
+          "0%, 100%": { transform: "translateY(0px)" },
+          "50%": { transform: "translateY(-4px)" },
+        },
+        goldPulse: {
+          "0%, 100%": { opacity: "0.15" },
+          "50%": { opacity: "0.3" },
+        },
+        fadeInUp: {
+          "0%": { transform: "translateY(24px)", opacity: "0" },
+          "100%": { transform: "translateY(0)", opacity: "1" },
         },
       },
     },
