@@ -358,6 +358,8 @@ class OrderSchema(OrderBase):
     tableId: Optional[str] = None
     tableName: Optional[str] = None
     totalAmount: Decimal
+    paymentMethod: Optional[str] = None
+    paidAt: Optional[datetime] = None
     items: List[OrderItemSchema] = []
     createdAt: datetime
     updatedAt: datetime

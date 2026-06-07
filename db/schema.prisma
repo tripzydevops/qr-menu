@@ -1,12 +1,14 @@
 datasource db {
-  provider  = "postgresql"
-  url       = env("DATABASE_URL")
-  directUrl = env("DIRECT_URL")
+  provider   = "postgresql"
+  url        = env("DATABASE_URL")
+  directUrl  = env("DIRECT_URL")
+  extensions = [pgvector(map: "vector")]
 }
 
 generator client {
-  provider = "prisma-client-js"
-  output   = "../frontend/node_modules/.prisma/client"
+  provider        = "prisma-client-js"
+  output          = "../frontend/node_modules/.prisma/client"
+  previewFeatures = ["postgresqlExtensions"]
 }
 
 model Organization {
@@ -94,6 +96,7 @@ model MenuItem {
   dietaryLabels DietaryLabel[]        @relation("MenuItemToDietaryLabel")
   translations  MenuItemTranslation[]
   orderItems    OrderItem[]
+  embedding     Unsupported("vector(768)")?
   createdAt     DateTime              @default(now())
   updatedAt     DateTime              @updatedAt
 }
@@ -203,16 +206,18 @@ model SystemSetting {
 }
 
 model Order {
-  id          String      @id @default(uuid())
-  venueId     String
-  venue       Venue       @relation(fields: [venueId], references: [id], onDelete: Cascade)
-  tableId     String?
-  table       Table?      @relation(fields: [tableId], references: [id], onDelete: SetNull)
-  status      String      @default("pending") // "pending", "preparing", "completed", "cancelled"
-  totalAmount Decimal
-  items       OrderItem[]
-  createdAt   DateTime    @default(now())
-  updatedAt   DateTime    @updatedAt
+  id            String      @id @default(uuid())
+  venueId       String
+  venue         Venue       @relation(fields: [venueId], references: [id], onDelete: Cascade)
+  tableId       String?
+  table         Table?      @relation(fields: [tableId], references: [id], onDelete: SetNull)
+  status        String      @default("pending") // "pending", "preparing", "completed", "cancelled"
+  totalAmount   Decimal
+  paymentMethod String?     // "cash", "card", "online"
+  paidAt        DateTime?
+  items         OrderItem[]
+  createdAt     DateTime    @default(now())
+  updatedAt     DateTime    @updatedAt
 }
 
 model OrderItem {

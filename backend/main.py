@@ -15,12 +15,14 @@ try:
     from . import models, schemas
     from .services.storage import upload_image
     from .services.analytics import log_view, get_analytics_summary
+    from .services.embeddings import get_embedding_sync
 except ImportError:
     from database import get_db, engine, Base
     import models
     import schemas
     from services.storage import upload_image
     from services.analytics import log_view, get_analytics_summary
+    from services.embeddings import get_embedding_sync
 
 # Create database tables if they do not exist
 Base.metadata.create_all(bind=engine)
@@ -224,6 +226,60 @@ def call_waiter(qr_token: str, request_in: schemas.WaiterRequestCreate, db: Sess
     db_request.tableName = table.name
     db_request.areaName = table.areaName
     return db_request
+
+@app.get("/api/menu/{qr_token}/search", response_model=List[schemas.MenuItemSchema])
+def search_menu_items(qr_token: str, q: str, db: Session = Depends(get_db)):
+    """
+    Perform semantic vector similarity search on menu items using pgvector.
+    """
+    if not q.strip():
+        return []
+        
+    # 1. Resolve Table & Venue
+    table = db.query(models.Table).filter(models.Table.qrToken == qr_token).first()
+    if not table:
+        raise HTTPException(status_code=404, detail="Table not found")
+        
+    # 2. Get query embedding
+    query_vector = get_embedding_sync(q)
+    vector_str = "[" + ",".join(map(str, query_vector)) + "]"
+    
+    # 3. Query closest items using cosine distance (<=>)
+    from sqlalchemy import text
+    query = text("""
+        SELECT id FROM "MenuItem" 
+        WHERE "categoryId" IN (SELECT id FROM "Category" WHERE "venueId" = :venue_id)
+          AND "isAvailable" = true
+          AND "embedding" IS NOT NULL
+        ORDER BY "embedding" <=> cast(:query_vector as vector)
+        LIMIT 10;
+    """)
+    
+    try:
+        results = db.execute(query, {"venue_id": table.venueId, "query_vector": vector_str}).fetchall()
+        item_ids = [r[0] for r in results]
+    except Exception as e:
+        print(f"[Search] pgvector query failed: {e}. Falling back to standard case-insensitive text search.")
+        # Fallback to standard text search if pgvector fails (e.g. extension not configured in tests)
+        fallback_query = db.query(models.MenuItem).filter(
+            models.MenuItem.categoryId.in_(db.query(models.Category.id).filter(models.Category.venueId == table.venueId)),
+            models.MenuItem.isAvailable == True,
+            (models.MenuItem.nameTr.ilike(f"%{q}%")) | (models.MenuItem.nameEn.ilike(f"%{q}%")) |
+            (models.MenuItem.descriptionTr.ilike(f"%{q}%")) | (models.MenuItem.descriptionEn.ilike(f"%{q}%"))
+        ).limit(10).all()
+        return fallback_query
+    
+    if not item_ids:
+        return []
+        
+    # 4. Fetch full item models
+    items = db.query(models.MenuItem).filter(models.MenuItem.id.in_(item_ids)).all()
+    # Sort them by their position in item_ids to maintain pgvector ranking
+    id_to_index = {item_id: index for index, item_id in enumerate(item_ids)}
+    items.sort(key=lambda x: id_to_index.get(x.id, 999))
+    
+    return items
+
 
 # --- ANALYTICS VIEW LOGGING ---
 
@@ -450,6 +506,27 @@ def reorder_categories(categoryIds: List[str], db: Session = Depends(get_db)):
     db.commit()
 
 # Menu Items
+def update_menu_item_embedding(db: Session, item_id: str, name_tr: str, name_en: str, desc_tr: Optional[str], desc_en: Optional[str]):
+    try:
+        parts = [name_tr, name_en]
+        if desc_tr:
+            parts.append(desc_tr)
+        if desc_en:
+            parts.append(desc_en)
+        text_to_embed = " | ".join(parts)
+        
+        vector = get_embedding_sync(text_to_embed)
+        vector_str = "[" + ",".join(map(str, vector)) + "]"
+        
+        from sqlalchemy import text
+        db.execute(
+            text("UPDATE \"MenuItem\" SET embedding = cast(:vector as vector) WHERE id = :id"),
+            {"vector": vector_str, "id": item_id}
+        )
+        db.commit()
+    except Exception as e:
+        print(f"[Embeddings] Failed to update embedding for item {item_id}: {e}")
+
 @app.post("/api/admin/menu-items", response_model=schemas.MenuItemSchema, status_code=status.HTTP_201_CREATED)
 def create_menu_item(item_in: schemas.MenuItemCreate, db: Session = Depends(get_db)):
     cat = db.query(models.Category).filter(models.Category.id == item_in.categoryId).first()
@@ -482,6 +559,12 @@ def create_menu_item(item_in: schemas.MenuItemCreate, db: Session = Depends(get_
         db_item.dietaryLabels = labels
 
     db.commit()
+    db.refresh(db_item)
+    
+    # Generate and save embedding vector
+    update_menu_item_embedding(db, db_item.id, db_item.nameTr, db_item.nameEn, db_item.descriptionTr, db_item.descriptionEn)
+    
+    # Refresh to include updated embedding in return payload (if needed)
     db.refresh(db_item)
     return db_item
 
@@ -524,6 +607,11 @@ def update_menu_item(id: str, item_in: schemas.MenuItemCreate, db: Session = Dep
         item.dietaryLabels = labels
 
     db.commit()
+    db.refresh(item)
+    
+    # Update embedding vector
+    update_menu_item_embedding(db, item.id, item.nameTr, item.nameEn, item.descriptionTr, item.descriptionEn)
+    
     db.refresh(item)
     return item
 
@@ -890,6 +978,144 @@ def update_waiter_request_status(id: str, status_data: Dict[str, str], db: Sessi
         req.areaName = table.areaName
         
     return req
+
+
+@app.post("/api/admin/orders/{id}/payment", response_model=schemas.OrderSchema)
+def receive_order_payment(id: str, payment_data: Dict[str, str], db: Session = Depends(get_db)):
+    order = db.query(models.Order).filter(models.Order.id == id).first()
+    if not order:
+        raise HTTPException(status_code=404, detail="Order not found")
+        
+    payment_method = payment_data.get("paymentMethod")
+    if payment_method not in ["cash", "card", "online"]:
+        raise HTTPException(status_code=400, detail="Invalid payment method")
+        
+    order.status = "completed"
+    order.paymentMethod = payment_method
+    order.paidAt = datetime.datetime.utcnow()
+    db.commit()
+    db.refresh(order)
+    
+    # Auto-resolve any pending "bill" requests for this table & venue
+    if order.tableId:
+        pending_requests = db.query(models.WaiterRequest).filter(
+            models.WaiterRequest.venueId == order.venueId,
+            models.WaiterRequest.tableId == order.tableId,
+            models.WaiterRequest.type == "bill",
+            models.WaiterRequest.status == "pending"
+        ).all()
+        for req in pending_requests:
+            req.status = "completed"
+        db.commit()
+        
+    if order.tableId:
+        table = db.query(models.Table).filter(models.Table.id == order.tableId).first()
+        if table:
+            order.tableName = table.name
+            
+    return order
+
+
+@app.post("/api/admin/tables/{table_id}/pay", response_model=List[schemas.OrderSchema])
+def pay_all_table_orders(table_id: str, payment_data: Dict[str, str], db: Session = Depends(get_db)):
+    payment_method = payment_data.get("paymentMethod")
+    if payment_method not in ["cash", "card", "online"]:
+        raise HTTPException(status_code=400, detail="Invalid payment method")
+        
+    # Get all active/served/ready orders for this table
+    active_orders = db.query(models.Order).filter(
+        models.Order.tableId == table_id,
+        models.Order.status.in_(["pending", "preparing", "ready", "served"])
+    ).all()
+    
+    now = datetime.datetime.utcnow()
+    for order in active_orders:
+        order.status = "completed"
+        order.paymentMethod = payment_method
+        order.paidAt = now
+        
+    # Settle waiter bill requests for this table
+    pending_requests = db.query(models.WaiterRequest).filter(
+        models.WaiterRequest.tableId == table_id,
+        models.WaiterRequest.type == "bill",
+        models.WaiterRequest.status == "pending"
+    ).all()
+    for req in pending_requests:
+        req.status = "completed"
+        
+    db.commit()
+    
+    # Populate table name for return schemas
+    for order in active_orders:
+        db.refresh(order)
+        table = db.query(models.Table).filter(models.Table.id == order.tableId).first()
+        if table:
+            order.tableName = table.name
+            
+    return active_orders
+
+
+@app.get("/api/admin/cashier/summary")
+def get_cashier_summary(venueId: str, db: Session = Depends(get_db)):
+    # Calculate start of today in UTC
+    today_start = datetime.datetime.utcnow().replace(hour=0, minute=0, second=0, microsecond=0)
+    
+    # Completed orders today
+    completed_orders = db.query(models.Order).filter(
+        models.Order.venueId == venueId,
+        models.Order.status == "completed",
+        models.Order.paidAt >= today_start
+    ).all()
+    
+    total_revenue = sum(float(order.totalAmount) for order in completed_orders)
+    order_count = len(completed_orders)
+    
+    cash_payments = sum(float(order.totalAmount) for order in completed_orders if order.paymentMethod == "cash")
+    card_payments = sum(float(order.totalAmount) for order in completed_orders if order.paymentMethod == "card")
+    online_payments = sum(float(order.totalAmount) for order in completed_orders if order.paymentMethod == "online")
+    
+    # Active orders count (pending, preparing, ready, served)
+    active_orders_count = db.query(models.Order).filter(
+        models.Order.venueId == venueId,
+        models.Order.status.in_(["pending", "preparing", "ready", "served"])
+    ).count()
+    
+    # Top selling items today
+    order_ids = [order.id for order in completed_orders]
+    top_items = []
+    if order_ids:
+        from sqlalchemy import func
+        item_sales = db.query(
+            models.OrderItem.menuItemId,
+            func.sum(models.OrderItem.quantity).label("total_quantity")
+        ).filter(
+            models.OrderItem.orderId.in_(order_ids)
+        ).group_by(
+            models.OrderItem.menuItemId
+        ).order_by(
+            func.sum(models.OrderItem.quantity).desc()
+        ).limit(5).all()
+        
+        for menu_item_id, qty in item_sales:
+            menu_item = db.query(models.MenuItem).filter(models.MenuItem.id == menu_item_id).first()
+            if menu_item:
+                top_items.append({
+                    "id": menu_item.id,
+                    "nameTr": menu_item.nameTr,
+                    "nameEn": menu_item.nameEn,
+                    "quantity": int(qty),
+                    "price": float(menu_item.price)
+                })
+                
+    return {
+        "totalRevenue": total_revenue,
+        "orderCount": order_count,
+        "cashRevenue": cash_payments,
+        "cardRevenue": card_payments,
+        "onlineRevenue": online_payments,
+        "activeOrdersCount": active_orders_count,
+        "topItems": top_items
+    }
 
 
 # --- MENU IMPORT ENDPOINTS ---

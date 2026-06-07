@@ -234,6 +234,8 @@ class Order(Base):
     tableId = Column(String, ForeignKey("Table.id", ondelete="SET NULL"), nullable=True)
     status = Column(String, default="pending")  # "pending", "preparing", "completed", "cancelled"
     totalAmount = Column(Numeric(10, 2), nullable=False)
+    paymentMethod = Column(String, nullable=True)
+    paidAt = Column(DateTime, nullable=True)
     createdAt = Column(DateTime, default=datetime.datetime.utcnow)
     updatedAt = Column(DateTime, default=datetime.datetime.utcnow, onupdate=datetime.datetime.utcnow)
 

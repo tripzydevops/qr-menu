@@ -15,7 +15,8 @@ import {
   X,
   ClipboardList,
   Monitor,
-  BellRing
+  BellRing,
+  Banknote
 } from "lucide-react";
 
 export default function AdminLayout({
@@ -77,6 +78,7 @@ export default function AdminLayout({
   }
 
   navItems.push({ name: "Garson Ekranı", path: "/admin/waiter", icon: BellRing });
+  navItems.push({ name: "Kasa", path: "/admin/cashier", icon: Banknote });
 
   navItems.push(
     { name: "Menü Yönetimi", path: "/admin/menu", icon: Utensils },
