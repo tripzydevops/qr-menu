@@ -69,7 +69,7 @@ export default function AdminLayout({
         {/* View guest menu button */}
         <div className="flex items-center space-x-2">
           <Link 
-            href="/menu?token=k1" 
+            href="/menu?token=k1&preview=true" 
             target="_blank" 
             className="flex items-center space-x-1.5 px-4 py-2 rounded-xl bg-[#2A2A3D] border border-gray-800 hover:border-[#C9A84C]/30 text-xs font-semibold hover:bg-gray-800 transition-all text-white"
           >

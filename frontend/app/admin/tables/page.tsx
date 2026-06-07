@@ -332,7 +332,7 @@ export default function AdminTablesPage() {
                     </div>
 
                     <Link 
-                      href={`/menu?token=${table.qrToken}`}
+                      href={`/menu?token=${table.qrToken}&preview=true`}
                       target="_blank"
                       className="text-[10px] font-semibold text-gray-400 hover:text-[#C9A84C] flex items-center space-x-0.5 mt-1 transition-colors"
                     >
