@@ -26,9 +26,15 @@ export async function PUT(
       );
     }
 
+    const updateData: any = { status };
+    if (status === "completed") {
+      updateData.paidAt = new Date();
+      updateData.paymentMethod = "cash"; // default fallback for manual dashboard completions
+    }
+
     const order = await prisma.order.update({
       where: { id },
-      data: { status },
+      data: updateData,
       include: {
         table: true,
         items: {

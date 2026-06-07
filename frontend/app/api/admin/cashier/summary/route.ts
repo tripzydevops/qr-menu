@@ -19,14 +19,24 @@ export async function GET(request: NextRequest) {
     const todayStart = new Date();
     todayStart.setUTCHours(0, 0, 0, 0);
 
-    // Completed orders today
+    // Completed orders today (handle null paidAt using createdAt fallback)
     const completedOrders = await prisma.order.findMany({
       where: {
         venueId,
         status: "completed",
-        paidAt: {
-          gte: todayStart,
-        },
+        OR: [
+          {
+            paidAt: {
+              gte: todayStart,
+            },
+          },
+          {
+            paidAt: null,
+            createdAt: {
+              gte: todayStart,
+            },
+          },
+        ],
       },
       include: {
         items: {
@@ -43,8 +53,9 @@ export async function GET(request: NextRequest) {
     );
     const orderCount = completedOrders.length;
 
+    // Treat null paymentMethod as cash fallback
     const cashRevenue = completedOrders
-      .filter((o) => o.paymentMethod === "cash")
+      .filter((o) => o.paymentMethod === "cash" || !o.paymentMethod)
       .reduce((sum, order) => sum + Number(order.totalAmount), 0);
 
     const cardRevenue = completedOrders
