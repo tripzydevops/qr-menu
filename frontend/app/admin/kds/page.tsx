@@ -39,6 +39,7 @@ export default function KitchenDisplaySystemPage() {
   const [orders, setOrders] = useState<Order[]>([]);
   const [loading, setLoading] = useState(true);
   const [kdsEnabled, setKdsEnabled] = useState(true); // Default to true while loading
+  const [isOnline, setIsOnline] = useState(true);
   const [soundEnabled, setSoundEnabled] = useState(true);
   const [seenOrderIds, setSeenOrderIds] = useState<Set<string>>(new Set());
   const [refreshKey, setRefreshKey] = useState(0);
@@ -140,10 +141,14 @@ export default function KitchenDisplaySystemPage() {
           if (hasNewPending && !loading) {
             playKitchenChime();
           }
+          setIsOnline(true);
+        } else {
+          setIsOnline(false);
         }
         setLoading(false);
       } catch (err) {
         console.error("Failed to fetch KDS orders", err);
+        setIsOnline(false);
       }
     }
 
@@ -277,6 +282,16 @@ export default function KitchenDisplaySystemPage() {
 
         {/* Action Controls */}
         <div className="flex items-center space-x-3">
+          {/* Connection status indicator */}
+          <div className={`px-3 py-1.5 rounded-xl border flex items-center space-x-1.5 text-xs font-semibold ${
+            isOnline 
+              ? "bg-emerald-950/20 border-emerald-900/30 text-emerald-400" 
+              : "bg-red-950/20 border-red-900/30 text-red-400 animate-pulse"
+          }`}>
+            <span className={`h-1.5 w-1.5 rounded-full ${isOnline ? "bg-emerald-500" : "bg-red-500"}`} />
+            <span>{isOnline ? "Canlı" : "Bağlantı Yok"}</span>
+          </div>
+
           {/* Active ticket counter */}
           <div className="bg-[#121224] border border-gray-800/40 px-3.5 py-1.5 rounded-xl flex items-center space-x-2 text-xs font-semibold text-gray-300">
             <span className="h-2 w-2 rounded-full bg-amber-500 animate-pulse" />

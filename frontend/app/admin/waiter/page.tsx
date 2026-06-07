@@ -56,6 +56,7 @@ export default function WaiterConsolePage() {
   const [allOrders, setAllOrders] = useState<Order[]>([]);
   const [loading, setLoading] = useState(true);
   const [soundEnabled, setSoundEnabled] = useState(true);
+  const [isOnline, setIsOnline] = useState(true);
   
   // Settings
   const [printingEnabled, setPrintingEnabled] = useState(false);
@@ -217,9 +218,11 @@ export default function WaiterConsolePage() {
         } else if ((hasNewCall || hasNewRun) && !loading) {
           playWaiterChime();
         }
+        setIsOnline(true);
         setLoading(false);
       } catch (err) {
         console.error("Failed to fetch waiter dashboard data", err);
+        setIsOnline(false);
       }
     }
 
@@ -359,22 +362,34 @@ export default function WaiterConsolePage() {
             </div>
           </div>
 
-          {/* Mute button */}
-          <button
-            onClick={() => {
-              setSoundEnabled(!soundEnabled);
-              if (!soundEnabled) {
-                setTimeout(playWaiterChime, 50);
-              }
-            }}
-            className={`p-2 rounded-lg border transition-all flex items-center justify-center ${
-              soundEnabled 
-                ? "bg-[#6366F1]/10 border-[#6366F1]/30 text-indigo-400" 
-                : "bg-gray-900/60 border-gray-800 text-gray-500"
-            }`}
-          >
-            {soundEnabled ? <Volume2 className="h-3.5 w-3.5" /> : <VolumeX className="h-3.5 w-3.5" />}
-          </button>
+          <div className="flex items-center space-x-2">
+            {/* Connection status badge */}
+            <div className={`px-2.5 py-1 rounded-lg border flex items-center space-x-1.5 text-[10px] font-bold uppercase tracking-wider ${
+              isOnline 
+                ? "bg-emerald-950/20 border-emerald-900/35 text-emerald-400" 
+                : "bg-red-950/20 border-red-900/35 text-red-400 animate-pulse"
+            }`}>
+              <span className={`h-1.5 w-1.5 rounded-full ${isOnline ? "bg-emerald-500" : "bg-red-500"}`} />
+              <span>{isOnline ? "Canlı" : "Çevrimdışı"}</span>
+            </div>
+
+            {/* Mute button */}
+            <button
+              onClick={() => {
+                setSoundEnabled(!soundEnabled);
+                if (!soundEnabled) {
+                  setTimeout(playWaiterChime, 50);
+                }
+              }}
+              className={`p-2 rounded-lg border transition-all flex items-center justify-center ${
+                soundEnabled 
+                  ? "bg-[#6366F1]/10 border-[#6366F1]/30 text-indigo-400" 
+                  : "bg-gray-900/60 border-gray-800 text-gray-500"
+              }`}
+            >
+              {soundEnabled ? <Volume2 className="h-3.5 w-3.5" /> : <VolumeX className="h-3.5 w-3.5" />}
+            </button>
+          </div>
         </header>
 
         {/* New Order Toast Alert */}
