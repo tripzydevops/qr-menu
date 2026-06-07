@@ -136,7 +136,8 @@ export default function AdminOrdersPage() {
   };
 
   return (
-    <div className="space-y-6">
+    <>
+      <div className="space-y-6 no-print">
       {/* Header */}
       <div className="flex flex-col md:flex-row md:items-center justify-between pb-5 border-b border-gray-800/40">
         <div>
@@ -500,12 +501,18 @@ export default function AdminOrdersPage() {
       <style dangerouslySetInnerHTML={{ __html: `
         @media print {
           /* Hide all dashboard/web interfaces */
-          body, html, #__next, main, aside, header, div:not(.print-slip) {
+          header, aside, .no-print {
+            display: none !important;
+          }
+          /* Reset background and text color of the wrapper elements for printing */
+          body, html, main, div.min-h-screen {
             background: white !important;
             color: black !important;
           }
-          body * {
-            display: none !important;
+          /* Reset main element padding for print */
+          main {
+            padding: 0 !important;
+            margin: 0 !important;
           }
           /* Make printing ticket explicitly visible and single-column formatting */
           .print-slip, .print-slip * {
@@ -520,6 +527,8 @@ export default function AdminOrdersPage() {
             margin: 0 !important;
             box-shadow: none !important;
             border: none !important;
+            background: white !important;
+            color: black !important;
           }
           .print-slip table {
             display: table !important;
@@ -532,6 +541,7 @@ export default function AdminOrdersPage() {
           }
         }
       `}} />
-    </div>
+      </div>
+    </>
   );
 }

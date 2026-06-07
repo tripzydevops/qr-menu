@@ -95,13 +95,25 @@ export default function ItemDetailSheet({
     if (isOpen) {
       setIsRendered(true);
       document.body.style.overflow = 'hidden';
+      document.body.style.height = '100%';
+      document.documentElement.style.overflow = 'hidden';
+      document.documentElement.style.height = '100%';
       setQuantity(1);
       setNotes('');
     } else {
       const timer = setTimeout(() => setIsRendered(false), 300);
       document.body.style.overflow = 'unset';
+      document.body.style.height = 'unset';
+      document.documentElement.style.overflow = 'unset';
+      document.documentElement.style.height = 'unset';
       return () => clearTimeout(timer);
     }
+    return () => {
+      document.body.style.overflow = 'unset';
+      document.body.style.height = 'unset';
+      document.documentElement.style.overflow = 'unset';
+      document.documentElement.style.height = 'unset';
+    };
   }, [isOpen]);
 
   if (!isRendered || !item) return null;
@@ -165,6 +177,7 @@ export default function ItemDetailSheet({
         }`}
         style={{
           overflowY: 'auto',
+          WebkitOverflowScrolling: 'touch',
           boxShadow: isPremium && isDark 
             ? '0 -10px 40px -5px rgba(201,168,76,0.15), 0 25px 50px -12px rgba(0,0,0,0.8)' 
             : undefined
@@ -174,7 +187,7 @@ export default function ItemDetailSheet({
         <div className="absolute top-3 left-1/2 -translate-x-1/2 w-12 h-1.5 rounded-full bg-gray-700/60 z-10" />
 
         {/* Full Bleed Image */}
-        <div className="w-full h-72 relative bg-[#1E293B]/20">
+        <div className="w-full h-44 sm:h-64 md:h-72 relative bg-[#1E293B]/20">
           <img 
             src={item.imageUrl || defaultFoodImage} 
             alt={name}
@@ -190,7 +203,7 @@ export default function ItemDetailSheet({
           {/* Close button top right */}
           <button 
             onClick={onClose}
-            className={`absolute top-5 right-5 w-9 h-9 rounded-full backdrop-blur-md flex items-center justify-center border hover:scale-105 transition-all ${
+            className={`absolute top-4 right-4 sm:top-5 sm:right-5 w-8.5 h-8.5 sm:w-9 sm:h-9 rounded-full backdrop-blur-md flex items-center justify-center border hover:scale-105 transition-all ${
               isDark 
                 ? "bg-[#0A0B0E]/60 text-white border-white/[0.05] hover:bg-[#0A0B0E]" 
                 : "bg-[#FDFBF7]/60 text-[#1E1214] border-black/[0.05] hover:bg-[#FDFBF7]"
@@ -201,9 +214,9 @@ export default function ItemDetailSheet({
         </div>
 
         {/* Contents */}
-        <div className="p-6 pt-2">
+        <div className="p-4.5 sm:p-6 pt-2">
           {/* Header */}
-          <div className="flex justify-between items-start mb-4">
+          <div className="flex justify-between items-start mb-3.5 sm:mb-4">
             <div>
               {/* Dietary Labels */}
               {item.dietaryLabels && item.dietaryLabels.length > 0 && (
@@ -227,7 +240,7 @@ export default function ItemDetailSheet({
                 </div>
               )}
               <h2 
-                className={`font-serif text-2xl font-bold leading-tight ${isDark ? 'text-white' : 'text-[#1E1214]'}`}
+                className={`font-serif text-xl sm:text-2xl font-bold leading-tight ${isDark ? 'text-white' : 'text-[#1E1214]'}`}
                 style={isPremium ? {
                   color: isDark ? goldLight : '#1E1214',
                   fontFamily: "var(--font-playfair), 'Playfair Display', Georgia, serif",
@@ -238,7 +251,7 @@ export default function ItemDetailSheet({
               </h2>
             </div>
             <span 
-              className={`text-xl font-bold ml-4 px-3 py-1.5 rounded-xl`}
+              className={`text-lg sm:text-xl font-bold ml-4 px-3 py-1.5 rounded-xl`}
               style={isPremium ? {
                 background: isDark 
                   ? `linear-gradient(135deg, ${goldLight} 0%, ${gold} 100%)` 
@@ -261,7 +274,7 @@ export default function ItemDetailSheet({
 
           {/* Calories Banner */}
           {item.calories !== null && item.calories > 0 && (
-            <div className={`flex items-center space-x-2 border px-3 py-2 rounded-xl text-xs w-fit mb-4 ${
+            <div className={`flex items-center space-x-2 border px-3 py-2 rounded-xl text-xs w-fit mb-3 sm:mb-4 ${
               isDark 
                 ? "bg-white/[0.02] border-white/[0.04] text-gray-300" 
                 : "bg-black/[0.02] border-black/[0.04] text-[#5C5552]"
@@ -274,8 +287,8 @@ export default function ItemDetailSheet({
 
           {/* Description */}
           {description && (
-            <div className="mb-6">
-              <p className={`text-[14px] leading-relaxed font-light ${isDark ? 'text-gray-300' : 'text-[#5C5552]'}`}>
+            <div className="mb-4.5 sm:mb-6">
+              <p className={`text-[13px] sm:text-[14px] leading-relaxed font-light ${isDark ? 'text-gray-300' : 'text-[#5C5552]'}`}>
                 {description}
               </p>
             </div>
@@ -283,7 +296,7 @@ export default function ItemDetailSheet({
 
           {/* Allergens */}
           {item.allergens && item.allergens.length > 0 && (
-            <div className={`mb-6 border p-4 rounded-2xl ${
+            <div className={`mb-4.5 sm:mb-6 border p-3.5 sm:p-4 rounded-2xl ${
               isDark ? 'bg-white/[0.01] border-white/[0.04]' : 'bg-black/[0.01] border-black/[0.04]'
             }`}>
               <h4 
@@ -327,7 +340,7 @@ export default function ItemDetailSheet({
           )}
 
           {/* Notes Input */}
-          <div className="mb-6">
+          <div className="mb-4.5 sm:mb-6">
             <label className={`block text-xs font-bold uppercase tracking-wider mb-2 ${
               isDark ? 'text-gray-400' : 'text-gray-500'
             }`}>
@@ -338,7 +351,7 @@ export default function ItemDetailSheet({
               value={notes}
               onChange={(e) => setNotes(e.target.value)}
               placeholder={locale === 'en' ? 'E.g., no onions, extra sauce...' : 'Örn: soğan istemiyorum, az tereyağlı...'}
-              className={`w-full rounded-xl px-4 py-3.5 text-sm focus:outline-none transition-colors border ${
+              className={`w-full rounded-xl px-3.5 py-3 sm:px-4 sm:py-3.5 text-sm focus:outline-none transition-colors border ${
                 isDark 
                   ? "bg-white/[0.01] border-white/[0.08] text-white focus:border-white/[0.2]" 
                   : "bg-black/[0.01] border-black/[0.08] text-[#1E1214] focus:border-black/[0.2]"
@@ -350,17 +363,17 @@ export default function ItemDetailSheet({
           </div>
 
           {/* Actions */}
-          <div className="flex flex-col space-y-3 mt-4">
-            <div className={`flex items-center justify-between border p-2 rounded-2xl ${
+          <div className="flex flex-col space-y-2.5 sm:space-y-3 mt-3 sm:mt-4">
+            <div className={`flex items-center justify-between border p-1.5 sm:p-2 rounded-2xl ${
               isDark ? 'bg-white/[0.01] border-white/[0.04]' : 'bg-black/[0.01] border-black/[0.04]'
             }`}>
               <span className={`text-xs font-semibold ml-2 ${isDark ? 'text-gray-300' : 'text-gray-600'}`}>
                 {locale === 'en' ? 'Quantity' : 'Adet'}
               </span>
-              <div className="flex items-center space-x-3.5 mr-1">
+              <div className="flex items-center space-x-3.5 mr-0.5 sm:mr-1">
                 <button 
                   onClick={() => setQuantity(Math.max(1, quantity - 1))}
-                  className={`w-8 h-8 rounded-xl flex items-center justify-center font-bold border transition-colors ${
+                  className={`w-9 h-9 sm:w-8.5 sm:h-8.5 rounded-xl flex items-center justify-center font-bold border transition-colors ${
                     isDark 
                       ? "bg-white/[0.02] text-white border-white/[0.05] hover:bg-white/[0.06]" 
                       : "bg-black/[0.02] text-[#1E1214] border-black/[0.05] hover:bg-black/[0.06]"
@@ -373,7 +386,7 @@ export default function ItemDetailSheet({
                 </span>
                 <button 
                   onClick={() => setQuantity(quantity + 1)}
-                  className={`w-8 h-8 rounded-xl flex items-center justify-center font-bold border transition-colors ${
+                  className={`w-9 h-9 sm:w-8.5 sm:h-8.5 rounded-xl flex items-center justify-center font-bold border transition-colors ${
                     isDark 
                       ? "bg-white/[0.02] text-white border-white/[0.05] hover:bg-white/[0.06]" 
                       : "bg-black/[0.02] text-[#1E1214] border-black/[0.05] hover:bg-black/[0.06]"
@@ -390,7 +403,7 @@ export default function ItemDetailSheet({
                   onAddToOrder(item, quantity, notes);
                   onClose();
                 }}
-                className={`flex-grow py-4 rounded-2xl font-bold transition-colors duration-300 text-[14px] shadow-lg ${isPremium ? 'premium-btn-shimmer' : ''}`}
+                className={`flex-grow py-3.5 sm:py-4 rounded-2xl font-bold transition-colors duration-300 text-[14px] shadow-lg ${isPremium ? 'premium-btn-shimmer' : ''}`}
                 style={isPremium ? {
                   background: isDark 
                     ? `linear-gradient(135deg, ${goldLight} 0%, ${gold} 50%, #B8963F 100%)` 
@@ -412,7 +425,7 @@ export default function ItemDetailSheet({
               
               <button 
                 onClick={() => setShowShareCard(true)}
-                className={`p-4 rounded-2xl font-semibold transition-all duration-300 border hover:bg-opacity-5`}
+                className={`p-3.5 sm:p-4 rounded-2xl font-semibold transition-all duration-300 border hover:bg-opacity-5`}
                 style={{
                   borderColor: `${accentColor}55`,
                   color: accentColor

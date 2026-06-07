@@ -349,7 +349,7 @@ export default function KitchenDisplaySystemPage() {
                       </button>
                     ) : (
                       <button
-                        onClick={() => handleUpdateStatus(order.id, "completed")}
+                        onClick={() => handleUpdateStatus(order.id, "ready")}
                         className="w-full py-3 rounded-xl bg-emerald-600 hover:bg-emerald-500 active:scale-98 text-white font-bold text-sm tracking-wide transition-all flex items-center justify-center space-x-1.5 shadow-md shadow-emerald-950/20"
                       >
                         <Check className="h-4 w-4" />

@@ -816,7 +816,7 @@ def update_order_status(id: str, status_data: Dict[str, str], db: Session = Depe
         raise HTTPException(status_code=404, detail="Order not found")
         
     new_status = status_data.get("status")
-    if new_status not in ["pending", "preparing", "completed", "cancelled"]:
+    if new_status not in ["pending", "preparing", "ready", "served", "completed", "cancelled"]:
         raise HTTPException(status_code=400, detail="Invalid status")
         
     order.status = new_status
