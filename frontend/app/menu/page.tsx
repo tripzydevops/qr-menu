@@ -679,6 +679,7 @@ function MenuContent() {
         venueName={menu.venueName}
         onAddToOrder={handleAddToOrder}
         theme={theme}
+        isPremium={showPremium}
       />
 
       {/* Floating Bottom Cart Bar */}

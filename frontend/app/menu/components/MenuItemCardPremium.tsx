@@ -1,5 +1,5 @@
 import React from 'react';
-import { Leaf, Wheat, Sparkles } from 'lucide-react';
+import { Leaf, Wheat } from 'lucide-react';
 import { Locale } from '../../../i18n/config';
 
 // Custom SVG crescent moon and star for Halal matching Lucide's style
@@ -27,15 +27,16 @@ const CornerOrnament = () => (
       stroke="#C9A84C" 
       strokeWidth="1" 
       strokeLinecap="round"
+      opacity="0.4"
     />
     <path 
       d="M2 38V28C2 18.059 8.059 10 18 10H28" 
       stroke="#C9A84C" 
       strokeWidth="0.5" 
       strokeLinecap="round"
-      opacity="0.5"
+      opacity="0.25"
     />
-    <circle cx="6" cy="6" r="1.5" fill="#C9A84C" opacity="0.6" />
+    <circle cx="6" cy="6" r="1.5" fill="#C9A84C" opacity="0.3" />
   </svg>
 );
 
@@ -242,10 +243,10 @@ export default function MenuItemCardPremium({
           className="absolute bottom-0 right-5 translate-y-1/2 z-30 px-5 py-2.5 rounded-xl"
           style={{
             background: isDark 
-              ? `linear-gradient(135deg, ${goldLight} 0%, ${gold} 100%)`
+              ? `linear-gradient(135deg, #DFBA73 0%, #Bfa35c 100%)`
               : `linear-gradient(135deg, #2D1216 0%, #5C1D24 100%)`,
             boxShadow: isDark 
-              ? `0 8px 24px -4px rgba(201,168,76,0.4), 0 0 0 1px rgba(201,168,76,0.5)`
+              ? `0 6px 16px -4px rgba(201,168,76,0.2), 0 0 0 1px rgba(201,168,76,0.3)`
               : `0 8px 24px -4px rgba(92,29,36,0.3)`,
           }}
         >
@@ -267,23 +268,9 @@ export default function MenuItemCardPremium({
         <div 
           className="absolute top-0 left-6 right-6 h-px"
           style={{
-            background: `linear-gradient(to right, transparent, ${gold}30, ${gold}50, ${gold}30, transparent)`,
+            background: `linear-gradient(to right, transparent, ${gold}15, ${gold}30, ${gold}15, transparent)`,
           }}
         />
-
-        {/* Sparkle icon + "Chef's Selection" micro-label */}
-        <div className="flex items-center gap-1.5 mb-3">
-          <Sparkles 
-            className="h-3 w-3" 
-            style={{ color: gold }}
-          />
-          <span 
-            className="text-[8px] font-bold uppercase tracking-[0.2em]"
-            style={{ color: isDark ? `${gold}99` : '#92400E' }}
-          >
-            {locale === 'tr' ? "Şefin Seçimi" : "Chef's Selection"}
-          </span>
-        </div>
 
         {/* Title — Playfair Display serif, gold in dark / deep wine in light */}
         <h3 
@@ -291,7 +278,6 @@ export default function MenuItemCardPremium({
           style={{ 
             color: isDark ? goldLight : '#1E1214',
             fontFamily: "var(--font-playfair), 'Playfair Display', Georgia, serif",
-            textShadow: isDark ? `0 0 30px rgba(201,168,76,0.15)` : 'none',
           }}
         >
           {name}
@@ -344,17 +330,17 @@ export default function MenuItemCardPremium({
           className="w-full py-3.5 rounded-xl text-xs font-bold tracking-[0.15em] uppercase transition-all duration-300 premium-btn-shimmer"
           style={{
             background: isDark 
-              ? `linear-gradient(135deg, ${goldLight} 0%, ${gold} 50%, #B8963F 100%)`
+              ? `linear-gradient(135deg, #C9A84C 0%, #A38237 100%)`
               : `linear-gradient(135deg, #3D1519 0%, #5C1D24 100%)`,
             color: isDark ? '#0A0B0E' : '#FFFFFF',
             boxShadow: isHovered 
               ? isDark 
-                ? `0 8px 24px -4px rgba(201,168,76,0.4)`
+                ? `0 6px 16px -4px rgba(201,168,76,0.25)`
                 : `0 8px 24px -4px rgba(92,29,36,0.3)`
               : isDark 
-                ? `0 4px 12px -2px rgba(201,168,76,0.15)`
+                ? `0 4px 10px -2px rgba(201,168,76,0.1)`
                 : `0 4px 12px -2px rgba(92,29,36,0.1)`,
-            transform: isHovered ? 'scale(1.02)' : 'scale(1)',
+            transform: isHovered ? 'scale(1.015)' : 'scale(1)',
           }}
         >
           {locale === 'tr' ? 'Sepete Ekle' : 'Add to Cart'}

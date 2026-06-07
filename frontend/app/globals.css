@@ -93,7 +93,7 @@ body {
     );
     backdrop-filter: blur(24px) saturate(1.4);
     -webkit-backdrop-filter: blur(24px) saturate(1.4);
-    border: 1px solid rgba(201, 168, 76, 0.12);
+    border: 1px solid rgba(201, 168, 76, 0.08);
     position: relative;
     overflow: hidden;
   }
@@ -104,7 +104,7 @@ body {
     inset: 0;
     background: radial-gradient(
       ellipse at 20% 0%,
-      rgba(201, 168, 76, 0.06) 0%,
+      rgba(201, 168, 76, 0.04) 0%,
       transparent 60%
     );
     pointer-events: none;
@@ -112,11 +112,11 @@ body {
   }
 
   .premium-glass-card:hover {
-    border-color: rgba(201, 168, 76, 0.35);
+    border-color: rgba(201, 168, 76, 0.22);
     box-shadow:
-      0 0 40px -8px rgba(201, 168, 76, 0.2),
+      0 0 30px -10px rgba(201, 168, 76, 0.12),
       0 25px 60px -15px rgba(0, 0, 0, 0.7),
-      inset 0 1px 0 rgba(201, 168, 76, 0.1);
+      inset 0 1px 0 rgba(201, 168, 76, 0.08);
   }
 
   /* Animated gold border glow */
@@ -130,11 +130,11 @@ body {
     border-radius: inherit;
     background: linear-gradient(
       135deg,
-      rgba(201, 168, 76, 0.3) 0%,
-      rgba(223, 186, 115, 0.05) 25%,
-      rgba(201, 168, 76, 0.25) 50%,
-      rgba(223, 186, 115, 0.05) 75%,
-      rgba(201, 168, 76, 0.3) 100%
+      rgba(201, 168, 76, 0.18) 0%,
+      rgba(223, 186, 115, 0.03) 25%,
+      rgba(201, 168, 76, 0.15) 50%,
+      rgba(223, 186, 115, 0.03) 75%,
+      rgba(201, 168, 76, 0.18) 100%
     );
     background-size: 300% 300%;
     animation: borderShimmer 6s ease-in-out infinite;
@@ -177,8 +177,8 @@ body {
     height: 400px;
     background: radial-gradient(
       ellipse,
-      rgba(201, 168, 76, 0.06) 0%,
-      rgba(201, 168, 76, 0.02) 40%,
+      rgba(201, 168, 76, 0.04) 0%,
+      rgba(201, 168, 76, 0.01) 40%,
       transparent 70%
     );
     pointer-events: none;
@@ -192,7 +192,7 @@ body {
     left: 8px;
     width: 20px;
     height: 20px;
-    opacity: 0.25;
+    opacity: 0.15;
     pointer-events: none;
     z-index: 10;
   }
@@ -202,7 +202,7 @@ body {
     right: 8px;
     width: 20px;
     height: 20px;
-    opacity: 0.25;
+    opacity: 0.15;
     pointer-events: none;
     z-index: 10;
     transform: scaleX(-1);
@@ -213,7 +213,7 @@ body {
     left: 8px;
     width: 20px;
     height: 20px;
-    opacity: 0.25;
+    opacity: 0.15;
     pointer-events: none;
     z-index: 10;
     transform: scaleY(-1);
@@ -224,7 +224,7 @@ body {
     right: 8px;
     width: 20px;
     height: 20px;
-    opacity: 0.25;
+    opacity: 0.15;
     pointer-events: none;
     z-index: 10;
     transform: scale(-1);

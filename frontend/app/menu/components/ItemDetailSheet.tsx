@@ -40,6 +40,7 @@ interface ItemDetailSheetProps {
   venueName: string;
   onAddToOrder: (item: MenuItem, quantity: number, notes: string) => void;
   theme?: "dark" | "light";
+  isPremium?: boolean;
 }
 
 const ALLERGEN_MAP: Record<string, { icon: string; labelKey: string }> = {
@@ -82,7 +83,8 @@ export default function ItemDetailSheet({
   brandColor = '#722F37',
   venueName,
   onAddToOrder,
-  theme = "dark"
+  theme = "dark",
+  isPremium = false
 }: ItemDetailSheetProps) {
   const [showShareCard, setShowShareCard] = useState(false);
   const [isRendered, setIsRendered] = useState(false);
@@ -134,7 +136,9 @@ export default function ItemDetailSheet({
 
   const defaultFoodImage = 'https://images.unsplash.com/photo-1546069901-ba9599a7e63c?w=800&auto=format&fit=crop&q=80';
   const isDark = theme === "dark";
-  const accentColor = getReadableAccentColor(brandColor, isDark);
+  const accentColor = isPremium ? (isDark ? '#DFBA73' : '#5C1D24') : getReadableAccentColor(brandColor, isDark);
+  const gold = '#C9A84C';
+  const goldLight = '#DFBA73';
 
   return (
     <div className="fixed inset-0 z-50 flex items-end justify-center">
@@ -151,10 +155,19 @@ export default function ItemDetailSheet({
         className={`relative w-full max-w-lg border-t rounded-t-[2.5rem] shadow-2xl overflow-y-auto no-scrollbar max-h-[92vh] transition-transform duration-300 transform ${
           isOpen ? 'translate-y-0' : 'translate-y-full'
         } ${
-          isDark 
-            ? "bg-[#0A0B0E] border-white/[0.05]" 
-            : "bg-[#FDFBF7] border-black/[0.05]"
+          isPremium && isDark
+            ? "premium-glass-card border-[#C9A84C]/20"
+            : isPremium && !isDark
+              ? "bg-[#FFFDF8] border-[#C9A84C]/15"
+              : isDark 
+                ? "bg-[#0A0B0E] border-white/[0.05]" 
+                : "bg-[#FDFBF7] border-black/[0.05]"
         }`}
+        style={{
+          boxShadow: isPremium && isDark 
+            ? '0 -10px 40px -5px rgba(201,168,76,0.15), 0 25px 50px -12px rgba(0,0,0,0.8)' 
+            : undefined
+        }}
       >
         {/* Handle */}
         <div className="absolute top-3 left-1/2 -translate-x-1/2 w-12 h-1.5 rounded-full bg-gray-700/60 z-10" />
@@ -212,16 +225,33 @@ export default function ItemDetailSheet({
                   })}
                 </div>
               )}
-              <h2 className={`font-serif text-2xl font-bold leading-tight ${isDark ? 'text-white' : 'text-[#1E1214]'}`}>
+              <h2 
+                className={`font-serif text-2xl font-bold leading-tight ${isDark ? 'text-white' : 'text-[#1E1214]'}`}
+                style={isPremium ? {
+                  color: isDark ? goldLight : '#1E1214',
+                  fontFamily: "var(--font-playfair), 'Playfair Display', Georgia, serif",
+                  textShadow: isDark ? '0 0 20px rgba(201,168,76,0.15)' : 'none',
+                } : undefined}
+              >
                 {name}
               </h2>
             </div>
             <span 
-              className={`font-mono text-xl font-bold ml-4 px-3 py-1 rounded-xl border`}
-              style={{
+              className={`text-xl font-bold ml-4 px-3 py-1.5 rounded-xl`}
+              style={isPremium ? {
+                background: isDark 
+                  ? `linear-gradient(135deg, ${goldLight} 0%, ${gold} 100%)` 
+                  : `linear-gradient(135deg, #2D1216 0%, #5C1D24 100%)`,
+                color: isDark ? '#0A0B0E' : '#FFFFFF',
+                fontFamily: "var(--font-playfair), 'Playfair Display', Georgia, serif",
+                boxShadow: isDark 
+                  ? `0 4px 12px -2px rgba(201,168,76,0.3)` 
+                  : `0 4px 12px -2px rgba(92,29,36,0.2)`,
+              } : {
                 color: accentColor,
                 backgroundColor: `${accentColor}11`,
-                borderColor: `${accentColor}22`
+                border: `1px solid ${accentColor}22`,
+                fontFamily: 'var(--font-dm-sans), monospace',
               }}
             >
               {getCurrencySymbol(currency)}{formattedPrice}
@@ -359,8 +389,18 @@ export default function ItemDetailSheet({
                   onAddToOrder(item, quantity, notes);
                   onClose();
                 }}
-                className="flex-grow py-4 rounded-2xl font-bold transition-colors duration-300 text-[14px] shadow-lg"
-                style={{
+                className={`flex-grow py-4 rounded-2xl font-bold transition-colors duration-300 text-[14px] shadow-lg ${isPremium ? 'premium-btn-shimmer' : ''}`}
+                style={isPremium ? {
+                  background: isDark 
+                    ? `linear-gradient(135deg, ${goldLight} 0%, ${gold} 50%, #B8963F 100%)` 
+                    : `linear-gradient(135deg, #3D1519 0%, #5C1D24 100%)`,
+                  color: isDark ? '#0A0B0E' : '#FFFFFF',
+                  boxShadow: isDark 
+                    ? `0 10px 20px -3px rgba(201,168,76,0.3)` 
+                    : `0 10px 20px -3px rgba(92,29,36,0.2)`,
+                  fontFamily: "var(--font-playfair), 'Playfair Display', Georgia, serif",
+                  letterSpacing: '0.05em',
+                } : {
                   backgroundColor: accentColor,
                   color: getContrastTextColor(accentColor),
                   boxShadow: `0 10px 15px -3px ${accentColor}25`

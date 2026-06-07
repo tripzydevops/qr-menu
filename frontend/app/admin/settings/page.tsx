@@ -80,7 +80,11 @@ export default function AdminSettingsPage() {
           setBrandColor(data.brandColor || "#722F37");
           setPremiumMenuEnabled(data.premiumMenuEnabled || false);
           setPlan(data.plan || "free");
-          setPremiumMenuSelected(data.premiumMenuSelected || false);
+          const isSelected = data.premiumMenuSelected || false;
+          setPremiumMenuSelected(isSelected);
+          if (typeof window !== "undefined") {
+            window.dispatchEvent(new CustomEvent("menuTemplateChanged", { detail: isSelected ? "premium" : "standard" }));
+          }
           if (data.operatingHours) {
             setHours(data.operatingHours);
           }
@@ -281,9 +285,14 @@ export default function AdminSettingsPage() {
           <p className="text-xs text-gray-400">Misafirlerinize gösterilecek menü kartlarının görsel şablonunu seçin.</p>
 
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mt-2">
-            {/* Standard Layout Option */}
+             {/* Standard Layout Option */}
             <div 
-              onClick={() => setPremiumMenuSelected(false)}
+              onClick={() => {
+                setPremiumMenuSelected(false);
+                if (typeof window !== "undefined") {
+                  window.dispatchEvent(new CustomEvent("menuTemplateChanged", { detail: "standard" }));
+                }
+              }}
               className={`p-4 rounded-xl border cursor-pointer transition-all duration-300 flex flex-col justify-between ${
                 !premiumMenuSelected 
                   ? "bg-[#1C1C28]/80 border-[#C9A84C]/50 shadow-[0_0_12px_rgba(201,168,76,0.08)]" 
@@ -315,6 +324,9 @@ export default function AdminSettingsPage() {
               onClick={() => {
                 if (premiumMenuEnabled || plan === 'premium' || plan === 'enterprise') {
                   setPremiumMenuSelected(true);
+                  if (typeof window !== "undefined") {
+                    window.dispatchEvent(new CustomEvent("menuTemplateChanged", { detail: "premium" }));
+                  }
                 } else {
                   alert("Premium kart tasarımı Premium/Enterprise paketlerinde veya Super Admin onayıyla kullanılabilir.");
                 }

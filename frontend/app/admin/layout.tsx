@@ -27,6 +27,7 @@ export default function AdminLayout({
   const [orgName, setOrgName] = useState("Karaköy Lokantası");
   const [venueName, setVenueName] = useState("Karaköy Merkez");
   const [kdsEnabled, setKdsEnabled] = useState(false);
+  const [previewTemplate, setPreviewTemplate] = useState<"standard" | "premium" | null>(null);
 
   // Load organization brand info from local storage or api if needed, default to Karaköy
   useEffect(() => {
@@ -39,12 +40,31 @@ export default function AdminLayout({
           setOrgName(data.organizationName || "Karaköy Lokantası");
           setVenueName(data.venueName || "Karaköy Merkez");
           setKdsEnabled(data.kdsEnabled || false);
+          
+          // Determine initial preview template
+          const isPremiumPlan = data.premiumMenuEnabled || data.plan === 'premium' || data.plan === 'enterprise';
+          const isPremium = isPremiumPlan && data.premiumMenuSelected;
+          setPreviewTemplate(isPremium ? "premium" : "standard");
         }
       } catch (err) {
         console.error("Failed to load admin layout organization config", err);
       }
     }
     loadConfig();
+  }, []);
+
+  // Listen for real-time changes to the template selection from the settings page
+  useEffect(() => {
+    const handleTemplateChange = (e: Event) => {
+      const customEvent = e as CustomEvent;
+      if (customEvent.detail === "premium" || customEvent.detail === "standard") {
+        setPreviewTemplate(customEvent.detail);
+      }
+    };
+    window.addEventListener("menuTemplateChanged", handleTemplateChange);
+    return () => {
+      window.removeEventListener("menuTemplateChanged", handleTemplateChange);
+    };
   }, []);
 
   const navItems = [
@@ -92,7 +112,7 @@ export default function AdminLayout({
         {/* View guest menu button */}
         <div className="flex items-center space-x-2">
           <Link 
-            href="/menu?token=k1&preview=true" 
+            href={`/menu?token=k1&preview=true${previewTemplate ? `&template=${previewTemplate}` : ""}`}
             target="_blank" 
             className="flex items-center space-x-1.5 px-4 py-2 rounded-xl bg-[#2A2A3D] border border-gray-800 hover:border-[#C9A84C]/30 text-xs font-semibold hover:bg-gray-800 transition-all text-white"
           >
