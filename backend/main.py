@@ -844,6 +844,8 @@ def update_super_admin_organization(id: str, org_in: schemas.OrganizationCreate,
     org.premiumMenuEnabled = org_in.premiumMenuEnabled if org_in.premiumMenuEnabled is not None else org.premiumMenuEnabled
     org.kdsEnabled = org_in.kdsEnabled if org_in.kdsEnabled is not None else org.kdsEnabled
     org.printingEnabled = org_in.printingEnabled if org_in.printingEnabled is not None else org.printingEnabled
+    org.inventoryEnabled = org_in.inventoryEnabled if org_in.inventoryEnabled is not None else org.inventoryEnabled
+    org.sharedInventory = org_in.sharedInventory if org_in.sharedInventory is not None else org.sharedInventory
     db.commit()
     db.refresh(org)
     return org

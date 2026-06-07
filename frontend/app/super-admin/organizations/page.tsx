@@ -23,6 +23,8 @@ interface Organization {
   premiumMenuEnabled: boolean;
   kdsEnabled: boolean;
   printingEnabled: boolean;
+  inventoryEnabled: boolean;
+  sharedInventory: boolean;
   status: string;
   createdAt: string;
 }
@@ -55,6 +57,8 @@ export default function SuperAdminOrganizationsPage() {
   const [editPremiumMenu, setEditPremiumMenu] = useState(false);
   const [editKdsEnabled, setEditKdsEnabled] = useState(false);
   const [editPrintingEnabled, setEditPrintingEnabled] = useState(false);
+  const [editInventoryEnabled, setEditInventoryEnabled] = useState(false);
+  const [editSharedInventory, setEditSharedInventory] = useState(false);
 
   const apiUrl = process.env.NEXT_PUBLIC_API_URL || "";
 
@@ -183,6 +187,8 @@ export default function SuperAdminOrganizationsPage() {
     setEditPremiumMenu(org.premiumMenuEnabled || false);
     setEditKdsEnabled(org.kdsEnabled || false);
     setEditPrintingEnabled(org.printingEnabled || false);
+    setEditInventoryEnabled(org.inventoryEnabled || false);
+    setEditSharedInventory(org.sharedInventory || false);
     setEditModalOpen(true);
   };
 
@@ -207,7 +213,9 @@ export default function SuperAdminOrganizationsPage() {
           status: editStatus,
           premiumMenuEnabled: editPremiumMenu,
           kdsEnabled: editKdsEnabled,
-          printingEnabled: editPrintingEnabled
+          printingEnabled: editPrintingEnabled,
+          inventoryEnabled: editInventoryEnabled,
+          sharedInventory: editSharedInventory
         })
       });
 
@@ -333,6 +341,16 @@ export default function SuperAdminOrganizationsPage() {
                         {org.printingEnabled && (
                           <span className="px-1.5 py-0.5 rounded text-[8px] font-bold uppercase tracking-wider bg-emerald-500/15 text-emerald-400 border border-emerald-500/20" title="Yazdırma Aktif">
                             🖨️ YAZICI
+                          </span>
+                        )}
+                        {org.inventoryEnabled && (
+                          <span className="px-1.5 py-0.5 rounded text-[8px] font-bold uppercase tracking-wider bg-rose-500/15 text-rose-400 border border-rose-500/20" title="Stok Maliyet Aktif">
+                            📦 STOK
+                          </span>
+                        )}
+                        {org.sharedInventory && (
+                          <span className="px-1.5 py-0.5 rounded text-[8px] font-bold uppercase tracking-wider bg-amber-500/15 text-amber-400 border border-amber-500/20" title="Ortak Stok Aktif">
+                            🔄 ORTAK
                           </span>
                         )}
                       </div>
@@ -676,6 +694,58 @@ export default function SuperAdminOrganizationsPage() {
                     <span
                       className={`inline-block h-4 w-4 transform rounded-full bg-white shadow-sm transition-transform duration-300 ${
                         editPrintingEnabled ? 'translate-x-6' : 'translate-x-1'
+                      }`}
+                    />
+                  </button>
+                </div>
+              </div>
+
+              {/* Inventory Costing Toggle */}
+              <div className="space-y-1.5">
+                <label className="text-gray-400 font-semibold">Stok & Maliyet Kontrolü</label>
+                <div className="flex items-center justify-between bg-[#121224] border border-[#2C2C4E]/40 px-4 py-3 rounded-xl">
+                  <div>
+                    <span className={`text-xs font-semibold ${editInventoryEnabled ? 'text-rose-400' : 'text-gray-400'}`}>
+                      {editInventoryEnabled ? 'Aktif — Stok ve Maliyet Yönetimi Açık' : 'Pasif — Stok ve Maliyet Yönetimi Kapalı'}
+                    </span>
+                    <p className="text-[10px] text-gray-500 mt-0.5">Bu işletmenin şubelerinde stok, invoice OCR ve reçete maliyet analizlerini aktif et.</p>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={() => setEditInventoryEnabled(!editInventoryEnabled)}
+                    className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors duration-300 focus:outline-none ${
+                      editInventoryEnabled ? 'bg-rose-500' : 'bg-[#2C2C4E]/60'
+                    }`}
+                  >
+                    <span
+                      className={`inline-block h-4 w-4 transform rounded-full bg-white shadow-sm transition-transform duration-300 ${
+                        editInventoryEnabled ? 'translate-x-6' : 'translate-x-1'
+                      }`}
+                    />
+                  </button>
+                </div>
+              </div>
+
+              {/* Shared Inventory Toggle */}
+              <div className="space-y-1.5">
+                <label className="text-gray-400 font-semibold">Ortak Stok Havuzu</label>
+                <div className="flex items-center justify-between bg-[#121224] border border-[#2C2C4E]/40 px-4 py-3 rounded-xl">
+                  <div>
+                    <span className={`text-xs font-semibold ${editSharedInventory ? 'text-amber-400' : 'text-gray-400'}`}>
+                      {editSharedInventory ? 'Aktif — Şubeler Ortak Stok Havuzu Kullanıyor' : 'Pasif — Her Şube Kendi Stokunu Yönetiyor'}
+                    </span>
+                    <p className="text-[10px] text-gray-500 mt-0.5">Şubelerin bağımsız stoklar yerine merkezi ortak bir depo stoku kullanmasını sağlar.</p>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={() => setEditSharedInventory(!editSharedInventory)}
+                    className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors duration-300 focus:outline-none ${
+                      editSharedInventory ? 'bg-amber-500' : 'bg-[#2C2C4E]/60'
+                    }`}
+                  >
+                    <span
+                      className={`inline-block h-4 w-4 transform rounded-full bg-white shadow-sm transition-transform duration-300 ${
+                        editSharedInventory ? 'translate-x-6' : 'translate-x-1'
                       }`}
                     />
                   </button>

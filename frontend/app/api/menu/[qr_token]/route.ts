@@ -204,6 +204,7 @@ export async function GET(
       premiumMenuSelected: org.premiumMenuSelected || false,
       kdsEnabled: org.kdsEnabled || false,
       printingEnabled: org.printingEnabled || false,
+      inventoryEnabled: org.inventoryEnabled || false,
       categories: mappedCategories,
     });
 
