@@ -146,6 +146,8 @@ def get_menu_by_qr_token(qr_token: str, request: Request, locale: Optional[str] 
         plan=org.subscriptionTier,
         premiumMenuEnabled=org.premiumMenuEnabled or False,
         premiumMenuSelected=org.premiumMenuSelected or False,
+        kdsEnabled=org.kdsEnabled or False,
+        printingEnabled=org.printingEnabled or False,
         categories=categories
     )
 
@@ -718,6 +720,8 @@ def update_super_admin_organization(id: str, org_in: schemas.OrganizationCreate,
     org.subscriptionTier = org_in.subscriptionTier
     org.status = org_in.status
     org.premiumMenuEnabled = org_in.premiumMenuEnabled if org_in.premiumMenuEnabled is not None else org.premiumMenuEnabled
+    org.kdsEnabled = org_in.kdsEnabled if org_in.kdsEnabled is not None else org.kdsEnabled
+    org.printingEnabled = org_in.printingEnabled if org_in.printingEnabled is not None else org.printingEnabled
     db.commit()
     db.refresh(org)
     return org

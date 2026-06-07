@@ -117,42 +117,42 @@ export default function MenuItemCardPremium({
   const defaultFoodImage = 'https://images.unsplash.com/photo-1546069901-ba9599a7e63c?w=400&auto=format&fit=crop&q=80';
   const isDark = theme === "dark";
   
-  // Premium gold for dark, deep burgundy for light
+  // Premium gold for dark, deep burgundy/gold for light
   const goldAccent = '#C9A84C';
-  const accentColor = isDark ? goldAccent : getReadableAccentColor(brandColor, isDark);
+  const accentColor = goldAccent;
 
   return (
     <div 
       onClick={() => onClick(item)}
       onMouseEnter={() => setIsHovered(true)}
       onMouseLeave={() => setIsHovered(false)}
-      className={`flex flex-col rounded-2xl transition-all duration-500 cursor-pointer relative group p-2.5 ${
+      className={`flex flex-col rounded-2xl transition-all duration-500 cursor-pointer relative group p-3.5 ${
         isDark 
           ? "bg-gradient-to-b from-[#1E202C] to-[#0F1017] shadow-[0_4px_20px_rgba(0,0,0,0.5)]" 
-          : "bg-[#FDFBF7] shadow-[0_4px_16px_rgba(92,29,36,0.04)]"
+          : "bg-[#FDFBF7] shadow-[0_6px_20px_rgba(201,168,76,0.06)]"
       }`}
       style={{
         border: isDark 
-          ? `1px solid ${isHovered ? 'rgba(201,168,76,0.7)' : 'rgba(201,168,76,0.25)'}` 
-          : `1px solid ${isHovered ? 'rgba(92,29,36,0.4)' : 'rgba(92,29,36,0.15)'}`,
+          ? `1px solid ${isHovered ? 'rgba(201,168,76,0.75)' : 'rgba(201,168,76,0.25)'}` 
+          : `1px solid ${isHovered ? 'rgba(201,168,76,0.65)' : 'rgba(201,168,76,0.2)'}`,
         boxShadow: isHovered 
           ? isDark 
             ? `0 12px 36px -4px rgba(201,168,76,0.22), inset 0 1px 0 rgba(201,168,76,0.15)` 
-            : `0 12px 28px -4px rgba(92,29,36,0.15)`
+            : `0 12px 28px -4px rgba(201,168,76,0.18)`
           : isDark 
             ? `0 4px 12px rgba(0,0,0,0.4), inset 0 1px 0 rgba(201,168,76,0.06)` 
-            : undefined,
+            : `0 4px 12px rgba(201,168,76,0.04)`,
         transform: isHovered ? 'translateY(-4px)' : 'translateY(0)',
       }}
     >
       {/* Framed Image Container */}
       <div 
         className={`relative aspect-[4/3] rounded-xl overflow-hidden border ${
-          isDark ? 'border-[#C9A84C]/35 bg-[#12141C]' : 'border-[#5C1D24]/15 bg-[#F9F6F0]'
+          isDark ? 'border-[#C9A84C]/35 bg-[#12141C]' : 'border-[#C9A84C]/25 bg-[#F9F6F0]'
         }`}
       >
         {/* Double Gold Frame Effect Inside Image */}
-        {isDark && (
+        {true && (
           <>
             <div 
               className="absolute inset-0 z-10 pointer-events-none rounded-xl" 
@@ -181,11 +181,11 @@ export default function MenuItemCardPremium({
           }}
         />
         
-        {/* Premium gradient overlay — fades image into dark card body */}
+        {/* Premium gradient overlay — fades image into card body */}
         <div className={`absolute inset-0 z-[5] ${
           isDark 
             ? "bg-gradient-to-t from-[#0F1017]/80 via-transparent to-transparent" 
-            : "bg-gradient-to-t from-[#FDFBF7]/40 via-transparent to-transparent"
+            : "bg-gradient-to-t from-[#FDFBF7]/60 via-transparent to-transparent"
         }`} />
         
         {/* Diet labels overlay */}
@@ -217,18 +217,18 @@ export default function MenuItemCardPremium({
       </div>
 
       {/* Info Container — premium typography section */}
-      <div className="px-1.5 pt-3 pb-1 flex flex-col flex-grow justify-between relative">
+      <div className="px-1.5 pt-3.5 pb-1 flex flex-col flex-grow justify-between relative">
         {/* Decorative gold line separator */}
-        {isDark && (
+        {true && (
           <div className="absolute top-0 left-0 right-0 h-px" style={{
             background: `linear-gradient(to right, transparent, ${goldAccent}40, transparent)`
           }} />
         )}
         
-        <div className="space-y-1.5">
+        <div className="space-y-1.5 mb-3">
           {/* Title — luxurious serif in gold (dark) or deep wine (light) */}
           <h3 
-            className="font-serif text-xs md:text-sm font-bold leading-snug tracking-wide line-clamp-2 min-h-[36px]"
+            className="font-serif text-sm md:text-base font-bold leading-snug tracking-wide line-clamp-2"
             style={{ 
               color: isDark ? '#F3F4F6' : '#1E1214',
               fontFamily: "Georgia, 'Times New Roman', serif"
@@ -239,7 +239,7 @@ export default function MenuItemCardPremium({
           
           {/* Description — elegant light text */}
           {description && (
-            <p className={`text-[10px] line-clamp-2 leading-relaxed min-h-[30px] ${
+            <p className={`text-[11px] line-clamp-2 leading-relaxed ${
               isDark ? 'text-gray-400' : 'text-[#6B6462]'
             }`} style={{ fontWeight: 300 }}>
               {description}
@@ -251,9 +251,9 @@ export default function MenuItemCardPremium({
         <div className="flex items-center justify-between pt-2.5 mt-auto">
           {/* Price — bold serif with gold emphasis */}
           <span 
-            className="font-serif text-sm md:text-base font-bold tracking-wide"
+            className="font-serif text-base md:text-lg font-bold tracking-wide"
             style={{ 
-              color: isDark ? goldAccent : accentColor,
+              color: goldAccent,
               fontFamily: "Georgia, 'Times New Roman', serif"
             }}
           >
@@ -270,16 +270,14 @@ export default function MenuItemCardPremium({
                 onClick(item);
               }
             }}
-            className="text-[9px] font-bold tracking-[0.12em] uppercase transition-all duration-300 px-3 py-1.5 rounded-lg shadow-md"
+            className="text-[9px] md:text-[10px] font-bold tracking-[0.12em] uppercase transition-all duration-300 px-4 py-2 rounded-lg shadow-md"
             style={{
-              background: isDark 
-                ? `linear-gradient(135deg, #DFBA73 0%, #C9A84C 100%)`
-                : `linear-gradient(135deg, ${accentColor} 0%, #DFBA73 100%)`,
+              background: `linear-gradient(135deg, #DFBA73 0%, #C9A84C 100%)`,
               color: '#0A0B0E',
               border: 'none',
               boxShadow: isHovered 
-                ? `0 4px 12px rgba(201, 168, 76, 0.4)`
-                : `0 2px 6px rgba(0,0,0,0.15)`,
+                ? `0 4px 12px rgba(201, 168, 76, 0.45)`
+                : `0 2px 6px rgba(201, 168, 76, 0.15)`,
             }}
           >
             Add to Cart

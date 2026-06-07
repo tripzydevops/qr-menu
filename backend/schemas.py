@@ -193,6 +193,8 @@ class OrganizationBase(BaseModel):
     status: Optional[str] = "active"
     premiumMenuEnabled: Optional[bool] = False
     premiumMenuSelected: Optional[bool] = False
+    kdsEnabled: Optional[bool] = False
+    printingEnabled: Optional[bool] = False
 
 class OrganizationCreate(OrganizationBase):
     pass
@@ -241,6 +243,8 @@ class GuestMenuResponse(BaseModel):
     plan: Optional[str] = None
     premiumMenuEnabled: Optional[bool] = False
     premiumMenuSelected: Optional[bool] = False
+    kdsEnabled: Optional[bool] = False
+    printingEnabled: Optional[bool] = False
     categories: List[CategorySchema]
 
 # User Schemas

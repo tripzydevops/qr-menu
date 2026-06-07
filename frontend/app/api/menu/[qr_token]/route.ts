@@ -202,6 +202,8 @@ export async function GET(
       plan: org.subscriptionTier,
       premiumMenuEnabled: org.premiumMenuEnabled || false,
       premiumMenuSelected: org.premiumMenuSelected || false,
+      kdsEnabled: org.kdsEnabled || false,
+      printingEnabled: org.printingEnabled || false,
       categories: mappedCategories,
     });
   } catch (error: any) {

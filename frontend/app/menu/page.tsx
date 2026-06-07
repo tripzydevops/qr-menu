@@ -535,65 +535,72 @@ function MenuContent() {
                 {locale === 'en' ? category.nameEn : category.nameTr}
               </h3>
 
-              <div className="grid grid-cols-2 gap-4">
-                {category.items.map((item) => {
-                  const isPremiumPlan = menu.premiumMenuEnabled || menu.plan === 'premium' || menu.plan === 'enterprise';
-                  const showPremium = isPremiumPlan && !!menu.premiumMenuSelected;
-                  const CardComponent = showPremium ? MenuItemCardPremium : MenuItemCard;
-                  return (
-                    <CardComponent 
-                      key={item.id} 
-                      item={item} 
-                      onClick={setSelectedItem} 
-                      onAddDirect={(item) => handleAddToOrder(item, 1, "")}
-                      locale={locale} 
-                      currency={menu.currency}
-                      brandColor={menu.brandColor}
-                      theme={theme}
-                    />
-                  );
-                })}
+              {(() => {
+                const isPremiumPlan = menu.premiumMenuEnabled || menu.plan === 'premium' || menu.plan === 'enterprise';
+                const showPremium = isPremiumPlan && !!menu.premiumMenuSelected;
+                
+                return (
+                  <div className={showPremium ? "grid grid-cols-1 gap-6 max-w-md mx-auto" : "grid grid-cols-2 gap-4"}>
+                    {category.items.map((item) => {
+                      const CardComponent = showPremium ? MenuItemCardPremium : MenuItemCard;
+                      return (
+                        <CardComponent 
+                          key={item.id} 
+                          item={item} 
+                          onClick={setSelectedItem} 
+                          onAddDirect={(item) => handleAddToOrder(item, 1, "")}
+                          locale={locale} 
+                          currency={menu.currency}
+                          brandColor={menu.brandColor}
+                          theme={theme}
+                        />
+                      );
+                    })}
 
-                {/* If Main Courses category and no search query, inject the mockup's Wine Pairing recommendation */}
-                {category.id === "cat-mains" && !searchQuery && (
-                  <div className={`col-span-2 border p-4 rounded-2xl relative overflow-hidden flex gap-4 mt-2 transition-all ${
-                    theme === "dark" 
-                      ? "bg-white/[0.02] border-[#DFBA73]/30" 
-                      : "bg-[#F9F6F0] border-[#5C1D24]/20 shadow-md shadow-[#5C1D24]/5"
-                  }`}>
-                    <div className="absolute top-0 right-0 w-24 h-24 bg-[#DFBA73]/5 rounded-full blur-xl pointer-events-none" />
-                    
-                    {/* Left: Wine Glass Icon & Title */}
-                    <div className="flex-grow">
-                      <div className="flex items-center space-x-2 mb-1.5">
-                        <Wine className={`h-4 w-4 animate-pulse ${theme === "dark" ? "text-[#DFBA73]" : "text-[#5C1D24]"}`} />
-                        <span className={`text-[9px] font-mono tracking-widest font-bold uppercase ${
-                          theme === "dark" ? "text-[#DFBA73]" : "text-[#5C1D24]"
-                        }`}>AI SOMMELIER RECOMMENDS</span>
+                    {/* If Main Courses category and no search query, inject the mockup's Wine Pairing recommendation */}
+                    {category.id === "cat-mains" && !searchQuery && (
+                      <div className={`border p-4 rounded-2xl relative overflow-hidden flex gap-4 mt-2 transition-all ${
+                        showPremium ? "col-span-1" : "col-span-2"
+                      } ${
+                        theme === "dark" 
+                          ? "bg-white/[0.02] border-[#DFBA73]/30" 
+                          : "bg-[#F9F6F0] border-[#5C1D24]/20 shadow-md shadow-[#5C1D24]/5"
+                      }`}>
+                        <div className="absolute top-0 right-0 w-24 h-24 bg-[#DFBA73]/5 rounded-full blur-xl pointer-events-none" />
+                        
+                        {/* Left: Wine Glass Icon & Title */}
+                        <div className="flex-grow">
+                          <div className="flex items-center space-x-2 mb-1.5">
+                            <Wine className={`h-4 w-4 animate-pulse ${theme === "dark" ? "text-[#DFBA73]" : "text-[#5C1D24]"}`} />
+                            <span className={`text-[9px] font-mono tracking-widest font-bold uppercase ${
+                              theme === "dark" ? "text-[#DFBA73]" : "text-[#5C1D24]"
+                            }`}>AI SOMMELIER RECOMMENDS</span>
+                          </div>
+                          <span className={`text-[10px] font-mono block mb-1 ${theme === "dark" ? "text-gray-500" : "text-gray-600"}`}>For Wagyu Filet:</span>
+                          <h4 className={`font-serif text-[13px] font-bold mb-0.5 ${theme === "dark" ? "text-white" : "text-[#1E1214]"}`}>Domaine Serene Pinot Noir</h4>
+                          <span className={`text-[11px] font-semibold font-mono block mb-1.5 ${theme === "dark" ? "text-[#DFBA73]" : "text-[#5C1D24]"}`}>₺3.900 / $120 Şişe</span>
+                          <p className={`text-[10px] leading-relaxed font-light ${theme === "dark" ? "text-gray-400" : "text-gray-600"}`}>
+                            2018 Pinot Noir - Elegant, complex, hints of cherry & oak. Pairs perfectly.
+                          </p>
+                        </div>
+
+                        {/* Right: Wine Bottle Image */}
+                        <div className={`w-20 h-20 rounded-xl overflow-hidden p-1.5 flex items-center justify-center shrink-0 border transition-all ${
+                          theme === "dark" 
+                            ? "bg-gradient-to-br from-[#4A151B] to-[#12141A] border-white/[0.05]" 
+                            : "bg-gradient-to-br from-[#FDFBF7] to-[#F9F6F0] border-black/[0.04]"
+                        }`}>
+                          <img 
+                            src="https://images.unsplash.com/photo-1510812431401-41d2bd2722f3?w=300&auto=format&fit=crop&q=80" 
+                            alt="Pinot Noir" 
+                            className="h-full object-contain"
+                          />
+                        </div>
                       </div>
-                      <span className={`text-[10px] font-mono block mb-1 ${theme === "dark" ? "text-gray-500" : "text-gray-600"}`}>For Wagyu Filet:</span>
-                      <h4 className={`font-serif text-[13px] font-bold mb-0.5 ${theme === "dark" ? "text-white" : "text-[#1E1214]"}`}>Domaine Serene Pinot Noir</h4>
-                      <span className={`text-[11px] font-semibold font-mono block mb-1.5 ${theme === "dark" ? "text-[#DFBA73]" : "text-[#5C1D24]"}`}>₺3.900 / $120 Şişe</span>
-                      <p className={`text-[10px] leading-relaxed font-light ${theme === "dark" ? "text-gray-400" : "text-gray-600"}`}>
-                        2018 Pinot Noir - Elegant, complex, hints of cherry & oak. Pairs perfectly.
-                      </p>
-                    </div>
-
-                    {/* Right: Wine Bottle Image */}
-                    <div className={`w-20 h-20 rounded-xl overflow-hidden p-1.5 flex items-center justify-center shrink-0 border transition-all ${
-                      theme === "dark" 
-                        ? "bg-gradient-to-br from-[#4A151B] to-[#12141A] border-white/[0.05]" 
-                        : "bg-gradient-to-br from-[#FDFBF7] to-[#F9F6F0] border-black/[0.04]"
-                    }`}>
-                      <img 
-                        src="https://images.unsplash.com/photo-1510812431401-41d2bd2722f3?w=300&auto=format&fit=crop&q=80" 
-                        alt="Pinot Noir" 
-                        className="h-full object-contain"
-                      />
-                    </div>
+                    )}
                   </div>
-                )}
-              </div>
+                );
+              })()}
             </div>
           ))
         ) : (

@@ -18,6 +18,8 @@ model Organization {
   status              String   @default("active") // "active", "suspended", "onboarding"
   premiumMenuEnabled  Boolean  @default(false)
   premiumMenuSelected Boolean  @default(false)
+  kdsEnabled          Boolean  @default(false)
+  printingEnabled     Boolean  @default(false)
   createdAt           DateTime @default(now())
   updatedAt           DateTime @updatedAt
   venues              Venue[]
