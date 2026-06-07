@@ -19,45 +19,48 @@ The platform is designed as a next-generation, recommendation-driven digital QR 
 
 *   **Super Admin Management Dashboard:**
     *   **Platform Statistics:** Real-time metrics including total organizations, active venues, physical tables, view counts, and plan distribution charts.
-    *   **Tenancy CRUD Management:** Interfaces to onboard new organizations, configure subscription tiers (`free`, `pro`, `premium`), manage active venues, and configure system settings.
+    *   **Tenancy CRUD Management:** Interfaces to onboard new organizations, configure subscription tiers (`free`, `pro`, `premium`), manage active venues, and configure settings.
     *   **User & Staff Assignment:** Console to manage platform users and assign staff members to venues.
 *   **Admin Menu Editor:**
     *   Category creator with sort-order reordering.
-    *   Menu item CRUD (TR/EN name and description support, pricing, calorie counters, allergen flags, and dietary preferences selection).
-    *   Image uploader integrated directly with cloud storage.
+    *   Menu item CRUD (TR/EN names, prices, calorie counters, allergen flags, and dietary preferences).
+    *   Image uploader integrated with Supabase storage.
+*   **Inventory Costing & Recipe Engine UI (Gated by Org Flag):**
+    *   **Stok & Malzemeler:** CRUD dashboard to track hammadde stock levels, WAC average costs, and supplier contact lists.
+    *   **Faturalar:** Form to insert invoices, edit line-items, and trigger WAC calculations. Integrates an "AI Fatura Tara" camera/file scanner.
+    *   **Reçeteler & Maliyet:** Dual-pane recipe builder modal displaying live line costs, total cost, target margin sliders, and suggested menu price recommendations.
+    *   **Kârlılık:** Executive dashboard grouping items as Healthy (🟢), Warning (🟡), or Critical (🔴) based on cost drifts. Features one-click suggested price synchronization.
 *   **Guest QR Menu Interface (`/menu`):**
-    *   Fully localized (TR/EN) with client-side language selectors.
-    *   Sticky category quick-navigation bar with a scroll spy effect to highlight the active section.
-    *   Dietary filter system (e.g., filtering for Vegan, Halal, Gluten-Free items).
-    *   Interactive bottom sheet/drawer detail view for individual menu items.
-    *   Offline resilience with local mock data fallbacks if the API server goes offline.
+    *   Fully localized (TR/EN) with category navigation, sticky scroll-spy header, dietary filters, and online/offline resilience.
 
 ### Layer 2: Autonomous Reasoning Engine & API (FastAPI)
 
-*   **Multi-tenant REST API:**
-    *   **Guest Router:** Resolves table QR tokens to retrieve restaurant info, operating hours, active scheduled menus, and available menu items.
-    *   **Admin Router:** Secure endpoints for CRUD operations on venues, tables, categories, menu items, and organizations.
-    *   **Super Admin Stats Router:** Endpoint returning system-wide performance and metrics.
-*   **Storage Middleware:**
-    *   A centralized storage service (`backend/services/storage.py`) that handles file uploads asynchronously and generates public access URLs.
+*   **Multi-tenant REST API & Services:**
+    *   **Guest Router:** Resolves table tokens to load restaurant menus, operating hours, and categories.
+    *   **Admin Router:** Secure endpoints for CRUD operations on venues, tables, categories, and items.
+    *   **Super Admin Stats Router:** Endpoint returning system-wide platform statistics.
+    *   **Inventory Router (`api/inventory.py`):** Prefix `/api/admin/inventory`. Exposes CRUD endpoints for ingredients, suppliers, invoices, recipes, rules, alerts, and syncs.
+*   **Costing & OCR Services:**
+    *   **`services/costing.py`**: Computes WAC average costings, triggers cascade-recalculations for recipes, and processes automatic stock deductions upon completion of orders.
+    *   **`services/invoice_ocr.py`**: Integrates Gemini 1.5 Flash multimodal API to parse unstructured receipt photos/PDFs into structured invoice item objects.
+    *   **`services/signal_bridge.py`**: Enrichment logger mapping transaction sizes, price brackets, and dietary profiles to `UserSignal` events for the Tripzy recommendation engine.
 
 ### Layer 3: Database & Infrastructure (Supabase & Prisma)
 
 *   **Unified Schema Design:**
-    *   Synced a complete schema containing models for `Organization`, `Venue`, `Table` (with unique QR tokens), `Category`, `MenuItem`, `DietaryLabel`, and `AnalyticsEvent` to Supabase PostgreSQL.
-*   **Image Storage Migration (Firebase -> Supabase Storage):**
-    *   **Bucket Configuration:** Created a public `menu-images` bucket inside the PostgreSQL `storage.buckets` schema.
-    *   **Security & RLS Policies:** Implemented SQL policies allowing public SELECT (reads), INSERT (uploads), and UPDATE (overwrites) operations.
-    *   **Endpoint Realignment:** Updated Next.js and FastAPI upload endpoints to perform direct REST uploads to Supabase, eliminating external Firebase SDK configurations.
-    *   **Vercel Serverless Optimization:** Configured proper error handling around local disk fallback writes, resolving the `500 Internal Server Error` caused by Vercel’s read-only containers.
+    *   Synced a complete schema containing models for `Organization`, `Venue`, `Table`, `Category`, `MenuItem`, `DietaryLabel`, and `AnalyticsEvent` to Supabase PostgreSQL.
+    *   Expanded schema with 9 new inventory tables (`Ingredient`, `Supplier`, `Invoice`, `InvoiceItem`, `Recipe`, `RecipeIngredient`, `IngredientCostLog`, `PricingAlert`, `PricingAlertRule`).
+*   **Image Storage Migration (Supabase Storage):**
+    *   Created a public `menu-images` bucket with PostgreSQL RLS policies allowing public reads and authenticated uploads, optimizing Vercel serverless functions.
 
 ---
 
 ## 3. Current System Verification Status
 
 We successfully ran integration scripts validating the new architecture:
-*   **Database Sync:** Complete. Schema is live on Supabase and database is seeded with a premium mock restaurant profile ("Karaköy Lokantası") containing custom mezes and main courses.
-*   **Image Upload Pipeline:** Verified. Automated POST uploads return HTTP `200` and upload metadata successfully. Public GET requests to the Supabase Storage CDN resolve the assets successfully.
+*   **Database Sync:** Complete. Schema is live on Supabase and database is seeded.
+*   **Backend Costing Test Suite:** All unit tests in [tests/test_costing.py](file:///C:/Users/elif/.gemini/antigravity/scratch/qr-menu-saas/backend/tests/test_costing.py) passed successfully (covering WAC calculations, recipe costing, alert rule deviations, price sync updates, and order stock deductions).
+*   **Frontend Production Build:** Compiles successfully without syntax, TypeScript, or type compiler errors (`next build` completes with success).
 
 ---
 
@@ -71,9 +74,8 @@ To achieve full launch readiness in the Turkish market, the following items rema
 2.  **Semantic Search (Layer 3):**
     *   Initialize `pgvector` extension in the Supabase database.
     *   Write scripts to automatically generate and index vector embeddings for menu items based on their names, descriptions, and ingredients.
-3.  **Analytics & User Signals (Layer 1):**
-    *   Connect the frontend signal buffer to the backend `AnalyticsEvent` model to capture diner scrolling, viewing, and interaction streams.
-    *   Apply the "Cold Start" preference resolver on the guest menu using lifestyle signals.
+3.  **Cross-Domain Agent Inference (Layer 1):**
+    *   Consume the logged `UserSignal` datasets inside the Tripzy travel engine to resolve user dining profiles.
 
 ---
 
