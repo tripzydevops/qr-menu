@@ -232,6 +232,31 @@ def record_guest_view(event: schemas.AnalyticsEventCreate, request: Request, db:
     user_agent = request.headers.get("user-agent")
     log_view(db, event.venueId, event.tableId, event.locale, event.path, user_agent)
 
+@app.post("/api/analytics/signals", status_code=status.HTTP_204_NO_CONTENT)
+def record_user_signals(payload: schemas.BatchUserSignalsCreate, db: Session = Depends(get_db)):
+    """
+    Ingest a batch of user signals (views, clicks, scrolls, expansions) asynchronously.
+    """
+    try:
+        db_signals = []
+        for sig in payload.signals:
+            db_sig = models.UserSignal(
+                id=str(uuid.uuid4()),
+                sessionId=sig.sessionId,
+                venueId=payload.venueId,
+                tableId=payload.tableId,
+                eventType=sig.eventType,
+                eventData=sig.eventData,
+                createdAt=sig.createdAt or datetime.datetime.utcnow()
+            )
+            db_signals.append(db_sig)
+        
+        db.add_all(db_signals)
+        db.commit()
+    except Exception as e:
+        db.rollback()
+        raise HTTPException(status_code=500, detail=f"Failed to record signals: {str(e)}")
+
 # --- ADMIN ENDPOINTS ---
 
 # Organizations

@@ -238,5 +238,15 @@ model WaiterRequest {
   updatedAt DateTime @updatedAt
 }
 
+model UserSignal {
+  id        String   @id @default(uuid())
+  sessionId String
+  venueId   String
+  tableId   String?
+  eventType String   // "view_item", "expand_item", "filter_dietary", "scroll_category", "add_to_cart"
+  eventData Json     // e.g. { "itemId": "item-1", "durationMs": 4500 }
+  createdAt DateTime @default(now())
+}
+
 
 

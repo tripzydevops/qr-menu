@@ -563,7 +563,7 @@ export default function AdminOrdersPage() {
             display: none !important;
           }
           /* Reset parent containers to block layouts to prevent print engine flex/grid height bugs */
-          html, body, main, div.min-h-screen, div.flex-grow {
+          html, body, main, div.min-h-screen:not(.no-print), div.flex-grow:not(.no-print) {
             display: block !important;
             position: static !important;
             width: auto !important;

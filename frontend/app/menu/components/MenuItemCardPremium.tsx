@@ -74,6 +74,7 @@ interface MenuItemCardProps {
   currency: string;
   brandColor?: string | null;
   theme?: "dark" | "light";
+  isRecommended?: boolean;
 }
 
 const getDietaryLabel = (key: string, locale: Locale) => {
@@ -93,7 +94,8 @@ export default function MenuItemCardPremium({
   locale,
   currency,
   brandColor,
-  theme = "dark"
+  theme = "dark",
+  isRecommended = false
 }: MenuItemCardProps) {
   const [isHovered, setIsHovered] = React.useState(false);
 
@@ -146,14 +148,20 @@ export default function MenuItemCardPremium({
       `}
       style={{
         border: isDark 
-          ? undefined  // handled by premium-glass-card class
-          : `1px solid ${isHovered ? 'rgba(201,168,76,0.4)' : 'rgba(201,168,76,0.15)'}`,
+          ? isRecommended
+            ? `1px solid rgba(201, 168, 76, 0.8)`
+            : undefined  // handled by premium-glass-card class
+          : `1px solid ${isRecommended ? 'rgba(201,168,76,0.8)' : (isHovered ? 'rgba(201,168,76,0.4)' : 'rgba(201,168,76,0.15)')}`,
         transform: isHovered ? 'translateY(-8px) scale(1.01)' : 'translateY(0) scale(1)',
-        boxShadow: !isDark 
-          ? isHovered 
-            ? `0 20px 50px -10px rgba(201,168,76,0.2), 0 0 0 1px rgba(201,168,76,0.15)`
-            : `0 8px 30px rgba(201,168,76,0.08)`
-          : undefined,
+        boxShadow: isRecommended
+          ? isDark
+            ? `0 10px 45px -5px rgba(201,168,76,0.45), 0 0 0 1px rgba(201,168,76,0.45)`
+            : `0 20px 50px -10px rgba(201,168,76,0.3), 0 0 0 1px rgba(201,168,76,0.25)`
+          : (!isDark 
+            ? isHovered 
+              ? `0 20px 50px -10px rgba(201,168,76,0.2), 0 0 0 1px rgba(201,168,76,0.15)`
+              : `0 8px 30px rgba(201,168,76,0.08)`
+            : undefined),
       }}
     >
       {/* ── Corner Ornaments (Dark mode only) ── */}
@@ -195,6 +203,21 @@ export default function MenuItemCardPremium({
             : 'bg-gradient-to-b from-black/10 via-transparent to-transparent'
         }`} />
 
+        {/* Recommended Badge overlay */}
+        {isRecommended && (
+          <div 
+            className="absolute top-4 right-4 z-20 flex items-center gap-1.5 text-[8px] font-bold px-3 py-1.5 rounded-full uppercase tracking-[0.15em] animate-gold-pulse shadow-lg"
+            style={{
+              background: 'linear-gradient(135deg, #DFBA73 0%, #C9A84C 100%)',
+              color: '#0A0B0E',
+              border: '1px solid rgba(255,255,255,0.25)',
+              boxShadow: '0 4px 15px rgba(201,168,76,0.4)'
+            }}
+          >
+            ✦ {locale === 'tr' ? 'ÖNERİLEN' : 'RECOMMENDED'}
+          </div>
+        )}
+
         {/* Dietary labels — floating glass pills */}
         {item.dietaryLabels && item.dietaryLabels.length > 0 && (
           <div className="absolute top-4 left-4 flex flex-wrap gap-1.5 z-20">
@@ -226,8 +249,10 @@ export default function MenuItemCardPremium({
         {/* Calories badge — top right */}
         {item.calories && (
           <div 
-            className="absolute top-4 right-4 z-20 flex items-center gap-1 text-[8px] font-bold px-2.5 py-1 rounded-full uppercase tracking-wider"
+            className="absolute z-20 flex items-center gap-1 text-[8px] font-bold px-2.5 py-1 rounded-full uppercase tracking-wider"
             style={{
+              top: '16px',
+              right: isRecommended ? '112px' : '16px',
               background: isDark ? 'rgba(13,15,20,0.8)' : 'rgba(255,253,248,0.9)',
               backdropFilter: 'blur(12px)',
               color: isDark ? '#9CA3AF' : '#6B7280',

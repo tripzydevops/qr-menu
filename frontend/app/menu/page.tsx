@@ -14,6 +14,8 @@ import MenuItemCard, { MenuItem } from "./components/MenuItemCard";
 import MenuItemCardPremium from "./components/MenuItemCardPremium";
 import ItemDetailSheet from "./components/ItemDetailSheet";
 import CartDrawer from "./components/CartDrawer";
+import { useSignalCollector } from "./hooks/useSignalCollector";
+import { usePreferenceResolver } from "./hooks/usePreferenceResolver";
 
 interface Category {
   id: string;
@@ -90,6 +92,55 @@ function MenuContent() {
   const [searchQuery, setSearchQuery] = useState("");
   const [theme, setTheme] = useState<"dark" | "light">("dark");
 
+  // Custom User Signal Collection & Cold Start Personalization Hooks
+  const signalCollector = useSignalCollector(menu?.venueId, token);
+  const preferenceResolver = usePreferenceResolver();
+
+  // Track detail sheet views & implicit reading duration
+  const openTimeRef = useRef<number>(0);
+  const prevSelectedItemRef = useRef<MenuItem | null>(null);
+
+  useEffect(() => {
+    if (selectedItem) {
+      openTimeRef.current = Date.now();
+      prevSelectedItemRef.current = selectedItem;
+      signalCollector.trackExpandItem(selectedItem.id);
+      preferenceResolver.registerItemInteraction(selectedItem, "expand");
+    } else {
+      if (openTimeRef.current > 0 && prevSelectedItemRef.current) {
+        const duration = Date.now() - openTimeRef.current;
+        if (duration >= 500) {
+          signalCollector.trackViewItem(prevSelectedItemRef.current.id, duration);
+          preferenceResolver.registerItemInteraction(prevSelectedItemRef.current, "view");
+        }
+        openTimeRef.current = 0;
+        prevSelectedItemRef.current = null;
+      }
+    }
+  }, [selectedItem]);
+
+  // Track filter clicks
+  useEffect(() => {
+    if (activeFilter && activeFilter !== "all") {
+      signalCollector.trackClickFilter(activeFilter);
+      preferenceResolver.registerDietaryFilterClick(activeFilter);
+    }
+  }, [activeFilter]);
+
+  // Track scrolls through categories
+  useEffect(() => {
+    if (activeCategoryId) {
+      signalCollector.trackScrollCategory(activeCategoryId);
+    }
+  }, [activeCategoryId]);
+
+  // Track language settings
+  useEffect(() => {
+    if (locale) {
+      signalCollector.trackLanguageToggle(locale);
+    }
+  }, [locale]);
+
   useEffect(() => {
     if (serviceStatus && serviceStatus !== "calling") {
       const timer = setTimeout(() => setServiceStatus(null), 3500);
@@ -115,6 +166,8 @@ function MenuContent() {
 
   const handleAddToOrder = (item: MenuItem, quantity: number, notes: string) => {
     setHideCartBar(false);
+    signalCollector.trackAddToCart(item.id);
+    preferenceResolver.registerItemInteraction(item, "add_to_cart");
     setCart((prev) => {
       const existing = prev[item.id];
       if (existing) {
@@ -598,6 +651,7 @@ function MenuContent() {
               <div className={showPremium ? "grid grid-cols-1 gap-8 max-w-lg mx-auto" : "grid grid-cols-2 gap-4"}>
                 {category.items.map((item) => {
                   const CardComponent = showPremium ? MenuItemCardPremium : MenuItemCard;
+                  const isRec = preferenceResolver.isHighlyRecommended(item);
                   return (
                     <CardComponent 
                       key={item.id} 
@@ -608,6 +662,7 @@ function MenuContent() {
                       currency={menu.currency}
                       brandColor={menu.brandColor}
                       theme={theme}
+                      isRecommended={isRec}
                     />
                   );
                 })}

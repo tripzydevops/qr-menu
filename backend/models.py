@@ -270,5 +270,16 @@ class WaiterRequest(Base):
     venue = relationship("Venue", back_populates="waiterRequests")
     table = relationship("Table", back_populates="waiterRequests")
 
+class UserSignal(Base):
+    __tablename__ = "UserSignal"
+
+    id = Column(String, primary_key=True, index=True)
+    sessionId = Column(String, nullable=False)
+    venueId = Column(String, nullable=False)
+    tableId = Column(String, nullable=True)
+    eventType = Column(String, nullable=False) # e.g. "view_item", "expand_item", "filter_dietary"
+    eventData = Column(JSON, nullable=False) # Store dynamic dict parameters
+    createdAt = Column(DateTime, default=datetime.datetime.utcnow)
+
 
 

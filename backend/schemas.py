@@ -225,6 +225,30 @@ class AnalyticsEventSchema(AnalyticsEventBase):
     class Config:
         from_attributes = True
 
+# User Signal Schemas
+class UserSignalBase(BaseModel):
+    sessionId: str
+    eventType: str
+    eventData: Dict[str, Any]
+    createdAt: Optional[datetime] = None
+
+class UserSignalCreate(UserSignalBase):
+    pass
+
+class UserSignalSchema(UserSignalBase):
+    id: str
+    venueId: str
+    tableId: Optional[str] = None
+    createdAt: datetime
+
+    class Config:
+        from_attributes = True
+
+class BatchUserSignalsCreate(BaseModel):
+    venueId: str
+    tableId: Optional[str] = None
+    signals: List[UserSignalCreate]
+
 # Guest Menu Page Fetch Response
 class GuestMenuResponse(BaseModel):
     tableName: str

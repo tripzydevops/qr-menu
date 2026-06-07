@@ -54,6 +54,7 @@ interface MenuItemCardProps {
   currency: string;
   brandColor?: string | null;
   theme?: "dark" | "light";
+  isRecommended?: boolean;
 }
 
 const getDietaryLabel = (key: string, locale: Locale) => {
@@ -95,7 +96,8 @@ export default function MenuItemCard({
   locale,
   currency,
   brandColor,
-  theme = "dark"
+  theme = "dark",
+  isRecommended = false
 }: MenuItemCardProps) {
   const [isHovered, setIsHovered] = React.useState(false);
 
@@ -140,10 +142,12 @@ export default function MenuItemCard({
         isDark 
           ? "bg-white/[0.02] hover:bg-white/[0.05] border-white/[0.05]" 
           : "bg-[#F9F6F0] hover:bg-[#F3EFE6] border-black/[0.05] shadow-[0_2px_8px_rgba(0,0,0,0.02)]"
-      }`}
+      } ${isRecommended ? 'ring-1 ring-[#DFBA73]/40' : ''}`}
       style={{
-        borderColor: isHovered ? `${accentColor}cc` : undefined,
-        boxShadow: isHovered ? `0 4px 15px -3px ${accentColor}22` : undefined
+        borderColor: isRecommended ? '#DFBA73' : (isHovered ? `${accentColor}cc` : undefined),
+        boxShadow: isRecommended 
+          ? `0 4px 20px -3px rgba(223, 186, 115, 0.25), 0 0 0 1px rgba(223, 186, 115, 0.15)`
+          : (isHovered ? `0 4px 15px -3px ${accentColor}22` : undefined)
       }}
     >
       {/* Image Container on Top */}
@@ -158,6 +162,20 @@ export default function MenuItemCard({
           }}
         />
         
+        {/* Recommended Badge overlay */}
+        {isRecommended && (
+          <div 
+            className="absolute top-2 right-2 flex items-center gap-1 text-[8px] font-bold px-2 py-0.5 rounded-full uppercase tracking-wider animate-gold-pulse shadow-md z-20"
+            style={{
+              background: 'linear-gradient(135deg, #DFBA73 0%, #C9A84C 100%)',
+              color: '#0A0B0E',
+              border: '1px solid rgba(255,255,255,0.2)'
+            }}
+          >
+            ✦ {locale === 'tr' ? 'ÖNERİLEN' : 'RECOMMENDED'}
+          </div>
+        )}
+
         {/* Diet labels overlay */}
         {item.dietaryLabels && item.dietaryLabels.length > 0 && (
           <div className="absolute top-2 left-2 flex flex-wrap gap-1">
