@@ -121,13 +121,29 @@ export default function AdminOrdersPage() {
 
   const handlePrintOrder = (order: Order) => {
     setActivePrintOrder(order);
-    setTimeout(() => {
-      window.print();
-    }, 150);
   };
 
+  useEffect(() => {
+    if (activePrintOrder) {
+      const timer = setTimeout(() => {
+        window.print();
+      }, 150);
+      return () => clearTimeout(timer);
+    }
+  }, [activePrintOrder]);
+
+  useEffect(() => {
+    const handleAfterPrint = () => {
+      setActivePrintOrder(null);
+    };
+    window.addEventListener("afterprint", handleAfterPrint);
+    return () => {
+      window.removeEventListener("afterprint", handleAfterPrint);
+    };
+  }, []);
+
   // Filter orders based on active tab
-  const activeOrders = orders.filter(o => o.status === "pending" || o.status === "preparing");
+  const activeOrders = orders.filter(o => o.status === "pending" || o.status === "preparing" || o.status === "ready" || o.status === "served");
   const pastOrders = orders.filter(o => o.status === "completed" || o.status === "cancelled");
 
   const formatDate = (dateString: string) => {
@@ -221,14 +237,36 @@ export default function AdminOrdersPage() {
                   <div key={order.id} className="bg-[#16213E]/45 border border-gray-800/40 rounded-2xl p-5 space-y-4 shadow-lg flex flex-col justify-between relative overflow-hidden">
                     {/* Status Top border color */}
                     <div className={`absolute top-0 left-0 right-0 h-1.5 ${
-                      order.status === "pending" ? "bg-amber-500 animate-pulse" : "bg-indigo-500"
+                      order.status === "pending" 
+                        ? "bg-amber-500 animate-pulse" 
+                        : order.status === "preparing" 
+                          ? "bg-indigo-500" 
+                          : order.status === "ready"
+                            ? "bg-emerald-500 animate-pulse"
+                            : "bg-blue-500"
                     }`} />
                     
                     <div>
                       {/* Card Header */}
                       <div className="flex justify-between items-start pt-1.5">
                         <div>
-                          <h4 className="font-bold text-base text-white">{order.tableName || "Masa Bilgisi Yok"}</h4>
+                          <div className="flex items-center space-x-2">
+                            <h4 className="font-bold text-base text-white">{order.tableName || "Masa Bilgisi Yok"}</h4>
+                            <span className={`px-1.5 py-0.5 rounded text-[8px] font-bold uppercase tracking-wider ${
+                              order.status === "pending"
+                                ? "bg-amber-500/15 text-amber-400 border border-amber-500/20"
+                                : order.status === "preparing"
+                                  ? "bg-indigo-500/15 text-indigo-400 border border-indigo-500/20"
+                                  : order.status === "ready"
+                                    ? "bg-emerald-500/15 text-emerald-400 border border-emerald-500/20 animate-pulse"
+                                    : "bg-blue-500/15 text-blue-400 border border-blue-500/20"
+                            }`}>
+                              {order.status === "pending" && "Yeni Sipariş"}
+                              {order.status === "preparing" && "Hazırlanıyor"}
+                              {order.status === "ready" && "Servise Hazır! 🍽️"}
+                              {order.status === "served" && "Servis Edildi"}
+                            </span>
+                          </div>
                           <span className="text-[10px] text-gray-400 font-mono">{order.id.slice(0, 8)}</span>
                         </div>
                         <div className="flex items-center space-x-1 text-xs text-gray-400 font-mono bg-gray-800/40 px-2 py-0.5 rounded-lg border border-gray-800/50">
@@ -267,7 +305,7 @@ export default function AdminOrdersPage() {
                       </div>
                       
                       <div className="flex space-x-2">
-                        {order.status === "pending" ? (
+                        {order.status === "pending" && (
                           <button
                             onClick={() => handleUpdateOrderStatus(order.id, "preparing")}
                             className="flex-1 py-2 rounded-xl bg-indigo-600 hover:bg-indigo-700 text-xs font-bold text-white transition-colors flex items-center justify-center space-x-1"
@@ -275,13 +313,32 @@ export default function AdminOrdersPage() {
                             <Clock className="h-3.5 w-3.5" />
                             <span>Hazırla</span>
                           </button>
-                        ) : (
+                        )}
+                        {order.status === "preparing" && (
                           <button
-                            onClick={() => handleUpdateOrderStatus(order.id, "completed")}
-                            className="flex-1 py-2 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-xs font-bold text-white transition-colors flex items-center justify-center space-x-1"
+                            onClick={() => handleUpdateOrderStatus(order.id, "ready")}
+                            className="flex-1 py-2 rounded-xl bg-indigo-600 hover:bg-indigo-700 text-xs font-bold text-white transition-colors flex items-center justify-center space-x-1"
                           >
                             <Check className="h-3.5 w-3.5" />
-                            <span>Tamamla</span>
+                            <span>Mutfak Tamamlandı</span>
+                          </button>
+                        )}
+                        {order.status === "ready" && (
+                          <button
+                            onClick={() => handleUpdateOrderStatus(order.id, "served")}
+                            className="flex-1 py-2 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-xs font-bold text-white transition-colors flex items-center justify-center space-x-1 animate-pulse"
+                          >
+                            <Check className="h-3.5 w-3.5" />
+                            <span>Servis Et</span>
+                          </button>
+                        )}
+                        {order.status === "served" && (
+                          <button
+                            onClick={() => handleUpdateOrderStatus(order.id, "completed")}
+                            className="flex-1 py-2 rounded-xl bg-blue-600 hover:bg-blue-700 text-xs font-bold text-white transition-colors flex items-center justify-center space-x-1"
+                          >
+                            <Receipt className="h-3.5 w-3.5" />
+                            <span>Ödeme Al / Kapat</span>
                           </button>
                         )}
                         {printingEnabled && (
@@ -439,6 +496,7 @@ export default function AdminOrdersPage() {
           )}
         </div>
       )}
+      </div>
 
       {/* Print Slip Component (Only visible in print media) */}
       {activePrintOrder && (
@@ -504,15 +562,17 @@ export default function AdminOrdersPage() {
           header, aside, .no-print {
             display: none !important;
           }
-          /* Reset background and text color of the wrapper elements for printing */
-          body, html, main, div.min-h-screen {
+          /* Reset parent containers to block layouts to prevent print engine flex/grid height bugs */
+          html, body, main, div:not(.print-slip) {
+            display: block !important;
+            position: static !important;
+            width: auto !important;
+            height: auto !important;
+            min-height: 0 !important;
+            margin: 0 !important;
+            padding: 0 !important;
             background: white !important;
             color: black !important;
-          }
-          /* Reset main element padding for print */
-          main {
-            padding: 0 !important;
-            margin: 0 !important;
           }
           /* Make printing ticket explicitly visible and single-column formatting */
           .print-slip, .print-slip * {
@@ -541,7 +601,6 @@ export default function AdminOrdersPage() {
           }
         }
       `}} />
-      </div>
     </>
   );
 }
