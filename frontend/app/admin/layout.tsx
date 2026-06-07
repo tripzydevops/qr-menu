@@ -14,7 +14,8 @@ import {
   Menu,
   X,
   ClipboardList,
-  Monitor
+  Monitor,
+  BellRing
 } from "lucide-react";
 
 export default function AdminLayout({
@@ -74,6 +75,8 @@ export default function AdminLayout({
   if (kdsEnabled) {
     navItems.push({ name: "Mutfak Ekranı (KDS)", path: "/admin/kds", icon: Monitor });
   }
+
+  navItems.push({ name: "Garson Ekranı", path: "/admin/waiter", icon: BellRing });
 
   navItems.push(
     { name: "Menü Yönetimi", path: "/admin/menu", icon: Utensils },
