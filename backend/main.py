@@ -16,6 +16,9 @@ try:
     from .services.storage import upload_image
     from .services.analytics import log_view, get_analytics_summary
     from .services.embeddings import get_embedding_sync
+    from .api.inventory import router as inventory_router
+    from .services.costing import deduct_stock_from_order
+    from .services.signal_bridge import emit_order_signals
 except ImportError:
     from database import get_db, engine, Base
     import models
@@ -23,6 +26,9 @@ except ImportError:
     from services.storage import upload_image
     from services.analytics import log_view, get_analytics_summary
     from services.embeddings import get_embedding_sync
+    from api.inventory import router as inventory_router
+    from services.costing import deduct_stock_from_order
+    from services.signal_bridge import emit_order_signals
 
 # Create database tables if they do not exist
 Base.metadata.create_all(bind=engine)
@@ -46,6 +52,8 @@ app.add_middleware(
 static_dir = os.path.join(os.path.dirname(__file__), "static")
 os.makedirs(static_dir, exist_ok=True)
 app.mount("/static", StaticFiles(directory=static_dir), name="static")
+
+app.include_router(inventory_router)
 
 @app.get("/")
 def read_root():
@@ -995,6 +1003,16 @@ def receive_order_payment(id: str, payment_data: Dict[str, str], db: Session = D
     order.paidAt = datetime.datetime.utcnow()
     db.commit()
     db.refresh(order)
+
+    # Deduct stock and emit user signals for Tripzy.travel
+    try:
+        deduct_stock_from_order(db, order.id)
+    except Exception as e:
+        print(f"Failed to deduct stock from order: {e}")
+    try:
+        emit_order_signals(db, order.id)
+    except Exception as e:
+        print(f"Failed to emit order signals: {e}")
     
     # Auto-resolve any pending "bill" requests for this table & venue
     if order.tableId:
@@ -1044,6 +1062,17 @@ def pay_all_table_orders(table_id: str, payment_data: Dict[str, str], db: Sessio
         req.status = "completed"
         
     db.commit()
+
+    # Deduct stock and emit user signals for Tripzy.travel
+    for order in active_orders:
+        try:
+            deduct_stock_from_order(db, order.id)
+        except Exception as e:
+            print(f"Failed to deduct stock from order: {e}")
+        try:
+            emit_order_signals(db, order.id)
+        except Exception as e:
+            print(f"Failed to emit order signals: {e}")
     
     # Populate table name for return schemas
     for order in active_orders:

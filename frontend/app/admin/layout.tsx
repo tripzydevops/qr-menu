@@ -16,7 +16,11 @@ import {
   ClipboardList,
   Monitor,
   BellRing,
-  Banknote
+  Banknote,
+  Package,
+  FileText,
+  ChefHat,
+  TrendingUp
 } from "lucide-react";
 
 export default function AdminLayout({
@@ -29,6 +33,7 @@ export default function AdminLayout({
   const [orgName, setOrgName] = useState("Karaköy Lokantası");
   const [venueName, setVenueName] = useState("Karaköy Merkez");
   const [kdsEnabled, setKdsEnabled] = useState(false);
+  const [inventoryEnabled, setInventoryEnabled] = useState(false);
   const [previewTemplate, setPreviewTemplate] = useState<"standard" | "premium" | null>(null);
 
   // Load organization brand info from local storage or api if needed, default to Karaköy
@@ -42,6 +47,7 @@ export default function AdminLayout({
           setOrgName(data.organizationName || "Karaköy Lokantası");
           setVenueName(data.venueName || "Karaköy Merkez");
           setKdsEnabled(data.kdsEnabled || false);
+          setInventoryEnabled(data.inventoryEnabled || false);
           
           // Determine initial preview template
           const isPremiumPlan = data.premiumMenuEnabled || data.plan === 'premium' || data.plan === 'enterprise';
@@ -79,6 +85,15 @@ export default function AdminLayout({
 
   navItems.push({ name: "Garson Ekranı", path: "/admin/waiter", icon: BellRing });
   navItems.push({ name: "Kasa", path: "/admin/cashier", icon: Banknote });
+
+  if (inventoryEnabled) {
+    navItems.push(
+      { name: "Stok & Malzemeler", path: "/admin/inventory", icon: Package },
+      { name: "Faturalar", path: "/admin/invoices", icon: FileText },
+      { name: "Reçeteler & Maliyet", path: "/admin/recipes", icon: ChefHat },
+      { name: "Kârlılık", path: "/admin/profitability", icon: TrendingUp },
+    );
+  }
 
   navItems.push(
     { name: "Menü Yönetimi", path: "/admin/menu", icon: Utensils },

@@ -22,6 +22,8 @@ model Organization {
   premiumMenuSelected Boolean  @default(false)
   kdsEnabled          Boolean  @default(false)
   printingEnabled     Boolean  @default(false)
+  inventoryEnabled    Boolean  @default(false)
+  sharedInventory     Boolean  @default(false)
   createdAt           DateTime @default(now())
   updatedAt           DateTime @updatedAt
   venues              Venue[]
@@ -46,6 +48,11 @@ model Venue {
   staff            VenueStaff[]
   orders           Order[]
   waiterRequests   WaiterRequest[]
+  ingredients      Ingredient[]
+  suppliers        Supplier[]
+  invoices         Invoice[]
+  pricingAlerts    PricingAlert[]
+  pricingAlertRule PricingAlertRule?
   createdAt        DateTime     @default(now())
   updatedAt        DateTime     @updatedAt
 }
@@ -96,6 +103,8 @@ model MenuItem {
   dietaryLabels DietaryLabel[]        @relation("MenuItemToDietaryLabel")
   translations  MenuItemTranslation[]
   orderItems    OrderItem[]
+  recipe        Recipe?
+  pricingAlerts PricingAlert[]
   embedding     Unsupported("vector(768)")?
   createdAt     DateTime              @default(now())
   updatedAt     DateTime              @updatedAt
@@ -253,5 +262,120 @@ model UserSignal {
   createdAt DateTime @default(now())
 }
 
+// =============================================
+// INVENTORY COSTING & RECIPE ENGINE
+// =============================================
 
+model Ingredient {
+  id             String             @id @default(uuid())
+  name           String
+  unit           String             // "g", "ml", "unit", "kg", "liter"
+  currentStock   Decimal            @default(0)
+  reorderLevel   Decimal?           // Alert when stock falls below this
+  weightedCost   Decimal            @default(0) // Weighted Average Cost per unit
+  venueId        String
+  venue          Venue              @relation(fields: [venueId], references: [id], onDelete: Cascade)
+  organizationId String?            // Used when sharedInventory=true
+  invoiceItems   InvoiceItem[]
+  recipeItems    RecipeIngredient[]
+  costHistory    IngredientCostLog[]
+  createdAt      DateTime           @default(now())
+  updatedAt      DateTime           @updatedAt
+}
+
+model Supplier {
+  id             String     @id @default(uuid())
+  name           String
+  contactEmail   String?
+  contactPhone   String?
+  venueId        String
+  venue          Venue      @relation(fields: [venueId], references: [id], onDelete: Cascade)
+  invoices       Invoice[]
+  createdAt      DateTime   @default(now())
+  updatedAt      DateTime   @updatedAt
+}
+
+model Invoice {
+  id             String        @id @default(uuid())
+  invoiceNumber  String?
+  supplierId     String
+  supplier       Supplier      @relation(fields: [supplierId], references: [id], onDelete: Cascade)
+  invoiceDate    DateTime
+  totalAmount    Decimal
+  status         String        @default("pending") // "pending", "processed", "void"
+  venueId        String
+  venue          Venue         @relation(fields: [venueId], references: [id], onDelete: Cascade)
+  items          InvoiceItem[]
+  createdAt      DateTime      @default(now())
+  updatedAt      DateTime      @updatedAt
+}
+
+model InvoiceItem {
+  id             String     @id @default(uuid())
+  invoiceId      String
+  invoice        Invoice    @relation(fields: [invoiceId], references: [id], onDelete: Cascade)
+  ingredientId   String
+  ingredient     Ingredient @relation(fields: [ingredientId], references: [id], onDelete: Cascade)
+  quantity       Decimal
+  unitCost       Decimal
+  totalCost      Decimal
+}
+
+model Recipe {
+  id             String             @id @default(uuid())
+  menuItemId     String             @unique
+  menuItem       MenuItem           @relation(fields: [menuItemId], references: [id], onDelete: Cascade)
+  targetMargin   Decimal            @default(0.70) // 70%
+  currentCost    Decimal            @default(0)
+  ingredients    RecipeIngredient[]
+  createdAt      DateTime           @default(now())
+  updatedAt      DateTime           @updatedAt
+}
+
+model RecipeIngredient {
+  id             String     @id @default(uuid())
+  recipeId       String
+  recipe         Recipe     @relation(fields: [recipeId], references: [id], onDelete: Cascade)
+  ingredientId   String
+  ingredient     Ingredient @relation(fields: [ingredientId], references: [id], onDelete: Cascade)
+  amountUsed     Decimal    // In the ingredient's unit (e.g. 15g, 200ml)
+}
+
+model IngredientCostLog {
+  id             String     @id @default(uuid())
+  ingredientId   String
+  ingredient     Ingredient @relation(fields: [ingredientId], references: [id], onDelete: Cascade)
+  oldCost        Decimal
+  newCost        Decimal
+  reason         String     // "invoice", "manual_adjustment"
+  createdAt      DateTime   @default(now())
+}
+
+model PricingAlert {
+  id             String     @id @default(uuid())
+  venueId        String
+  venue          Venue      @relation(fields: [venueId], references: [id], onDelete: Cascade)
+  menuItemId     String
+  menuItem       MenuItem   @relation(fields: [menuItemId], references: [id])
+  recipeId       String
+  alertType      String     // "margin_drop", "low_stock", "cost_spike"
+  message        String
+  currentMargin  Decimal
+  targetMargin   Decimal
+  suggestedPrice Decimal?
+  isResolved     Boolean    @default(false)
+  createdAt      DateTime   @default(now())
+}
+
+model PricingAlertRule {
+  id                  String   @id @default(uuid())
+  venueId             String   @unique
+  venue               Venue    @relation(fields: [venueId], references: [id], onDelete: Cascade)
+  swingThreshold      Decimal  @default(0.05) // 5%
+  stockDeductionMode  String   @default("manual") // "auto" or "manual"
+  autoSyncEnabled     Boolean  @default(false)
+  isActive            Boolean  @default(true)
+  createdAt           DateTime @default(now())
+  updatedAt           DateTime @updatedAt
+}
 

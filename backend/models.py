@@ -27,6 +27,8 @@ class Organization(Base):
     premiumMenuSelected = Column(Boolean, default=False) # Client setting to choose premium card style
     kdsEnabled = Column(Boolean, default=False)
     printingEnabled = Column(Boolean, default=False)
+    inventoryEnabled = Column(Boolean, default=False)
+    sharedInventory = Column(Boolean, default=False)
     createdAt = Column(DateTime, default=datetime.datetime.utcnow)
     updatedAt = Column(DateTime, default=datetime.datetime.utcnow, onupdate=datetime.datetime.utcnow)
 
@@ -56,6 +58,11 @@ class Venue(Base):
     staff = relationship("VenueStaff", back_populates="venue", cascade="all, delete-orphan")
     orders = relationship("Order", back_populates="venue", cascade="all, delete-orphan")
     waiterRequests = relationship("WaiterRequest", back_populates="venue", cascade="all, delete-orphan")
+    ingredients = relationship("Ingredient", back_populates="venue", cascade="all, delete-orphan")
+    suppliers = relationship("Supplier", back_populates="venue", cascade="all, delete-orphan")
+    invoices = relationship("Invoice", back_populates="venue", cascade="all, delete-orphan")
+    pricingAlerts = relationship("PricingAlert", back_populates="venue", cascade="all, delete-orphan")
+    pricingAlertRule = relationship("PricingAlertRule", back_populates="venue", uselist=False, cascade="all, delete-orphan")
 
 
 class Table(Base):
@@ -114,6 +121,8 @@ class MenuItem(Base):
     dietaryLabels = relationship("DietaryLabel", secondary=menu_item_dietary_label, back_populates="items")
     translations = relationship("MenuItemTranslation", back_populates="menuItem", cascade="all, delete-orphan")
     orderItems = relationship("OrderItem", back_populates="menuItem", cascade="all, delete-orphan")
+    recipe = relationship("Recipe", back_populates="menuItem", uselist=False, cascade="all, delete-orphan")
+    pricingAlerts = relationship("PricingAlert", back_populates="menuItem")
 
 
 class MenuItemTranslation(Base):
@@ -284,4 +293,146 @@ class UserSignal(Base):
     createdAt = Column(DateTime, default=datetime.datetime.utcnow)
 
 
+# =============================================
+# INVENTORY COSTING & RECIPE ENGINE
+# =============================================
+
+class Ingredient(Base):
+    __tablename__ = "Ingredient"
+
+    id = Column(String, primary_key=True, index=True)
+    name = Column(String, nullable=False)
+    unit = Column(String, nullable=False)  # "g", "ml", "unit", "kg", "liter"
+    currentStock = Column(Numeric(14, 4), default=0)
+    reorderLevel = Column(Numeric(14, 4), nullable=True)
+    weightedCost = Column(Numeric(14, 6), default=0)  # WAC per unit
+    venueId = Column(String, ForeignKey("Venue.id", ondelete="CASCADE"), nullable=False)
+    organizationId = Column(String, nullable=True)  # Used when sharedInventory=true
+    createdAt = Column(DateTime, default=datetime.datetime.utcnow)
+    updatedAt = Column(DateTime, default=datetime.datetime.utcnow, onupdate=datetime.datetime.utcnow)
+
+    venue = relationship("Venue", back_populates="ingredients")
+    invoiceItems = relationship("InvoiceItem", back_populates="ingredient", cascade="all, delete-orphan")
+    recipeItems = relationship("RecipeIngredient", back_populates="ingredient", cascade="all, delete-orphan")
+    costHistory = relationship("IngredientCostLog", back_populates="ingredient", cascade="all, delete-orphan")
+
+
+class Supplier(Base):
+    __tablename__ = "Supplier"
+
+    id = Column(String, primary_key=True, index=True)
+    name = Column(String, nullable=False)
+    contactEmail = Column(String, nullable=True)
+    contactPhone = Column(String, nullable=True)
+    venueId = Column(String, ForeignKey("Venue.id", ondelete="CASCADE"), nullable=False)
+    createdAt = Column(DateTime, default=datetime.datetime.utcnow)
+    updatedAt = Column(DateTime, default=datetime.datetime.utcnow, onupdate=datetime.datetime.utcnow)
+
+    venue = relationship("Venue", back_populates="suppliers")
+    invoices = relationship("Invoice", back_populates="supplier", cascade="all, delete-orphan")
+
+
+class Invoice(Base):
+    __tablename__ = "Invoice"
+
+    id = Column(String, primary_key=True, index=True)
+    invoiceNumber = Column(String, nullable=True)
+    supplierId = Column(String, ForeignKey("Supplier.id", ondelete="CASCADE"), nullable=False)
+    invoiceDate = Column(DateTime, nullable=False)
+    totalAmount = Column(Numeric(14, 2), nullable=False)
+    status = Column(String, default="pending")  # "pending", "processed", "void"
+    venueId = Column(String, ForeignKey("Venue.id", ondelete="CASCADE"), nullable=False)
+    createdAt = Column(DateTime, default=datetime.datetime.utcnow)
+    updatedAt = Column(DateTime, default=datetime.datetime.utcnow, onupdate=datetime.datetime.utcnow)
+
+    supplier = relationship("Supplier", back_populates="invoices")
+    venue = relationship("Venue", back_populates="invoices")
+    items = relationship("InvoiceItem", back_populates="invoice", cascade="all, delete-orphan")
+
+
+class InvoiceItem(Base):
+    __tablename__ = "InvoiceItem"
+
+    id = Column(String, primary_key=True, index=True)
+    invoiceId = Column(String, ForeignKey("Invoice.id", ondelete="CASCADE"), nullable=False)
+    ingredientId = Column(String, ForeignKey("Ingredient.id", ondelete="CASCADE"), nullable=False)
+    quantity = Column(Numeric(14, 4), nullable=False)
+    unitCost = Column(Numeric(14, 6), nullable=False)
+    totalCost = Column(Numeric(14, 2), nullable=False)
+
+    invoice = relationship("Invoice", back_populates="items")
+    ingredient = relationship("Ingredient", back_populates="invoiceItems")
+
+
+class Recipe(Base):
+    __tablename__ = "Recipe"
+
+    id = Column(String, primary_key=True, index=True)
+    menuItemId = Column(String, ForeignKey("MenuItem.id", ondelete="CASCADE"), unique=True, nullable=False)
+    targetMargin = Column(Numeric(5, 4), default=0.70)  # 70%
+    currentCost = Column(Numeric(14, 4), default=0)
+    createdAt = Column(DateTime, default=datetime.datetime.utcnow)
+    updatedAt = Column(DateTime, default=datetime.datetime.utcnow, onupdate=datetime.datetime.utcnow)
+
+    menuItem = relationship("MenuItem", back_populates="recipe")
+    ingredients = relationship("RecipeIngredient", back_populates="recipe", cascade="all, delete-orphan")
+
+
+class RecipeIngredient(Base):
+    __tablename__ = "RecipeIngredient"
+
+    id = Column(String, primary_key=True, index=True)
+    recipeId = Column(String, ForeignKey("Recipe.id", ondelete="CASCADE"), nullable=False)
+    ingredientId = Column(String, ForeignKey("Ingredient.id", ondelete="CASCADE"), nullable=False)
+    amountUsed = Column(Numeric(14, 4), nullable=False)
+
+    recipe = relationship("Recipe", back_populates="ingredients")
+    ingredient = relationship("Ingredient", back_populates="recipeItems")
+
+
+class IngredientCostLog(Base):
+    __tablename__ = "IngredientCostLog"
+
+    id = Column(String, primary_key=True, index=True)
+    ingredientId = Column(String, ForeignKey("Ingredient.id", ondelete="CASCADE"), nullable=False)
+    oldCost = Column(Numeric(14, 6), nullable=False)
+    newCost = Column(Numeric(14, 6), nullable=False)
+    reason = Column(String, nullable=False)  # "invoice", "manual_adjustment"
+    createdAt = Column(DateTime, default=datetime.datetime.utcnow)
+
+    ingredient = relationship("Ingredient", back_populates="costHistory")
+
+
+class PricingAlert(Base):
+    __tablename__ = "PricingAlert"
+
+    id = Column(String, primary_key=True, index=True)
+    venueId = Column(String, ForeignKey("Venue.id", ondelete="CASCADE"), nullable=False)
+    menuItemId = Column(String, ForeignKey("MenuItem.id"), nullable=False)
+    recipeId = Column(String, nullable=False)
+    alertType = Column(String, nullable=False)  # "margin_drop", "low_stock", "cost_spike"
+    message = Column(String, nullable=False)
+    currentMargin = Column(Numeric(5, 4), nullable=False)
+    targetMargin = Column(Numeric(5, 4), nullable=False)
+    suggestedPrice = Column(Numeric(14, 2), nullable=True)
+    isResolved = Column(Boolean, default=False)
+    createdAt = Column(DateTime, default=datetime.datetime.utcnow)
+
+    venue = relationship("Venue", back_populates="pricingAlerts")
+    menuItem = relationship("MenuItem", back_populates="pricingAlerts")
+
+
+class PricingAlertRule(Base):
+    __tablename__ = "PricingAlertRule"
+
+    id = Column(String, primary_key=True, index=True)
+    venueId = Column(String, ForeignKey("Venue.id", ondelete="CASCADE"), unique=True, nullable=False)
+    swingThreshold = Column(Numeric(5, 4), default=0.05)  # 5%
+    stockDeductionMode = Column(String, default="manual")  # "auto" or "manual"
+    autoSyncEnabled = Column(Boolean, default=False)
+    isActive = Column(Boolean, default=True)
+    createdAt = Column(DateTime, default=datetime.datetime.utcnow)
+    updatedAt = Column(DateTime, default=datetime.datetime.utcnow, onupdate=datetime.datetime.utcnow)
+
+    venue = relationship("Venue", back_populates="pricingAlertRule")
 

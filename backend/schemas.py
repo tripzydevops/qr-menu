@@ -195,6 +195,8 @@ class OrganizationBase(BaseModel):
     premiumMenuSelected: Optional[bool] = False
     kdsEnabled: Optional[bool] = False
     printingEnabled: Optional[bool] = False
+    inventoryEnabled: Optional[bool] = False
+    sharedInventory: Optional[bool] = False
 
 class OrganizationCreate(OrganizationBase):
     pass
@@ -409,3 +411,196 @@ class BulkImportRequest(BaseModel):
 
 
 
+# --- INVENTORY COSTING & RECIPE ENGINE SCHEMAS ---
+
+# Ingredient
+class IngredientBase(BaseModel):
+    name: str
+    unit: str  # "g", "ml", "kg", "liter", "unit"
+    reorderLevel: Optional[Decimal] = None
+
+class IngredientCreate(IngredientBase):
+    venueId: str
+
+class IngredientUpdate(BaseModel):
+    name: Optional[str] = None
+    unit: Optional[str] = None
+    reorderLevel: Optional[Decimal] = None
+
+class IngredientSchema(IngredientBase):
+    id: str
+    currentStock: Decimal
+    weightedCost: Decimal
+    venueId: str
+    organizationId: Optional[str] = None
+    createdAt: datetime
+    updatedAt: datetime
+    class Config:
+        from_attributes = True
+
+# Supplier
+class SupplierBase(BaseModel):
+    name: str
+    contactEmail: Optional[str] = None
+    contactPhone: Optional[str] = None
+
+class SupplierCreate(SupplierBase):
+    venueId: str
+
+class SupplierUpdate(BaseModel):
+    name: Optional[str] = None
+    contactEmail: Optional[str] = None
+    contactPhone: Optional[str] = None
+
+class SupplierSchema(SupplierBase):
+    id: str
+    venueId: str
+    createdAt: datetime
+    updatedAt: datetime
+    class Config:
+        from_attributes = True
+
+# Invoice & InvoiceItem
+class InvoiceItemCreate(BaseModel):
+    ingredientId: str
+    quantity: Decimal
+    unitCost: Decimal
+
+class InvoiceItemSchema(BaseModel):
+    id: str
+    ingredientId: str
+    ingredientName: Optional[str] = None
+    quantity: Decimal
+    unitCost: Decimal
+    totalCost: Decimal
+    class Config:
+        from_attributes = True
+
+class InvoiceCreate(BaseModel):
+    invoiceNumber: Optional[str] = None
+    supplierId: str
+    invoiceDate: datetime
+    venueId: str
+    items: List[InvoiceItemCreate]
+
+class InvoiceSchema(BaseModel):
+    id: str
+    invoiceNumber: Optional[str] = None
+    supplierId: str
+    supplierName: Optional[str] = None
+    invoiceDate: datetime
+    totalAmount: Decimal
+    status: str
+    venueId: str
+    items: List[InvoiceItemSchema] = []
+    createdAt: datetime
+    updatedAt: datetime
+    class Config:
+        from_attributes = True
+
+# Recipe & RecipeIngredient
+class RecipeIngredientCreate(BaseModel):
+    ingredientId: str
+    amountUsed: Decimal
+
+class RecipeIngredientSchema(BaseModel):
+    id: str
+    ingredientId: str
+    ingredientName: Optional[str] = None
+    ingredientUnit: Optional[str] = None
+    ingredientCost: Optional[Decimal] = None
+    amountUsed: Decimal
+    lineCost: Optional[Decimal] = None  # amountUsed * weightedCost
+    class Config:
+        from_attributes = True
+
+class RecipeCreate(BaseModel):
+    menuItemId: str
+    targetMargin: Decimal = Decimal("0.70")
+    ingredients: List[RecipeIngredientCreate]
+
+class RecipeUpdate(BaseModel):
+    targetMargin: Optional[Decimal] = None
+    ingredients: Optional[List[RecipeIngredientCreate]] = None
+
+class RecipeSchema(BaseModel):
+    id: str
+    menuItemId: str
+    menuItemName: Optional[str] = None
+    menuItemPrice: Optional[Decimal] = None
+    targetMargin: Decimal
+    currentCost: Decimal
+    currentMargin: Optional[Decimal] = None
+    ingredients: List[RecipeIngredientSchema] = []
+    createdAt: datetime
+    updatedAt: datetime
+    class Config:
+        from_attributes = True
+
+# Pricing Alert
+class PricingAlertSchema(BaseModel):
+    id: str
+    venueId: str
+    menuItemId: str
+    menuItemName: Optional[str] = None
+    recipeId: str
+    alertType: str
+    message: str
+    currentMargin: Decimal
+    targetMargin: Decimal
+    suggestedPrice: Optional[Decimal] = None
+    isResolved: bool
+    createdAt: datetime
+    class Config:
+        from_attributes = True
+
+# Pricing Alert Rule
+class PricingAlertRuleCreate(BaseModel):
+    swingThreshold: Decimal = Decimal("0.05")
+    stockDeductionMode: str = "manual"  # "auto" or "manual"
+    autoSyncEnabled: bool = False
+    isActive: bool = True
+
+class PricingAlertRuleSchema(PricingAlertRuleCreate):
+    id: str
+    venueId: str
+    createdAt: datetime
+    updatedAt: datetime
+    class Config:
+        from_attributes = True
+
+# Profitability Dashboard
+class MenuItemProfitability(BaseModel):
+    menuItemId: str
+    menuItemName: str
+    menuPrice: Decimal
+    recipeCost: Decimal
+    margin: Decimal          # (price - cost) / price
+    targetMargin: Decimal
+    marginDeviation: Decimal # target - current
+    suggestedPrice: Decimal  # cost / (1 - targetMargin)
+    status: str              # "healthy", "warning", "critical"
+
+class ProfitabilityDashboard(BaseModel):
+    venueId: str
+    totalMenuItems: int
+    itemsWithRecipes: int
+    healthyCount: int
+    warningCount: int
+    criticalCount: int
+    averageMargin: Decimal
+    items: List[MenuItemProfitability]
+
+# Price Sync
+class PriceSyncRequest(BaseModel):
+    venueId: str
+    menuItemIds: List[str]
+    syncType: str = "suggested"  # "suggested" or "custom"
+    customPrices: Optional[Dict[str, Decimal]] = None
+
+class PriceSyncResult(BaseModel):
+    menuItemId: str
+    menuItemName: str
+    oldPrice: Decimal
+    newPrice: Decimal
+    newMargin: Decimal
