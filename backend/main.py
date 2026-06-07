@@ -158,6 +158,7 @@ def get_menu_by_qr_token(qr_token: str, request: Request, locale: Optional[str] 
         premiumMenuSelected=org.premiumMenuSelected or False,
         kdsEnabled=org.kdsEnabled or False,
         printingEnabled=org.printingEnabled or False,
+        inventoryEnabled=org.inventoryEnabled or False,
         categories=categories
     )
 

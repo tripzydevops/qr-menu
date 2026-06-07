@@ -271,6 +271,7 @@ class GuestMenuResponse(BaseModel):
     premiumMenuSelected: Optional[bool] = False
     kdsEnabled: Optional[bool] = False
     printingEnabled: Optional[bool] = False
+    inventoryEnabled: Optional[bool] = False
     categories: List[CategorySchema]
 
 # User Schemas
