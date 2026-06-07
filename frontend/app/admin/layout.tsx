@@ -13,7 +13,8 @@ import {
   ChevronRight,
   Menu,
   X,
-  ClipboardList
+  ClipboardList,
+  Monitor
 } from "lucide-react";
 
 export default function AdminLayout({
@@ -25,19 +26,41 @@ export default function AdminLayout({
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [orgName, setOrgName] = useState("Karaköy Lokantası");
   const [venueName, setVenueName] = useState("Karaköy Merkez");
+  const [kdsEnabled, setKdsEnabled] = useState(false);
 
   // Load organization brand info from local storage or api if needed, default to Karaköy
   useEffect(() => {
-    // Sync info or retrieve it
+    async function loadConfig() {
+      try {
+        const apiUrl = process.env.NEXT_PUBLIC_API_URL || "";
+        const res = await fetch(`${apiUrl}/api/menu/k1`);
+        if (res.ok) {
+          const data = await res.json();
+          setOrgName(data.organizationName || "Karaköy Lokantası");
+          setVenueName(data.venueName || "Karaköy Merkez");
+          setKdsEnabled(data.kdsEnabled || false);
+        }
+      } catch (err) {
+        console.error("Failed to load admin layout organization config", err);
+      }
+    }
+    loadConfig();
   }, []);
 
   const navItems = [
     { name: "Siparişler & İstekler", path: "/admin/orders", icon: ClipboardList },
+  ];
+
+  if (kdsEnabled) {
+    navItems.push({ name: "Mutfak Ekranı (KDS)", path: "/admin/kds", icon: Monitor });
+  }
+
+  navItems.push(
     { name: "Menü Yönetimi", path: "/admin/menu", icon: Utensils },
     { name: "QR & Masalar", path: "/admin/tables", icon: QrCode },
     { name: "Restoran Ayarları", path: "/admin/settings", icon: Settings },
     { name: "İstatistikler", path: "/admin/analytics", icon: BarChart3 }
-  ];
+  );
 
   return (
     <div className="min-h-screen bg-[#1C1C28] text-white flex flex-col font-sans select-none antialiased">

@@ -185,7 +185,7 @@ export async function GET(
       })),
     }));
 
-    return NextResponse.json({
+    const response = NextResponse.json({
       tableName: table.name,
       areaName: table.areaName,
       venueId: venue.id,
@@ -206,6 +206,9 @@ export async function GET(
       printingEnabled: org.printingEnabled || false,
       categories: mappedCategories,
     });
+
+    response.headers.set("Cache-Control", "no-store, no-cache, must-revalidate, proxy-revalidate");
+    return response;
   } catch (error: any) {
     console.error("Error fetching guest menu: ", error);
     return NextResponse.json(

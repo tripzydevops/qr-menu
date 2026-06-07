@@ -536,8 +536,13 @@ function MenuContent() {
               </h3>
 
               {(() => {
+                const templateParam = searchParams.get("template");
                 const isPremiumPlan = menu.premiumMenuEnabled || menu.plan === 'premium' || menu.plan === 'enterprise';
-                const showPremium = isPremiumPlan && !!menu.premiumMenuSelected;
+                const showPremium = templateParam === "premium"
+                  ? true
+                  : templateParam === "standard"
+                    ? false
+                    : (isPremiumPlan && !!menu.premiumMenuSelected);
                 
                 return (
                   <div className={showPremium ? "grid grid-cols-1 gap-6 max-w-md mx-auto" : "grid grid-cols-2 gap-4"}>

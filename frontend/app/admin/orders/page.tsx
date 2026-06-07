@@ -1,7 +1,7 @@
 "use client";
 
 import React, { useEffect, useState } from "react";
-import { ClipboardList, Bell, Receipt, CheckCircle2, Clock, Check, X, ShieldAlert, Sparkles } from "lucide-react";
+import { ClipboardList, Bell, Receipt, CheckCircle2, Clock, Check, X, ShieldAlert, Sparkles, Printer } from "lucide-react";
 
 interface OrderItem {
   id: string;
@@ -38,6 +38,27 @@ export default function AdminOrdersPage() {
   const [requests, setRequests] = useState<WaiterRequest[]>([]);
   const [loading, setLoading] = useState(true);
   const [refreshKey, setRefreshKey] = useState(0);
+  const [printingEnabled, setPrintingEnabled] = useState(false);
+  const [activePrintOrder, setActivePrintOrder] = useState<Order | null>(null);
+  const [orgName, setOrgName] = useState("Karaköy Lokantası");
+
+  // Load organization settings
+  useEffect(() => {
+    async function fetchSettings() {
+      try {
+        const apiUrl = process.env.NEXT_PUBLIC_API_URL || "";
+        const res = await fetch(`${apiUrl}/api/menu/k1`);
+        if (res.ok) {
+          const data = await res.json();
+          setPrintingEnabled(data.printingEnabled || false);
+          setOrgName(data.organizationName || "Karaköy Lokantası");
+        }
+      } catch (err) {
+        console.error("Failed to fetch printing permission", err);
+      }
+    }
+    fetchSettings();
+  }, []);
 
   // Poll for new orders/requests every 6 seconds
   useEffect(() => {
@@ -96,6 +117,13 @@ export default function AdminOrdersPage() {
     } catch (err) {
       console.error("Failed to resolve waiter request", err);
     }
+  };
+
+  const handlePrintOrder = (order: Order) => {
+    setActivePrintOrder(order);
+    setTimeout(() => {
+      window.print();
+    }, 150);
   };
 
   // Filter orders based on active tab
@@ -255,6 +283,15 @@ export default function AdminOrdersPage() {
                             <span>Tamamla</span>
                           </button>
                         )}
+                        {printingEnabled && (
+                          <button
+                            onClick={() => handlePrintOrder(order)}
+                            className="px-3 py-2 rounded-xl bg-indigo-950/20 hover:bg-indigo-950/50 border border-indigo-900/20 hover:border-indigo-900/40 text-indigo-400 hover:text-indigo-350 text-xs font-bold transition-all flex items-center justify-center"
+                            title="Adisyon Fişi Yazdır"
+                          >
+                            <Printer className="h-4.5 w-4.5" />
+                          </button>
+                        )}
                         <button
                           onClick={() => handleUpdateOrderStatus(order.id, "cancelled")}
                           className="px-3.5 py-2 rounded-xl bg-red-950/20 hover:bg-red-950/50 border border-red-900/20 hover:border-red-900/40 text-red-400 text-xs font-bold transition-all flex items-center justify-center"
@@ -352,6 +389,7 @@ export default function AdminOrdersPage() {
                         <th className="p-4">Zaman</th>
                         <th className="p-4">Tutar</th>
                         <th className="p-4">Durum</th>
+                        {printingEnabled && <th className="p-4 text-right">Yazdır</th>}
                       </tr>
                     </thead>
                     <tbody className="divide-y divide-gray-800/20 text-xs">
@@ -379,6 +417,17 @@ export default function AdminOrdersPage() {
                               {order.status === "completed" ? "Tamamlandı" : "İptal Edildi"}
                             </span>
                           </td>
+                          {printingEnabled && (
+                            <td className="p-4 text-right">
+                              <button
+                                onClick={() => handlePrintOrder(order)}
+                                className="p-1.5 rounded-lg border bg-[#121224] text-indigo-400 border-indigo-900/30 hover:bg-indigo-950/40 transition-colors inline-flex items-center justify-center animate-pulse-border"
+                                title="Yazdır"
+                              >
+                                <Printer className="h-3.5 w-3.5" />
+                              </button>
+                            </td>
+                          )}
                         </tr>
                       ))}
                     </tbody>
@@ -389,6 +438,100 @@ export default function AdminOrdersPage() {
           )}
         </div>
       )}
+
+      {/* Print Slip Component (Only visible in print media) */}
+      {activePrintOrder && (
+        <div className="print-slip hidden print:block bg-white text-black font-mono text-xs p-6 w-[80mm] max-w-full mx-auto">
+          <div className="text-center font-bold text-sm uppercase tracking-wide mb-2">
+            *** {orgName.toUpperCase()} ***
+          </div>
+          <div className="text-center text-[10px] mb-4 border-b border-dashed border-black pb-2">
+            ADİSYON TİKETİ
+          </div>
+          <div className="space-y-1 text-[11px] mb-3">
+            <div><strong>Masa:</strong> {activePrintOrder.tableName || "Masa Bilgisi Yok"}</div>
+            <div><strong>Tarih:</strong> {new Date(activePrintOrder.createdAt).toLocaleDateString("tr-TR")} {formatDate(activePrintOrder.createdAt)}</div>
+            <div><strong>Sipariş ID:</strong> #{activePrintOrder.id.slice(0, 8).toUpperCase()}</div>
+          </div>
+          
+          <table className="w-full text-left border-y border-dashed border-black py-2 my-3 text-[11px]">
+            <thead>
+              <tr className="font-bold">
+                <th className="pb-1 w-12">Adet</th>
+                <th className="pb-1">Ürün</th>
+                <th className="pb-1 text-right">Tutar</th>
+              </tr>
+            </thead>
+            <tbody>
+              {activePrintOrder.items.map((item) => (
+                <React.Fragment key={item.id}>
+                  <tr className="align-top">
+                    <td className="py-1 font-semibold">{item.quantity}x</td>
+                    <td className="py-1">
+                      {item.menuItemNameTr || "Ürün"}
+                    </td>
+                    <td className="py-1 text-right">₺{(Number(item.price) * item.quantity).toFixed(2)}</td>
+                  </tr>
+                  {item.notes && (
+                    <tr key={`note-${item.id}`}>
+                      <td></td>
+                      <td colSpan={2} className="text-[10px] italic pb-1">
+                        * Not: {item.notes}
+                      </td>
+                    </tr>
+                  )}
+                </React.Fragment>
+              ))}
+            </tbody>
+          </table>
+          
+          <div className="flex justify-between items-center font-bold text-sm mt-3 pt-1">
+            <span>TOPLAM:</span>
+            <span>₺{Number(activePrintOrder.totalAmount).toFixed(2)}</span>
+          </div>
+          
+          <div className="text-center text-[9px] text-gray-500 mt-8 pt-4 border-t border-dashed border-gray-400">
+            Tripzy QR Menü SaaS tarafından üretilmiştir.
+          </div>
+        </div>
+      )}
+
+      {/* HTML style override specifically targeting browser print configurations */}
+      <style dangerouslySetInnerHTML={{ __html: `
+        @media print {
+          /* Hide all dashboard/web interfaces */
+          body, html, #__next, main, aside, header, div:not(.print-slip) {
+            background: white !important;
+            color: black !important;
+          }
+          body * {
+            display: none !important;
+          }
+          /* Make printing ticket explicitly visible and single-column formatting */
+          .print-slip, .print-slip * {
+            display: block !important;
+          }
+          .print-slip {
+            position: absolute !important;
+            left: 0 !important;
+            top: 0 !important;
+            width: 80mm !important;
+            padding: 10px !important;
+            margin: 0 !important;
+            box-shadow: none !important;
+            border: none !important;
+          }
+          .print-slip table {
+            display: table !important;
+          }
+          .print-slip tr {
+            display: table-row !important;
+          }
+          .print-slip td, .print-slip th {
+            display: table-cell !important;
+          }
+        }
+      `}} />
     </div>
   );
 }

@@ -1,6 +1,7 @@
 "use client";
 
 import React, { useEffect, useState } from "react";
+import Link from "next/link";
 import { 
   Save, 
   Upload, 
@@ -279,7 +280,7 @@ export default function AdminSettingsPage() {
           </h3>
           <p className="text-xs text-gray-400">Misafirlerinize gösterilecek menü kartlarının görsel şablonunu seçin.</p>
 
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mt-2">
             {/* Standard Layout Option */}
             <div 
               onClick={() => setPremiumMenuSelected(false)}
@@ -298,7 +299,14 @@ export default function AdminSettingsPage() {
               </div>
               <div className="mt-4 pt-3 border-t border-gray-800/30 flex items-center justify-between">
                 <span className="text-[10px] font-semibold text-gray-500">Ücretsiz & Pro</span>
-                <span className="text-[10px] text-[#C9A84C] font-bold">Aktif</span>
+                <Link 
+                  href="/menu?token=k1&preview=true&template=standard" 
+                  target="_blank"
+                  className="text-[10px] text-[#C9A84C] font-bold hover:underline flex items-center space-x-0.5"
+                  onClick={(e) => e.stopPropagation()}
+                >
+                  <span>Önizle ↗</span>
+                </Link>
               </div>
             </div>
 
@@ -333,12 +341,17 @@ export default function AdminSettingsPage() {
               </div>
               <div className="mt-4 pt-3 border-t border-gray-800/30 flex items-center justify-between">
                 <span className="text-[10px] font-semibold text-[#C9A84C] font-mono">Premium Özel</span>
-                {premiumMenuSelected ? (
-                  <span className="text-[10px] text-[#C9A84C] font-bold">Aktif</span>
+                {(premiumMenuEnabled || plan === 'premium' || plan === 'enterprise') ? (
+                  <Link 
+                    href="/menu?token=k1&preview=true&template=premium" 
+                    target="_blank"
+                    className="text-[10px] text-[#C9A84C] font-bold hover:underline flex items-center space-x-0.5"
+                    onClick={(e) => e.stopPropagation()}
+                  >
+                    <span>Önizle ↗</span>
+                  </Link>
                 ) : (
-                  <span className="text-[10px] text-gray-500 font-semibold">
-                    {!(premiumMenuEnabled || plan === 'premium' || plan === 'enterprise') ? "Kilitli" : "Seç"}
-                  </span>
+                  <span className="text-[10px] text-gray-500 font-semibold">Kilitli</span>
                 )}
               </div>
             </div>

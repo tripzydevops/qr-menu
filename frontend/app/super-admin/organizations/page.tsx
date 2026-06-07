@@ -21,6 +21,8 @@ interface Organization {
   brandColor: string | null;
   subscriptionTier: string;
   premiumMenuEnabled: boolean;
+  kdsEnabled: boolean;
+  printingEnabled: boolean;
   status: string;
   createdAt: string;
 }
@@ -51,6 +53,8 @@ export default function SuperAdminOrganizationsPage() {
   const [editPlanTier, setEditPlanTier] = useState("free");
   const [editStatus, setEditStatus] = useState("active");
   const [editPremiumMenu, setEditPremiumMenu] = useState(false);
+  const [editKdsEnabled, setEditKdsEnabled] = useState(false);
+  const [editPrintingEnabled, setEditPrintingEnabled] = useState(false);
 
   const apiUrl = process.env.NEXT_PUBLIC_API_URL || "";
 
@@ -177,6 +181,8 @@ export default function SuperAdminOrganizationsPage() {
     setEditPlanTier(org.subscriptionTier);
     setEditStatus(org.status);
     setEditPremiumMenu(org.premiumMenuEnabled || false);
+    setEditKdsEnabled(org.kdsEnabled || false);
+    setEditPrintingEnabled(org.printingEnabled || false);
     setEditModalOpen(true);
   };
 
@@ -199,7 +205,9 @@ export default function SuperAdminOrganizationsPage() {
           brandColor: editBrandColor || null,
           subscriptionTier: editPlanTier,
           status: editStatus,
-          premiumMenuEnabled: editPremiumMenu
+          premiumMenuEnabled: editPremiumMenu,
+          kdsEnabled: editKdsEnabled,
+          printingEnabled: editPrintingEnabled
         })
       });
 
@@ -315,6 +323,16 @@ export default function SuperAdminOrganizationsPage() {
                         {org.premiumMenuEnabled && (
                           <span className="px-1.5 py-0.5 rounded text-[8px] font-bold uppercase tracking-wider bg-[#C9A84C]/15 text-[#C9A84C] border border-[#C9A84C]/20" title="Premium menü kartı aktif">
                             ✦ PREMIUM UI
+                          </span>
+                        )}
+                        {org.kdsEnabled && (
+                          <span className="px-1.5 py-0.5 rounded text-[8px] font-bold uppercase tracking-wider bg-indigo-500/15 text-indigo-400 border border-indigo-500/20" title="Mutfak Ekranı (KDS) Aktif">
+                            🍳 KDS
+                          </span>
+                        )}
+                        {org.printingEnabled && (
+                          <span className="px-1.5 py-0.5 rounded text-[8px] font-bold uppercase tracking-wider bg-emerald-500/15 text-emerald-400 border border-emerald-500/20" title="Yazdırma Aktif">
+                            🖨️ YAZICI
                           </span>
                         )}
                       </div>
@@ -606,6 +624,58 @@ export default function SuperAdminOrganizationsPage() {
                     <span
                       className={`inline-block h-4 w-4 transform rounded-full bg-white shadow-sm transition-transform duration-300 ${
                         editPremiumMenu ? 'translate-x-6' : 'translate-x-1'
+                      }`}
+                    />
+                  </button>
+                </div>
+              </div>
+
+              {/* KDS Toggle */}
+              <div className="space-y-1.5">
+                <label className="text-gray-400 font-semibold">Mutfak Ekranı (KDS)</label>
+                <div className="flex items-center justify-between bg-[#121224] border border-[#2C2C4E]/40 px-4 py-3 rounded-xl">
+                  <div>
+                    <span className={`text-xs font-semibold ${editKdsEnabled ? 'text-indigo-400' : 'text-gray-400'}`}>
+                      {editKdsEnabled ? 'Aktif — KDS Özelliği Açık' : 'Pasif — KDS Özelliği Kapalı'}
+                    </span>
+                    <p className="text-[10px] text-gray-500 mt-0.5">Bu işletmenin şubelerinde Mutfak Görüntüleme Ekranını (KDS) aktif et.</p>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={() => setEditKdsEnabled(!editKdsEnabled)}
+                    className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors duration-300 focus:outline-none ${
+                      editKdsEnabled ? 'bg-indigo-500' : 'bg-[#2C2C4E]/60'
+                    }`}
+                  >
+                    <span
+                      className={`inline-block h-4 w-4 transform rounded-full bg-white shadow-sm transition-transform duration-300 ${
+                        editKdsEnabled ? 'translate-x-6' : 'translate-x-1'
+                      }`}
+                    />
+                  </button>
+                </div>
+              </div>
+
+              {/* Printing Toggle */}
+              <div className="space-y-1.5">
+                <label className="text-gray-400 font-semibold">Adisyon Yazdırma</label>
+                <div className="flex items-center justify-between bg-[#121224] border border-[#2C2C4E]/40 px-4 py-3 rounded-xl">
+                  <div>
+                    <span className={`text-xs font-semibold ${editPrintingEnabled ? 'text-emerald-400' : 'text-gray-400'}`}>
+                      {editPrintingEnabled ? 'Aktif — Yazdırma Özelliği Açık' : 'Pasif — Yazdırma Özelliği Kapalı'}
+                    </span>
+                    <p className="text-[10px] text-gray-500 mt-0.5">Bu işletmenin şubelerinde thermal adisyon yazıcı desteğini aktif et.</p>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={() => setEditPrintingEnabled(!editPrintingEnabled)}
+                    className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors duration-300 focus:outline-none ${
+                      editPrintingEnabled ? 'bg-emerald-500' : 'bg-[#2C2C4E]/60'
+                    }`}
+                  >
+                    <span
+                      className={`inline-block h-4 w-4 transform rounded-full bg-white shadow-sm transition-transform duration-300 ${
+                        editPrintingEnabled ? 'translate-x-6' : 'translate-x-1'
                       }`}
                     />
                   </button>
