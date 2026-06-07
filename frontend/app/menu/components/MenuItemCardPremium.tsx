@@ -175,7 +175,7 @@ export default function MenuItemCardPremium({
           src={item.imageUrl || defaultFoodImage} 
           alt={name}
           className="w-full h-full object-cover transition-transform duration-700 group-hover:scale-110"
-          loading="lazy"
+          loading="eager"
           onError={(e) => {
             (e.target as HTMLImageElement).src = defaultFoodImage;
           }}
