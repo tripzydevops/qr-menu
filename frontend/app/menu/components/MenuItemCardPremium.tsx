@@ -238,9 +238,13 @@ export default function MenuItemCardPremium({
           </div>
         )}
 
+      </div>
+
+      {/* ── Content Body ── */}
+      <div className="relative z-10 px-6 pt-8 pb-6 flex flex-col">
         {/* Floating Price Badge — overlaps image/body boundary */}
         <div 
-          className="absolute bottom-0 right-5 translate-y-1/2 z-30 px-5 py-2.5 rounded-xl"
+          className="absolute top-0 right-5 -translate-y-1/2 z-30 px-5 py-2.5 rounded-xl"
           style={{
             background: isDark 
               ? `linear-gradient(135deg, #DFBA73 0%, #Bfa35c 100%)`
@@ -260,10 +264,7 @@ export default function MenuItemCardPremium({
             {getCurrencySymbol(currency)}{formattedPrice}
           </span>
         </div>
-      </div>
 
-      {/* ── Content Body ── */}
-      <div className="relative z-10 px-6 pt-8 pb-6 flex flex-col">
         {/* Gold decorative separator line */}
         <div 
           className="absolute top-0 left-6 right-6 h-px"

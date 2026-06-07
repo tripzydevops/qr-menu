@@ -156,7 +156,7 @@ export default function ItemDetailSheet({
           isOpen ? 'translate-y-0' : 'translate-y-full'
         } ${
           isPremium && isDark
-            ? "premium-glass-card border-[#C9A84C]/20"
+            ? "premium-glass-card border-[#C9A84C]/20 !overflow-y-auto"
             : isPremium && !isDark
               ? "bg-[#FFFDF8] border-[#C9A84C]/15"
               : isDark 
@@ -164,6 +164,7 @@ export default function ItemDetailSheet({
                 : "bg-[#FDFBF7] border-black/[0.05]"
         }`}
         style={{
+          overflowY: 'auto',
           boxShadow: isPremium && isDark 
             ? '0 -10px 40px -5px rgba(201,168,76,0.15), 0 25px 50px -12px rgba(0,0,0,0.8)' 
             : undefined

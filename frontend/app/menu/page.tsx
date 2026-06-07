@@ -2,7 +2,7 @@
 
 import { useEffect, useState, useRef, Suspense } from "react";
 import { useSearchParams, useRouter } from "next/navigation";
-import { Globe, ShieldAlert, Coffee, ArrowLeft, ShoppingBag, Bell, Receipt, CheckCircle, Home, Search, User, Wine, Sun, Moon } from "lucide-react";
+import { Globe, ShieldAlert, Coffee, ArrowLeft, ShoppingBag, Bell, Receipt, CheckCircle, Home, Search, User, Wine, Sun, Moon, X } from "lucide-react";
 import Link from "next/link";
 
 import { useLocale } from "../../i18n/useLocale";
@@ -83,9 +83,9 @@ function MenuContent() {
   const [selectedItem, setSelectedItem] = useState<MenuItem | null>(null);
   const [showLangMenu, setShowLangMenu] = useState<boolean>(false);
   
-  // Cart & Waiter service states
   const [cart, setCart] = useState<Record<string, { item: MenuItem; quantity: number; notes: string }>>({});
   const [showCart, setShowCart] = useState<boolean>(false);
+  const [hideCartBar, setHideCartBar] = useState<boolean>(false);
   const [serviceStatus, setServiceStatus] = useState<string | null>(null); // "calling", "success_waiter", "success_bill", "error"
   const [searchQuery, setSearchQuery] = useState("");
   const [theme, setTheme] = useState<"dark" | "light">("dark");
@@ -114,6 +114,7 @@ function MenuContent() {
   };
 
   const handleAddToOrder = (item: MenuItem, quantity: number, notes: string) => {
+    setHideCartBar(false);
     setCart((prev) => {
       const existing = prev[item.id];
       if (existing) {
@@ -683,29 +684,50 @@ function MenuContent() {
       />
 
       {/* Floating Bottom Cart Bar */}
-      {Object.keys(cart).length > 0 && !showCart && (
+      {Object.keys(cart).length > 0 && !showCart && !hideCartBar && (
         <div 
-          onClick={() => setShowCart(true)}
-          className={`fixed bottom-16 left-1/2 -translate-x-1/2 w-[90%] max-w-md p-4 rounded-2xl flex items-center justify-between shadow-2xl z-40 animate-fade-in-up border transition-all cursor-pointer ${
+          className={`fixed bottom-16 left-1/2 -translate-x-1/2 w-[90%] max-w-md p-4 rounded-2xl flex items-center justify-between shadow-2xl z-40 animate-fade-in-up border transition-all ${
             theme === "dark" 
-              ? "bg-[#DFBA73] text-[#0A0B0E] border-[#DFBA73]/50 hover:bg-[#DFBA73]/85" 
-              : "bg-[#5C1D24] text-white border-[#5C1D24]/50 hover:bg-[#5C1D24]/85"
+              ? "bg-[#DFBA73] text-[#0A0B0E] border-[#DFBA73]/50" 
+              : "bg-[#5C1D24] text-white border-[#5C1D24]/50"
           }`}
         >
-          <div className="flex items-center space-x-3">
-            <div className={`h-9 w-9 rounded-xl flex items-center justify-center font-bold text-sm ${
-              theme === "dark" ? "bg-[#0A0B0E] text-[#DFBA73]" : "bg-white text-[#5C1D24]"
-            }`}>
-              {Object.values(cart).reduce((sum, i) => sum + i.quantity, 0)}
+          {/* Clickable Area */}
+          <div 
+            onClick={() => setShowCart(true)}
+            className="flex-grow flex items-center justify-between cursor-pointer"
+          >
+            <div className="flex items-center space-x-3">
+              <div className={`h-9 w-9 rounded-xl flex items-center justify-center font-bold text-sm ${
+                theme === "dark" ? "bg-[#0A0B0E] text-[#DFBA73]" : "bg-white text-[#5C1D24]"
+              }`}>
+                {Object.values(cart).reduce((sum, i) => sum + i.quantity, 0)}
+              </div>
+              <div>
+                <p className="text-xs font-bold uppercase tracking-wider opacity-90">{locale === 'en' ? 'View Basket' : 'Sepeti Gör'}</p>
+                <p className="text-[11px] opacity-75">{locale === 'en' ? 'Add notes & checkout' : 'Not ekle ve sipariş ver'}</p>
+              </div>
             </div>
-            <div>
-              <p className="text-xs font-bold uppercase tracking-wider opacity-90">{locale === 'en' ? 'View Basket' : 'Sepeti Gör'}</p>
-              <p className="text-[11px] opacity-75">{locale === 'en' ? 'Add notes & checkout' : 'Not ekle ve sipariş ver'}</p>
-            </div>
+            <span className="font-mono text-base font-bold mr-4">
+              ₺{Object.values(cart).reduce((sum, i) => sum + (Number(i.item.price) * i.quantity), 0).toFixed(2)}
+            </span>
           </div>
-          <span className="font-mono text-base font-bold">
-            ₺{Object.values(cart).reduce((sum, i) => sum + (Number(i.item.price) * i.quantity), 0).toFixed(2)}
-          </span>
+          
+          {/* Close / Dismiss Button */}
+          <button 
+            onClick={(e) => {
+              e.stopPropagation();
+              setHideCartBar(true);
+            }}
+            className={`p-1.5 rounded-xl border transition-all ${
+              theme === "dark" 
+                ? "border-[#0A0B0E]/15 hover:bg-[#0A0B0E]/10 text-[#0A0B0E]" 
+                : "border-white/15 hover:bg-white/10 text-white"
+            }`}
+            title={locale === 'en' ? 'Dismiss' : 'Kapat'}
+          >
+            <X className="h-4 w-4" />
+          </button>
         </div>
       )}
 
