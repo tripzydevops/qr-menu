@@ -11,13 +11,15 @@ import {
   VolumeX, 
   AlertTriangle, 
   Loader2, 
-  Play 
+  Play,
+  Printer
 } from "lucide-react";
 
 interface OrderItem {
   id: string;
   menuItemId: string;
   quantity: number;
+  price: string;
   notes?: string;
   menuItemNameTr?: string;
   menuItemNameEn?: string;
@@ -26,6 +28,7 @@ interface OrderItem {
 interface Order {
   id: string;
   status: string; // "pending", "preparing", "completed", "cancelled"
+  totalAmount: string;
   tableName?: string;
   createdAt: string;
   items: OrderItem[];
@@ -40,6 +43,9 @@ export default function KitchenDisplaySystemPage() {
   const [seenOrderIds, setSeenOrderIds] = useState<Set<string>>(new Set());
   const [refreshKey, setRefreshKey] = useState(0);
   const [timeNow, setTimeNow] = useState(Date.now());
+  const [printingEnabled, setPrintingEnabled] = useState(false);
+  const [orgName, setOrgName] = useState("Karaköy Lokantası");
+  const [activePrintOrder, setActivePrintOrder] = useState<Order | null>(null);
 
   const apiUrl = process.env.NEXT_PUBLIC_API_URL || "";
 
@@ -90,6 +96,8 @@ export default function KitchenDisplaySystemPage() {
         if (res.ok) {
           const data = await res.json();
           setKdsEnabled(data.kdsEnabled || false);
+          setPrintingEnabled(data.printingEnabled || false);
+          setOrgName(data.organizationName || "Karaköy Lokantası");
         }
       } catch (err) {
         console.error("Failed to check KDS settings", err);
@@ -161,6 +169,34 @@ export default function KitchenDisplaySystemPage() {
     }
   };
 
+  const formatDate = (dateString: string) => {
+    const d = new Date(dateString);
+    return d.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+  };
+
+  const handlePrintOrder = (order: Order) => {
+    setActivePrintOrder(order);
+  };
+
+  useEffect(() => {
+    if (activePrintOrder) {
+      const timer = setTimeout(() => {
+        window.print();
+      }, 150);
+      return () => clearTimeout(timer);
+    }
+  }, [activePrintOrder]);
+
+  useEffect(() => {
+    const handleAfterPrint = () => {
+      setActivePrintOrder(null);
+    };
+    window.addEventListener("afterprint", handleAfterPrint);
+    return () => {
+      window.removeEventListener("afterprint", handleAfterPrint);
+    };
+  }, []);
+
   // 5. Timer ticker
   useEffect(() => {
     const timer = setInterval(() => {
@@ -213,7 +249,8 @@ export default function KitchenDisplaySystemPage() {
   }
 
   return (
-    <div className="min-h-screen bg-[#07070E] text-white flex flex-col font-sans select-none antialiased">
+    <>
+      <div className="min-h-screen bg-[#07070E] text-white flex flex-col font-sans select-none antialiased no-print">
       {/* KDS Header Navbar */}
       <header className="sticky top-0 z-30 h-18 bg-[#0C0C16] border-b border-gray-800/45 px-6 flex items-center justify-between shadow-md">
         <div className="flex items-center space-x-3.5">
@@ -338,11 +375,11 @@ export default function KitchenDisplaySystemPage() {
                   </div>
 
                   {/* Operational Action Buttons */}
-                  <div className="p-4 border-t border-gray-800/45 bg-[#0A0A12]/40">
+                  <div className="p-4 border-t border-gray-800/45 bg-[#0A0A12]/40 flex space-x-2">
                     {order.status === "pending" ? (
                       <button
                         onClick={() => handleUpdateStatus(order.id, "preparing")}
-                        className="w-full py-3 rounded-xl bg-indigo-600 hover:bg-indigo-500 active:scale-98 text-white font-bold text-sm tracking-wide transition-all flex items-center justify-center space-x-1.5 shadow-md shadow-indigo-950/20"
+                        className="flex-grow py-3 rounded-xl bg-indigo-600 hover:bg-indigo-500 active:scale-98 text-white font-bold text-sm tracking-wide transition-all flex items-center justify-center space-x-1.5 shadow-md shadow-indigo-950/20"
                       >
                         <Play className="h-4 w-4" />
                         <span>HAZIRLA</span>
@@ -350,10 +387,19 @@ export default function KitchenDisplaySystemPage() {
                     ) : (
                       <button
                         onClick={() => handleUpdateStatus(order.id, "ready")}
-                        className="w-full py-3 rounded-xl bg-emerald-600 hover:bg-emerald-500 active:scale-98 text-white font-bold text-sm tracking-wide transition-all flex items-center justify-center space-x-1.5 shadow-md shadow-emerald-950/20"
+                        className="flex-grow py-3 rounded-xl bg-emerald-600 hover:bg-emerald-500 active:scale-98 text-white font-bold text-sm tracking-wide transition-all flex items-center justify-center space-x-1.5 shadow-md shadow-emerald-950/20"
                       >
                         <Check className="h-4 w-4" />
                         <span>TAMAMLANDI</span>
+                      </button>
+                    )}
+                    {printingEnabled && (
+                      <button
+                        onClick={() => handlePrintOrder(order)}
+                        className="px-3 py-3 rounded-xl bg-indigo-950/20 hover:bg-indigo-950/50 border border-indigo-900/20 hover:border-indigo-900/40 text-indigo-400 hover:text-indigo-350 text-xs font-bold transition-all flex items-center justify-center"
+                        title="Adisyon Fişi Yazdır"
+                      >
+                        <Printer className="h-4 w-4" />
                       </button>
                     )}
                   </div>
@@ -363,6 +409,111 @@ export default function KitchenDisplaySystemPage() {
           </div>
         )}
       </main>
-    </div>
+      </div>
+
+      {/* Print Slip Component (Only visible in print media) */}
+      {activePrintOrder && (
+        <div className="print-slip hidden print:block bg-white text-black font-mono text-xs p-6 w-[80mm] max-w-full mx-auto">
+          <div className="text-center font-bold text-sm uppercase tracking-wide mb-2">
+            *** {orgName.toUpperCase()} ***
+          </div>
+          <div className="text-center text-[10px] mb-4 border-b border-dashed border-black pb-2">
+            ADİSYON TİKETİ
+          </div>
+          <div className="space-y-1 text-[11px] mb-3">
+            <div><strong>Masa:</strong> {activePrintOrder.tableName || "Masa Bilgisi Yok"}</div>
+            <div><strong>Tarih:</strong> {new Date(activePrintOrder.createdAt).toLocaleDateString("tr-TR")} {formatDate(activePrintOrder.createdAt)}</div>
+            <div><strong>Sipariş ID:</strong> #{activePrintOrder.id.slice(0, 8).toUpperCase()}</div>
+          </div>
+          
+          <table className="w-full text-left border-y border-dashed border-black py-2 my-3 text-[11px]">
+            <thead>
+              <tr className="font-bold">
+                <th className="pb-1 w-12">Adet</th>
+                <th className="pb-1">Ürün</th>
+                <th className="pb-1 text-right">Tutar</th>
+              </tr>
+            </thead>
+            <tbody>
+              {activePrintOrder.items.map((item) => (
+                <React.Fragment key={item.id}>
+                  <tr className="align-top">
+                    <td className="py-1 font-semibold">{item.quantity}x</td>
+                    <td className="py-1">
+                      {item.menuItemNameTr || "Ürün"}
+                    </td>
+                    <td className="py-1 text-right">₺{(Number(item.price) * item.quantity).toFixed(2)}</td>
+                  </tr>
+                  {item.notes && (
+                    <tr key={`note-${item.id}`}>
+                      <td></td>
+                      <td colSpan={2} className="text-[10px] italic pb-1">
+                        * Not: {item.notes}
+                      </td>
+                    </tr>
+                  )}
+                </React.Fragment>
+              ))}
+            </tbody>
+          </table>
+          
+          <div className="flex justify-between items-center font-bold text-sm mt-3 pt-1">
+            <span>TOPLAM:</span>
+            <span>₺{Number(activePrintOrder.totalAmount).toFixed(2)}</span>
+          </div>
+          
+          <div className="text-center text-[9px] text-gray-500 mt-8 pt-4 border-t border-dashed border-gray-400">
+            Tripzy QR Menü SaaS tarafından üretilmiştir.
+          </div>
+        </div>
+      )}
+
+      {/* HTML style override specifically targeting browser print configurations */}
+      <style dangerouslySetInnerHTML={{ __html: `
+        @media print {
+          /* Hide all dashboard/web interfaces */
+          header, aside, .no-print {
+            display: none !important;
+          }
+          /* Reset parent containers to block layouts to prevent print engine flex/grid height bugs */
+          html, body, main, div.min-h-screen, div.flex-grow {
+            display: block !important;
+            position: static !important;
+            width: auto !important;
+            height: auto !important;
+            min-height: 0 !important;
+            margin: 0 !important;
+            padding: 0 !important;
+            background: white !important;
+            color: black !important;
+          }
+          /* Make printing ticket explicitly visible and single-column formatting */
+          .print-slip, .print-slip * {
+            display: block !important;
+          }
+          .print-slip {
+            position: absolute !important;
+            left: 0 !important;
+            top: 0 !important;
+            width: 80mm !important;
+            padding: 10px !important;
+            margin: 0 !important;
+            box-shadow: none !important;
+            border: none !important;
+            background: white !important;
+            color: black !important;
+          }
+          .print-slip table {
+            display: table !important;
+          }
+          .print-slip tr {
+            display: table-row !important;
+          }
+          .print-slip td, .print-slip th {
+            display: table-cell !important;
+          }
+        }
+      `}} />
+    </>
   );
 }
