@@ -19,7 +19,7 @@ export async function PUT(
       );
     }
 
-    if (!["pending", "preparing", "completed", "cancelled"].includes(status)) {
+    if (!["pending", "preparing", "ready", "served", "completed", "cancelled"].includes(status)) {
       return NextResponse.json(
         { detail: "Invalid status value" },
         { status: 400 }
