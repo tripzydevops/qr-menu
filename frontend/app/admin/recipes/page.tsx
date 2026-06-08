@@ -25,6 +25,7 @@ interface MenuItem {
   price: string;
   categoryId: string;
   categoryName?: string;
+  showOnMenu?: boolean;
   recipe?: {
     id: string;
     targetMargin: string;
@@ -505,7 +506,14 @@ export default function AdminRecipesPage() {
                       <tr key={item.id} className="hover:bg-[#2A2A3D]/10 transition-colors">
                         <td className="px-6 py-4">
                           <div>
-                            <p className="font-semibold text-white">{item.nameTr}</p>
+                            <div className="flex items-center space-x-2">
+                              <p className="font-semibold text-white">{item.nameTr}</p>
+                              {item.showOnMenu === false && (
+                                <span className="text-[8px] bg-purple-950/40 text-purple-400 px-1.5 py-0.2 rounded border border-purple-900/30 font-bold uppercase tracking-wider">
+                                  Menüde Gizli
+                                </span>
+                              )}
+                            </div>
                             <p className="text-[10px] text-gray-500">({item.nameEn})</p>
                           </div>
                         </td>

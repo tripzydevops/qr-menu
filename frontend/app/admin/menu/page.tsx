@@ -36,6 +36,7 @@ interface MenuItem {
   imageUrl: string | null;
   allergens: string[];
   isAvailable: boolean;
+  showOnMenu: boolean;
   calories: number | null;
   dietaryLabels: DietaryLabel[];
   sortOrder?: number;
@@ -76,6 +77,7 @@ export default function AdminMenuPage() {
   const [itemAllergens, setItemAllergens] = useState<string[]>([]);
   const [itemDietaryIds, setItemDietaryIds] = useState<string[]>([]);
   const [itemAvailable, setItemAvailable] = useState(true);
+  const [itemShowOnMenu, setItemShowOnMenu] = useState(true);
   
   const [isUploading, setIsUploading] = useState(false);
   
@@ -213,6 +215,7 @@ export default function AdminMenuPage() {
           imageUrl: targetItem.imageUrl,
           allergens: targetItem.allergens,
           isAvailable: !currentVal,
+          showOnMenu: targetItem.showOnMenu,
           calories: targetItem.calories,
           dietaryLabelIds: targetItem.dietaryLabels.map(l => l.id)
         })
@@ -370,6 +373,7 @@ export default function AdminMenuPage() {
         imageUrl: itemImageUrl || null,
         allergens: itemAllergens,
         isAvailable: itemAvailable,
+        showOnMenu: itemShowOnMenu,
         sortOrder: editingItem?.sortOrder || 0,
         calories: itemCalories ? parseInt(itemCalories) : null,
         dietaryLabelIds: itemDietaryIds
@@ -418,6 +422,7 @@ export default function AdminMenuPage() {
     setItemAllergens([]);
     setItemDietaryIds([]);
     setItemAvailable(true);
+    setItemShowOnMenu(true);
     setItemErrors({});
   };
 
@@ -442,6 +447,7 @@ export default function AdminMenuPage() {
     setItemAllergens(item.allergens || []);
     setItemDietaryIds(item.dietaryLabels.map(l => l.id) || []);
     setItemAvailable(item.isAvailable);
+    setItemShowOnMenu(item.showOnMenu !== undefined ? item.showOnMenu : true);
     setItemModalOpen(true);
   };
 
@@ -568,12 +574,18 @@ export default function AdminMenuPage() {
                         )}
                       </div>
                       <div>
-                        <div className="flex items-center space-x-2">
+                        <div className="flex items-center space-x-2 flex-wrap gap-y-1">
                           <h4 className={`text-sm font-semibold ${item.isAvailable ? "text-white" : "text-gray-500 line-through"}`}>
                             {item.nameTr}
                           </h4>
                           <span className="text-gray-500 text-xs font-medium">({item.nameEn})</span>
                           
+                          {item.showOnMenu === false && (
+                            <span className="text-[9px] bg-purple-950/40 text-purple-400 px-1.5 py-0.5 rounded border border-purple-900/30 font-bold uppercase tracking-wider">
+                              Menüde Gizli (Sadece Reçete)
+                            </span>
+                          )}
+
                           {/* Dietary badges */}
                           {item.dietaryLabels?.map(l => (
                             <span key={l.id} title={l.key} className="text-[10px] bg-emerald-950/40 text-emerald-400 px-1.5 py-0.2 rounded border border-emerald-900/30">
@@ -887,6 +899,23 @@ export default function AdminMenuPage() {
                       </button>
                     );
                   })}
+                </div>
+              </div>
+
+              {/* Visibility Settings */}
+              <div className="pt-3.5 border-t border-gray-800/40">
+                <label className="text-xs text-gray-400 block mb-2">Görünürlük</label>
+                <div className="flex items-center space-x-2">
+                  <input
+                    type="checkbox"
+                    id="itemShowOnMenu"
+                    checked={itemShowOnMenu}
+                    onChange={(e) => setItemShowOnMenu(e.target.checked)}
+                    className="rounded border-gray-800 bg-[#1C1C28] text-[#C9A84C] focus:ring-[#C9A84C]/50 h-4 w-4 accent-[#C9A84C]"
+                  />
+                  <label htmlFor="itemShowOnMenu" className="text-xs text-gray-300 font-semibold select-none cursor-pointer">
+                    QR Menüde Göster (Müşterilere açık/görünür olsun)
+                  </label>
                 </div>
               </div>
             </div>

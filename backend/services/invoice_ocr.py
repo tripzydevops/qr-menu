@@ -4,14 +4,21 @@ import httpx
 import json
 from typing import List, Dict, Any, Optional
 
-def parse_invoice_image(file_bytes: bytes, mime_type: str) -> Dict[str, Any]:
+def parse_invoice_image(
+    file_bytes: bytes, 
+    mime_type: str,
+    existing_suppliers: Optional[List[Dict[str, Any]]] = None,
+    existing_ingredients: Optional[List[Dict[str, Any]]] = None
+) -> Dict[str, Any]:
     """
     Sends the invoice image/PDF to Gemini 1.5 Flash to extract:
     - supplierName
+    - matchedSupplierId
     - invoiceNumber
     - invoiceDate (YYYY-MM-DD)
     - items: list of dicts with:
         - itemName
+        - matchedIngredientId
         - quantity
         - unitCost
     """
@@ -29,11 +36,13 @@ def parse_invoice_image(file_bytes: bytes, mime_type: str) -> Dict[str, Any]:
         "Return a JSON object with the following structure:\n"
         "{\n"
         "  \"supplierName\": \"string or null\",\n"
+        "  \"matchedSupplierId\": \"string or null\",\n"
         "  \"invoiceNumber\": \"string or null\",\n"
         "  \"invoiceDate\": \"YYYY-MM-DD or null\",\n"
         "  \"items\": [\n"
         "    {\n"
         "      \"itemName\": \"string\",\n"
+        "      \"matchedIngredientId\": \"string or null\",\n"
         "      \"quantity\": number,\n"
         "      \"unitCost\": number\n"
         "    }\n"
@@ -41,6 +50,23 @@ def parse_invoice_image(file_bytes: bytes, mime_type: str) -> Dict[str, Any]:
         "}\n"
         "Extract raw items exactly as shown. For quantity and unitCost, ensure they are positive numeric values."
     )
+
+    if existing_suppliers:
+        prompt += f"\n\nHere are the existing suppliers in the database: {json.dumps(existing_suppliers, ensure_ascii=False)}"
+        prompt += (
+            "\nBased on the supplier name extracted from the invoice, match it to one of these existing suppliers "
+            "if there is a semantic match (e.g. 'MIGROS TICARET A.S.' matches 'migros'). If a match is found, "
+            "populate 'matchedSupplierId' with its ID. Otherwise, return null for 'matchedSupplierId'."
+        )
+
+    if existing_ingredients:
+        prompt += f"\n\nHere are the existing ingredients/materials in the database: {json.dumps(existing_ingredients, ensure_ascii=False)}"
+        prompt += (
+            "\nBased on the item name/description extracted from the invoice, match each item to one of these "
+            "existing ingredients if there is a semantic match (e.g. 'ALTINKILIC TAZE KASR' matches 'Kaşar Peyniri', "
+            "'SÜZME SÜT 1L' matches 'Süt', 'KIRMIZI ET' or 'DANA ET' matches 'Kıyma (Dana)'). "
+            "If a match is found, populate 'matchedIngredientId' with its ID. Otherwise, return null for 'matchedIngredientId'."
+        )
 
     payload = {
         "contents": [

@@ -277,7 +277,7 @@ export default function AdminInvoicesPage() {
 
     try {
       setIsScanning(true);
-      const res = await fetch(`${apiUrl}/api/admin/inventory/invoices/scan`, {
+      const res = await fetch(`${apiUrl}/api/admin/inventory/invoices/scan?venueId=${venueId}`, {
         method: "POST",
         body: formData
       });
@@ -289,10 +289,35 @@ export default function AdminInvoicesPage() {
           alert(`AI Fatura Tarama Hatası (Gemini):\n${data._debugError}`);
         }
 
+        // Re-fetch ingredients and suppliers to include newly auto-created records
+        let updatedSuppliers = suppliers;
+        let updatedIngredients = ingredients;
+        try {
+          const [ingRes, supRes] = await Promise.all([
+            fetch(`${apiUrl}/api/admin/inventory/ingredients?venueId=${venueId}`),
+            fetch(`${apiUrl}/api/admin/inventory/suppliers?venueId=${venueId}`)
+          ]);
+          if (ingRes.ok) {
+            const freshIngs = await ingRes.json();
+            setIngredients(freshIngs);
+            updatedIngredients = freshIngs;
+          }
+          if (supRes.ok) {
+            const freshSups = await supRes.json();
+            setSuppliers(freshSups);
+            updatedSuppliers = freshSups;
+          }
+        } catch (e) {
+          console.error("Failed to re-fetch updated inventory lists", e);
+        }
+
         // Match supplier
-        if (data.supplierName) {
-          const matchedSup = suppliers.find(s => 
-            s.name.toLowerCase().includes(data.supplierName.toLowerCase())
+        if (data.matchedSupplierId) {
+          setSelectedSupplierId(data.matchedSupplierId);
+        } else if (data.supplierName) {
+          const matchedSup = updatedSuppliers.find(s => 
+            s.name.toLowerCase().includes(data.supplierName.toLowerCase()) ||
+            data.supplierName.toLowerCase().includes(s.name.toLowerCase())
           );
           if (matchedSup) setSelectedSupplierId(matchedSup.id);
         }
@@ -305,12 +330,23 @@ export default function AdminInvoicesPage() {
         if (data.items && Array.isArray(data.items)) {
           data.items.forEach((ocrItem: any) => {
             // Find closest matching ingredient
-            const matchedIng = ingredients.find(ing =>
-              ing.name.toLowerCase().includes(ocrItem.itemName.toLowerCase()) ||
-              ocrItem.itemName.toLowerCase().includes(ing.name.toLowerCase())
-            );
+            let ingredientId = "";
+            if (ocrItem.matchedIngredientId) {
+              const exists = updatedIngredients.some(ing => ing.id === ocrItem.matchedIngredientId);
+              if (exists) {
+                ingredientId = ocrItem.matchedIngredientId;
+              }
+            }
+            if (!ingredientId && ocrItem.itemName) {
+              const matchedIng = updatedIngredients.find(ing =>
+                ing.name.toLowerCase().includes(ocrItem.itemName.toLowerCase()) ||
+                ocrItem.itemName.toLowerCase().includes(ing.name.toLowerCase())
+              );
+              if (matchedIng) ingredientId = matchedIng.id;
+            }
+
             mappedItems.push({
-              ingredientId: matchedIng ? matchedIng.id : (ingredients[0]?.id || ""),
+              ingredientId: ingredientId,
               quantity: ocrItem.quantity || 1,
               unitCost: ocrItem.unitCost || 0,
               vatRate: ocrItem.vatRate ?? 0.01,

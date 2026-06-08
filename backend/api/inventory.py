@@ -254,10 +254,92 @@ def void_invoice(id: str, db: Session = Depends(get_db)):
     return inv
 
 @router.post("/invoices/scan")
-async def scan_invoice(file: UploadFile = File(...)):
+async def scan_invoice(
+    venueId: Optional[str] = None,
+    file: UploadFile = File(...),
+    db: Session = Depends(get_db)
+):
     try:
         content = await file.read()
-        extracted = invoice_ocr.parse_invoice_image(content, file.content_type)
+        
+        existing_suppliers = None
+        existing_ingredients = None
+        
+        if venueId:
+            sups = db.query(models.Supplier).filter(models.Supplier.venueId == venueId).all()
+            existing_suppliers = [{"id": s.id, "name": s.name} for s in sups]
+            
+            ings = db.query(models.Ingredient).filter(models.Ingredient.venueId == venueId).all()
+            existing_ingredients = [{"id": i.id, "name": i.name, "unit": i.unit} for i in ings]
+            
+        extracted = invoice_ocr.parse_invoice_image(
+            content, 
+            file.content_type,
+            existing_suppliers=existing_suppliers,
+            existing_ingredients=existing_ingredients
+        )
+        
+        # Auto-creation logic if venueId is provided
+        if venueId and isinstance(extracted, dict):
+            # 1. Resolve or Create Supplier
+            supplier_name = extracted.get("supplierName")
+            matched_sup_id = extracted.get("matchedSupplierId")
+            
+            if supplier_name and not matched_sup_id:
+                # Check if case-insensitive name exists
+                existing_sup = db.query(models.Supplier).filter(
+                    models.Supplier.venueId == venueId,
+                    models.Supplier.name.ilike(supplier_name)
+                ).first()
+                if existing_sup:
+                    extracted["matchedSupplierId"] = existing_sup.id
+                else:
+                    new_sup = models.Supplier(
+                        id=str(uuid.uuid4()),
+                        name=supplier_name,
+                        venueId=venueId
+                    )
+                    db.add(new_sup)
+                    db.commit()
+                    db.refresh(new_sup)
+                    extracted["matchedSupplierId"] = new_sup.id
+            
+            # 2. Resolve or Create Ingredients
+            items = extracted.get("items", [])
+            if isinstance(items, list):
+                venue = db.query(models.Venue).filter(models.Venue.id == venueId).first()
+                org_id = venue.organizationId if venue else None
+                
+                for item in items:
+                    if not isinstance(item, dict):
+                        continue
+                    item_name = item.get("itemName")
+                    matched_ing_id = item.get("matchedIngredientId")
+                    
+                    if item_name and not matched_ing_id:
+                        # Check if case-insensitive name exists
+                        existing_ing = db.query(models.Ingredient).filter(
+                            models.Ingredient.venueId == venueId,
+                            models.Ingredient.name.ilike(item_name)
+                        ).first()
+                        if existing_ing:
+                            item["matchedIngredientId"] = existing_ing.id
+                        else:
+                            new_ing = models.Ingredient(
+                                id=str(uuid.uuid4()),
+                                name=item_name,
+                                unit="adet", # Default unit
+                                currentStock=Decimal("0.0"),
+                                weightedCost=Decimal("0.0"),
+                                density=Decimal("1.0"),
+                                venueId=venueId,
+                                organizationId=org_id
+                            )
+                            db.add(new_ing)
+                            db.commit()
+                            db.refresh(new_ing)
+                            item["matchedIngredientId"] = new_ing.id
+
         return extracted
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"OCR Scan failed: {str(e)}")

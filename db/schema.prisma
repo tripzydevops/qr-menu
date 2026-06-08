@@ -97,6 +97,7 @@ model MenuItem {
   imageUrl      String?
   allergens     String[]              // e.g. ["gluten", "nuts", "dairy"]
   isAvailable   Boolean               @default(true)
+  showOnMenu    Boolean               @default(true)
   isDeleted     Boolean               @default(false)
   sortOrder     Int                   @default(0)
   calories      Int?

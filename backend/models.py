@@ -112,6 +112,7 @@ class MenuItem(Base):
     imageUrl = Column(String, nullable=True)
     allergens = Column(ARRAY(String), nullable=True)
     isAvailable = Column(Boolean, default=True)
+    showOnMenu = Column(Boolean, default=True, nullable=False)
     isDeleted = Column(Boolean, default=False, nullable=False)
     sortOrder = Column(Integer, default=0)
     calories = Column(Integer, nullable=True)

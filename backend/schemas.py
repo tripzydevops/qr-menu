@@ -101,6 +101,7 @@ class MenuItemBase(BaseModel):
     imageUrl: Optional[str] = None
     allergens: List[str] = []
     isAvailable: bool = True
+    showOnMenu: bool = True
     isDeleted: bool = False
     sortOrder: int = 0
     calories: Optional[int] = None
