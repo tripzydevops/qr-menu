@@ -1,5 +1,7 @@
 "use client";
 
+import { DEFAULT_VENUE_ID } from "@/lib/config";
+
 import React, { useEffect, useState } from "react";
 import { 
   Plus, 
@@ -33,7 +35,7 @@ export default function AdminTablesPage() {
   const [qrToken, setQrToken] = useState("");
   const [isSubmitting, setIsSubmitting] = useState(false);
 
-  const venueId = "venue-karakoy-main";
+  const venueId = DEFAULT_VENUE_ID;
   const apiUrl = process.env.NEXT_PUBLIC_API_URL || "";
   // API routes are now served from the same Next.js app (relative URLs)
   // The live url format the QR code maps to

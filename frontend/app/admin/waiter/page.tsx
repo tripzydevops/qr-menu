@@ -1,5 +1,7 @@
 "use client";
 
+import { DEFAULT_VENUE_ID } from "@/lib/config";
+
 import React, { useEffect, useState } from "react";
 import Link from "next/link";
 import { 
@@ -49,7 +51,7 @@ interface Order {
 }
 
 export default function WaiterConsolePage() {
-  const venueId = "venue-karakoy-main";
+  const venueId = DEFAULT_VENUE_ID;
   const [activeTab, setActiveTab] = useState<"calls" | "runs">("calls");
   const [calls, setCalls] = useState<WaiterRequest[]>([]);
   const [runs, setRuns] = useState<Order[]>([]);

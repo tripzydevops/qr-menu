@@ -67,13 +67,25 @@ def parse_invoice_image(file_bytes: bytes, mime_type: str) -> Dict[str, Any]:
             if response.status_code == 200:
                 data = response.json()
                 text_response = data["candidates"][0]["content"]["parts"][0]["text"]
-                return json.loads(text_response.strip())
+                try:
+                    return json.loads(text_response.strip())
+                except Exception as json_err:
+                    print(f"[Invoice OCR] Failed to parse JSON response: {json_err}. Raw text: {text_response}")
+                    mock = get_mock_ocr_result()
+                    mock["_debugError"] = f"JSON parse error: {str(json_err)}"
+                    return mock
             else:
-                print(f"[Invoice OCR] Gemini API error {response.status_code}: {response.text}")
+                err_msg = f"Gemini API error {response.status_code}: {response.text}"
+                print(f"[Invoice OCR] {err_msg}")
+                mock = get_mock_ocr_result()
+                mock["_debugError"] = err_msg
+                return mock
     except Exception as e:
-        print(f"[Invoice OCR] Exception calling Gemini API: {e}")
-
-    return get_mock_ocr_result()
+        err_msg = f"Exception calling Gemini API: {e}"
+        print(f"[Invoice OCR] {err_msg}")
+        mock = get_mock_ocr_result()
+        mock["_debugError"] = err_msg
+        return mock
 
 def get_mock_ocr_result() -> Dict[str, Any]:
     """

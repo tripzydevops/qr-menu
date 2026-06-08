@@ -1,5 +1,7 @@
 "use client";
 
+import { DEFAULT_VENUE_ID } from "@/lib/config";
+
 import React, { useEffect, useState } from "react";
 import Link from "next/link";
 import { 
@@ -35,7 +37,7 @@ interface Order {
 }
 
 export default function KitchenDisplaySystemPage() {
-  const venueId = "venue-karakoy-main";
+  const venueId = DEFAULT_VENUE_ID;
   const [orders, setOrders] = useState<Order[]>([]);
   const [loading, setLoading] = useState(true);
   const [kdsEnabled, setKdsEnabled] = useState(true); // Default to true while loading

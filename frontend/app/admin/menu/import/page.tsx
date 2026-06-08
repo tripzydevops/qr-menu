@@ -1,5 +1,7 @@
 "use client";
 
+import { DEFAULT_VENUE_ID } from "@/lib/config";
+
 import React, { useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
@@ -38,7 +40,7 @@ interface ParsedCategory {
 
 export default function MenuImportPage() {
   const router = useRouter();
-  const venueId = "venue-karakoy-main"; // Seed default matching the system configuration
+  const venueId = DEFAULT_VENUE_ID; // Seed default matching the system configuration
   const apiUrl = process.env.NEXT_PUBLIC_API_URL || "";
 
   // UI State

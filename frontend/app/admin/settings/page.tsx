@@ -1,5 +1,7 @@
 "use client";
 
+import { DEFAULT_VENUE_ID, DEFAULT_ORG_ID } from "@/lib/config";
+
 import React, { useEffect, useState } from "react";
 import Link from "next/link";
 import { 
@@ -57,8 +59,8 @@ export default function AdminSettingsPage() {
     sunday: { open: "10:00", close: "22:00" }
   });
 
-  const venueId = "venue-karakoy-main";
-  const organizationId = "org-karakoy";
+  const venueId = DEFAULT_VENUE_ID;
+  const organizationId = DEFAULT_ORG_ID;
   const apiUrl = process.env.NEXT_PUBLIC_API_URL || "";
 
   useEffect(() => {

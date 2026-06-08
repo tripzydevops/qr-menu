@@ -1,5 +1,7 @@
 "use client";
 
+import { DEFAULT_VENUE_ID } from "@/lib/config";
+
 import React, { useEffect, useState } from "react";
 import { 
   ChefHat, 
@@ -115,7 +117,7 @@ const convertUnit = (amount: number, fromUnit: string, toUnit: string, density: 
 };
 
 export default function AdminRecipesPage() {
-  const venueId = "venue-karakoy-main"; // Seed default
+  const venueId = DEFAULT_VENUE_ID; // Seed default
   const apiUrl = process.env.NEXT_PUBLIC_API_URL || "";
 
   const [menuItems, setMenuItems] = useState<MenuItem[]>([]);

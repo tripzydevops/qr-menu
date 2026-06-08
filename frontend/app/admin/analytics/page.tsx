@@ -1,5 +1,7 @@
 "use client";
 
+import { DEFAULT_VENUE_ID } from "@/lib/config";
+
 import React, { useEffect, useState } from "react";
 import { 
   BarChart3, 
@@ -25,7 +27,7 @@ export default function AdminAnalyticsPage() {
   const [loading, setLoading] = useState(true);
   const [isRefreshing, setIsRefreshing] = useState(false);
 
-  const venueId = "venue-karakoy-main";
+  const venueId = DEFAULT_VENUE_ID;
   const apiUrl = process.env.NEXT_PUBLIC_API_URL || "";
 
   const fetchAnalytics = async (showRefSymbol = false) => {

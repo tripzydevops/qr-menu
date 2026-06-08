@@ -1,5 +1,7 @@
 "use client";
 
+import { DEFAULT_VENUE_ID } from "@/lib/config";
+
 import React, { useEffect, useState } from "react";
 import { 
   Banknote, 
@@ -68,7 +70,7 @@ interface TableOrders {
 }
 
 export default function CashierConsolePage() {
-  const venueId = "venue-karakoy-main";
+  const venueId = DEFAULT_VENUE_ID;
   const [activeTables, setActiveTables] = useState<TableOrders[]>([]);
   const [completedOrders, setCompletedOrders] = useState<Order[]>([]);
   const [summary, setSummary] = useState<DailySummary | null>(null);

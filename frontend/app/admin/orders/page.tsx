@@ -1,5 +1,7 @@
 "use client";
 
+import { DEFAULT_VENUE_ID } from "@/lib/config";
+
 import React, { useEffect, useState } from "react";
 import { ClipboardList, Bell, Receipt, CheckCircle2, Clock, Check, X, ShieldAlert, Sparkles, Printer } from "lucide-react";
 
@@ -32,7 +34,7 @@ interface WaiterRequest {
 }
 
 export default function AdminOrdersPage() {
-  const venueId = "venue-karakoy-main"; // Seed default matching other pages
+  const venueId = DEFAULT_VENUE_ID; // Seed default matching other pages
   const [activeTab, setActiveTab] = useState<"orders" | "requests" | "history">("orders");
   const [orders, setOrders] = useState<Order[]>([]);
   const [requests, setRequests] = useState<WaiterRequest[]>([]);

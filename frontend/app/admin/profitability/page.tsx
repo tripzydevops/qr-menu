@@ -1,5 +1,7 @@
 "use client";
 
+import { DEFAULT_VENUE_ID } from "@/lib/config";
+
 import React, { useEffect, useState } from "react";
 import { 
   TrendingUp, 
@@ -63,7 +65,7 @@ interface AlertRule {
 }
 
 export default function AdminProfitabilityPage() {
-  const venueId = "venue-karakoy-main"; // Seed default
+  const venueId = DEFAULT_VENUE_ID; // Seed default
   const apiUrl = process.env.NEXT_PUBLIC_API_URL || "";
 
   const [summary, setSummary] = useState<ProfitabilitySummary | null>(null);

@@ -613,9 +613,24 @@ Extract raw items exactly as shown. For quantity and unitCost, ensure they are p
         const data = await res.json();
         const textResponse = data.candidates?.[0]?.content?.parts?.[0]?.text;
         if (textResponse) {
-          const parsed = JSON.parse(textResponse.trim());
-          return NextResponse.json(parsed);
+          try {
+            const parsed = JSON.parse(textResponse.trim());
+            return NextResponse.json(parsed);
+          } catch (jsonErr: any) {
+            console.error("[OCR] Failed to parse JSON response from Gemini:", jsonErr);
+            return NextResponse.json({
+              ...getMockOcrResult(),
+              _debugError: `Failed to parse Gemini JSON: ${jsonErr.message}. Raw text: ${textResponse}`
+            });
+          }
         }
+      } else {
+        const errText = await res.text();
+        console.error(`[OCR] Gemini API call failed with status ${res.status}: ${errText}`);
+        return NextResponse.json({
+          ...getMockOcrResult(),
+          _debugError: `Gemini API returned status ${res.status}: ${errText}`
+        });
       }
 
       console.error("[OCR] Gemini API failed. Returning fallback mock.");

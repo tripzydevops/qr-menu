@@ -1,5 +1,7 @@
 "use client";
 
+import { DEFAULT_VENUE_ID } from "@/lib/config";
+
 import React, { useEffect, useState } from "react";
 import Link from "next/link";
 import { 
@@ -81,7 +83,7 @@ export default function AdminMenuPage() {
   const [catErrors, setCatErrors] = useState<Record<string, string>>({});
   const [itemErrors, setItemErrors] = useState<Record<string, string>>({});
 
-  const venueId = "venue-karakoy-main"; // Seed default
+  const venueId = DEFAULT_VENUE_ID; // Seed default
   const apiUrl = process.env.NEXT_PUBLIC_API_URL || "";
 
   const fetchMenuData = async () => {
