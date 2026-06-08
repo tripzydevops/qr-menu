@@ -487,12 +487,12 @@ export default function AdminInventoryPage() {
       {ingModalOpen && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
           <div className="absolute inset-0 bg-black/75 backdrop-blur-sm" onClick={() => setIngModalOpen(false)} />
-          <div className="relative w-full max-w-md bg-[#16213E] border border-gray-800 rounded-2xl p-6 shadow-2xl space-y-4">
-            <h3 className="font-serif text-lg font-bold text-white">
+          <div className="relative w-full max-w-md bg-[#16213E] border border-gray-800 rounded-2xl p-6 shadow-2xl space-y-4 flex flex-col max-h-[85vh]">
+            <h3 className="font-serif text-lg font-bold text-white flex-shrink-0">
               {editingIng ? "Malzemeyi Düzenle" : "Yeni Malzeme Ekle"}
             </h3>
 
-            <div className="space-y-4">
+            <div className="space-y-4 overflow-y-auto flex-grow pr-1">
               <div>
                 <label className="text-xs text-gray-400 block mb-1">Malzeme Adı</label>
                 <input
@@ -538,7 +538,7 @@ export default function AdminInventoryPage() {
               </div>
             </div>
 
-            <div className="flex justify-end space-x-2 pt-4 border-t border-gray-800/40">
+            <div className="flex justify-end space-x-2 pt-4 border-t border-gray-800/40 flex-shrink-0">
               <button
                 onClick={() => setIngModalOpen(false)}
                 className="px-4 py-2 rounded-xl bg-gray-800 text-xs font-bold hover:bg-gray-700"
@@ -560,12 +560,12 @@ export default function AdminInventoryPage() {
       {supModalOpen && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
           <div className="absolute inset-0 bg-black/75 backdrop-blur-sm" onClick={() => setSupModalOpen(false)} />
-          <div className="relative w-full max-w-md bg-[#16213E] border border-gray-800 rounded-2xl p-6 shadow-2xl space-y-4">
-            <h3 className="font-serif text-lg font-bold text-white">
+          <div className="relative w-full max-w-md bg-[#16213E] border border-gray-800 rounded-2xl p-6 shadow-2xl space-y-4 flex flex-col max-h-[85vh]">
+            <h3 className="font-serif text-lg font-bold text-white flex-shrink-0">
               {editingSup ? "Tedarikçiyi Düzenle" : "Yeni Tedarikçi Ekle"}
             </h3>
 
-            <div className="space-y-4">
+            <div className="space-y-4 overflow-y-auto flex-grow pr-1">
               <div>
                 <label className="text-xs text-gray-400 block mb-1">Tedarikçi Adı</label>
                 <input
@@ -603,7 +603,7 @@ export default function AdminInventoryPage() {
               </div>
             </div>
 
-            <div className="flex justify-end space-x-2 pt-4 border-t border-gray-800/40">
+            <div className="flex justify-end space-x-2 pt-4 border-t border-gray-800/40 flex-shrink-0">
               <button
                 onClick={() => setSupModalOpen(false)}
                 className="px-4 py-2 rounded-xl bg-gray-800 text-xs font-bold hover:bg-gray-700"

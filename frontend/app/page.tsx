@@ -1087,12 +1087,12 @@ export default function Home() {
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
           <div className="absolute inset-0 bg-black/85 backdrop-blur-md animate-in fade-in duration-200" onClick={() => setIsLoginOpen(false)} />
           
-          <div className="relative bg-[#0A0B0E] border border-white/[0.08] rounded-3xl w-full max-w-md p-6 md:p-8 shadow-2xl overflow-hidden animate-in fade-in zoom-in-95 duration-300">
+          <div className="relative bg-[#0A0B0E] border border-white/[0.08] rounded-3xl w-full max-w-md p-6 md:p-8 shadow-2xl overflow-hidden animate-in fade-in zoom-in-95 duration-300 flex flex-col max-h-[85vh]">
             
             {/* Ambient gold glow in modal */}
             <div className="absolute top-[-10%] right-[-10%] w-[180px] h-[180px] bg-[#DFBA73]/5 rounded-full blur-[40px] pointer-events-none" />
 
-            <div className="flex justify-between items-center border-b border-white/[0.04] pb-4 mb-6">
+            <div className="flex justify-between items-center border-b border-white/[0.04] pb-4 mb-6 flex-shrink-0">
               <div className="flex items-center space-x-2.5">
                 <Lock className="h-4.5 w-4.5 text-[#DFBA73]" />
                 <h3 className="font-serif font-bold text-lg text-white">Sisteme Giriş Yap</h3>
@@ -1106,7 +1106,7 @@ export default function Home() {
             </div>
 
             {loginSuccess ? (
-              <div className="py-8 text-center space-y-4">
+              <div className="py-8 text-center space-y-4 flex-shrink-0">
                 <div className="h-12 w-12 bg-green-500/10 border border-green-500/20 rounded-full flex items-center justify-center mx-auto text-green-400 animate-bounce">
                   <Check className="h-6 w-6" />
                 </div>
@@ -1114,7 +1114,7 @@ export default function Home() {
                 <p className="text-xs text-gray-400">Yönlendiriliyorsunuz...</p>
               </div>
             ) : (
-              <div className="space-y-6">
+              <div className="space-y-6 overflow-y-auto flex-grow pr-1">
                 
                 {/* Information Alert about Dev Bypass */}
                 <div className="bg-[#5C1D24]/10 border border-[#DFBA73]/20 rounded-2xl p-4 flex items-start space-x-3">

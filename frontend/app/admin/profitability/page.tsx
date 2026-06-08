@@ -448,8 +448,8 @@ export default function AdminProfitabilityPage() {
       {syncModalOpen && summary && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
           <div className="absolute inset-0 bg-black/75 backdrop-blur-sm" onClick={() => setSyncModalOpen(false)} />
-          <div className="relative w-full max-w-lg bg-[#16213E] border border-gray-800 rounded-2xl p-6 shadow-2xl space-y-4">
-            <div>
+          <div className="relative w-full max-w-lg bg-[#16213E] border border-gray-800 rounded-2xl p-6 shadow-2xl space-y-4 flex flex-col max-h-[85vh]">
+            <div className="flex-shrink-0">
               <h3 className="font-serif text-lg font-bold text-white flex items-center space-x-2">
                 <DollarSign className="h-5 w-5 text-[#C9A84C]" />
                 <span>Menü Fiyat Senkronizasyonu</span>
@@ -479,7 +479,7 @@ export default function AdminProfitabilityPage() {
             </div>
 
             {/* Footer */}
-            <div className="flex justify-end space-x-2 pt-2">
+            <div className="flex justify-end space-x-2 pt-2 flex-shrink-0">
               <button
                 onClick={() => setSyncModalOpen(false)}
                 className="px-4 py-2.5 rounded-xl bg-gray-800 hover:bg-gray-700 text-xs font-bold text-white border border-gray-700/50"

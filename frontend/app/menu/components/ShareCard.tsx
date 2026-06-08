@@ -118,7 +118,7 @@ export default function ShareCard({
       />
 
       {/* Share Container */}
-      <div className="relative w-full max-w-sm rounded-[2rem] border border-[#C9A84C]/30 bg-gradient-to-b from-[#1C1C28] via-[#0A0A0B] to-[#050507] p-6 text-center shadow-2xl animate-fade-in-up">
+      <div className="relative w-full max-w-sm rounded-[2rem] border border-[#C9A84C]/30 bg-gradient-to-b from-[#1C1C28] via-[#0A0A0B] to-[#050507] p-6 text-center shadow-2xl animate-fade-in-up max-h-[85vh] overflow-y-auto no-scrollbar">
         {/* Decorative ambient gold glow */}
         <div className="absolute -top-10 -left-10 w-40 h-40 bg-[#C9A84C]/5 rounded-full blur-3xl pointer-events-none" />
         <div className="absolute -bottom-10 -right-10 w-40 h-40 bg-[#C9A84C]/5 rounded-full blur-3xl pointer-events-none" />

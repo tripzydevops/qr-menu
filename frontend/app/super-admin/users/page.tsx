@@ -345,9 +345,9 @@ export default function SuperAdminUsersPage() {
           
           <form 
             onSubmit={handleAddUser}
-            className="bg-[#16162a] border border-[#2C2C4E]/40 w-full max-w-md rounded-2xl overflow-hidden shadow-2xl relative z-10 animate-slide-up"
+            className="bg-[#16162a] border border-[#2C2C4E]/40 w-full max-w-md rounded-2xl overflow-hidden shadow-2xl relative z-10 animate-slide-up flex flex-col max-h-[85vh]"
           >
-            <div className="px-6 py-5 border-b border-[#2C2C4E]/30 flex items-center justify-between bg-[#121224]/50">
+            <div className="px-6 py-5 border-b border-[#2C2C4E]/30 flex items-center justify-between bg-[#121224]/50 flex-shrink-0">
               <h3 className="font-serif text-[15px] font-bold text-white">Yeni Kullanıcı Hesabı Ekle</h3>
               <button 
                 type="button"
@@ -358,7 +358,7 @@ export default function SuperAdminUsersPage() {
               </button>
             </div>
 
-            <div className="p-6 space-y-4 text-xs">
+            <div className="p-6 space-y-4 text-xs overflow-y-auto flex-grow">
               <div className="space-y-1.5">
                 <label className="text-gray-400 font-semibold">User ID (Supabase UID) <span className="text-red-500">*</span></label>
                 <input 
@@ -448,7 +448,7 @@ export default function SuperAdminUsersPage() {
               </div>
             </div>
 
-            <div className="px-6 py-4 border-t border-[#2C2C4E]/20 flex items-center justify-end space-x-3 bg-[#121224]/30">
+            <div className="px-6 py-4 border-t border-[#2C2C4E]/20 flex items-center justify-end space-x-3 bg-[#121224]/30 flex-shrink-0">
               <button 
                 type="button"
                 onClick={() => setAddModalOpen(false)}
@@ -486,9 +486,9 @@ export default function SuperAdminUsersPage() {
           
           <form 
             onSubmit={handleEditUser}
-            className="bg-[#16162a] border border-[#2C2C4E]/40 w-full max-w-md rounded-2xl overflow-hidden shadow-2xl relative z-10 animate-slide-up"
+            className="bg-[#16162a] border border-[#2C2C4E]/40 w-full max-w-md rounded-2xl overflow-hidden shadow-2xl relative z-10 animate-slide-up flex flex-col max-h-[85vh]"
           >
-            <div className="px-6 py-5 border-b border-[#2C2C4E]/30 flex items-center justify-between bg-[#121224]/50">
+            <div className="px-6 py-5 border-b border-[#2C2C4E]/30 flex items-center justify-between bg-[#121224]/50 flex-shrink-0">
               <h3 className="font-serif text-[15px] font-bold text-white">Kullanıcı Hesabını Düzenle</h3>
               <button 
                 type="button"
@@ -499,7 +499,7 @@ export default function SuperAdminUsersPage() {
               </button>
             </div>
 
-            <div className="p-6 space-y-4 text-xs">
+            <div className="p-6 space-y-4 text-xs overflow-y-auto flex-grow">
               <div className="space-y-1.5">
                 <label className="text-gray-400 font-semibold">E-posta Adresi <span className="text-red-500">*</span></label>
                 <input 
@@ -577,7 +577,7 @@ export default function SuperAdminUsersPage() {
               </div>
             </div>
 
-            <div className="px-6 py-4 border-t border-[#2C2C4E]/20 flex items-center justify-end space-x-3 bg-[#121224]/30">
+            <div className="px-6 py-4 border-t border-[#2C2C4E]/20 flex items-center justify-end space-x-3 bg-[#121224]/30 flex-shrink-0">
               <button 
                 type="button"
                 onClick={() => setEditModalOpen(false)}
