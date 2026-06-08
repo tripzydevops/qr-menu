@@ -147,6 +147,7 @@ export async function GET(
           },
           include: {
             dietaryLabels: true,
+            reviews: venue.reviewsEnabled ? true : false,
           },
         },
       },
@@ -163,27 +164,36 @@ export async function GET(
       menuId: cat.menuId,
       createdAt: cat.createdAt.toISOString(),
       updatedAt: cat.updatedAt.toISOString(),
-      items: cat.items.map((item) => ({
-        id: item.id,
-        nameTr: item.nameTr,
-        nameEn: item.nameEn,
-        descriptionTr: item.descriptionTr,
-        descriptionEn: item.descriptionEn,
-        price: Number(item.price), // Convert Decimal to number
-        imageUrl: item.imageUrl,
-        allergens: item.allergens,
-        isAvailable: item.isAvailable,
-        sortOrder: item.sortOrder,
-        calories: item.calories,
-        categoryId: item.categoryId,
-        createdAt: item.createdAt.toISOString(),
-        updatedAt: item.updatedAt.toISOString(),
-        dietaryLabels: item.dietaryLabels.map((lbl) => ({
-          id: lbl.id,
-          key: lbl.key,
-          icon: lbl.icon,
-        })),
-      })),
+      items: cat.items.map((item) => {
+        const itemReviews = (item as any).reviews || [];
+        const reviewCount = itemReviews.length;
+        const totalRating = itemReviews.reduce((sum: number, r: any) => sum + r.rating, 0);
+        const averageRating = reviewCount > 0 ? (totalRating / reviewCount) : null;
+
+        return {
+          id: item.id,
+          nameTr: item.nameTr,
+          nameEn: item.nameEn,
+          descriptionTr: item.descriptionTr,
+          descriptionEn: item.descriptionEn,
+          price: Number(item.price), // Convert Decimal to number
+          imageUrl: item.imageUrl,
+          allergens: item.allergens,
+          isAvailable: item.isAvailable,
+          sortOrder: item.sortOrder,
+          calories: item.calories,
+          categoryId: item.categoryId,
+          createdAt: item.createdAt.toISOString(),
+          updatedAt: item.updatedAt.toISOString(),
+          dietaryLabels: item.dietaryLabels.map((lbl) => ({
+            id: lbl.id,
+            key: lbl.key,
+            icon: lbl.icon,
+          })),
+          averageRating,
+          reviewCount,
+        };
+      }),
     }));
 
     const response = NextResponse.json({
@@ -206,6 +216,7 @@ export async function GET(
       kdsEnabled: org.kdsEnabled || false,
       printingEnabled: org.printingEnabled || false,
       inventoryEnabled: org.inventoryEnabled || false,
+      reviewsEnabled: venue.reviewsEnabled,
       categories: mappedCategories,
     });
 

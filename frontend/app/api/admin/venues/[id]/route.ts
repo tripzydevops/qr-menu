@@ -19,6 +19,7 @@ export async function PUT(
       supportedLocales,
       brandColor,
       premiumMenuSelected,
+      reviewsEnabled,
     } = body;
 
     const venue = await prisma.venue.findUnique({
@@ -41,6 +42,7 @@ export async function PUT(
           currency: currency !== undefined ? currency : venue.currency,
           defaultLocale: defaultLocale !== undefined ? defaultLocale : venue.defaultLocale,
           supportedLocales: supportedLocales !== undefined ? supportedLocales : venue.supportedLocales,
+          reviewsEnabled: reviewsEnabled !== undefined ? reviewsEnabled : venue.reviewsEnabled,
         },
       }),
       ...(brandColor !== undefined || premiumMenuSelected !== undefined

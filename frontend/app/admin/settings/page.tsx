@@ -43,6 +43,8 @@ export default function AdminSettingsPage() {
   const [premiumMenuEnabled, setPremiumMenuEnabled] = useState(false);
   const [plan, setPlan] = useState("free");
   const [premiumMenuSelected, setPremiumMenuSelected] = useState(false);
+  const [reviewsEnabled, setReviewsEnabled] = useState(true);
+
   
   // Operating Hours states
   const [hours, setHours] = useState<Record<string, { open: string; close: string }>>({
@@ -80,6 +82,7 @@ export default function AdminSettingsPage() {
           setBrandColor(data.brandColor || "#722F37");
           setPremiumMenuEnabled(data.premiumMenuEnabled || false);
           setPlan(data.plan || "free");
+          setReviewsEnabled(data.reviewsEnabled !== undefined ? data.reviewsEnabled : true);
           const isSelected = data.premiumMenuSelected || false;
           setPremiumMenuSelected(isSelected);
           if (typeof window !== "undefined") {
@@ -141,7 +144,8 @@ export default function AdminSettingsPage() {
           supportedLocales: ["tr", "en"],
           operatingHours: hours,
           brandColor,
-          premiumMenuSelected
+          premiumMenuSelected,
+          reviewsEnabled
         })
       });
 
@@ -368,6 +372,25 @@ export default function AdminSettingsPage() {
               </div>
             </div>
           </div>
+        </div>
+
+        {/* Guest Reviews Settings card */}
+        <div className="bg-[#16213E]/50 border border-gray-800/40 rounded-2xl p-6 shadow-sm space-y-4">
+          <h3 className="font-serif text-lg font-bold text-white flex items-center space-x-2">
+            <span>⭐</span>
+            <span>Müşteri Değerlendirmeleri (Yorumlar)</span>
+          </h3>
+          <p className="text-xs text-gray-400">Misafirlerinizin menü öğeleri için puanlama yapmasına ve yorum bırakmasına izin verin.</p>
+          
+          <label className="flex items-center space-x-3 cursor-pointer group w-fit">
+            <input 
+              type="checkbox" 
+              checked={reviewsEnabled}
+              onChange={(e) => setReviewsEnabled(e.target.checked)}
+              className="h-4 w-4 bg-[#1C1C28] border-gray-800 rounded text-[#C9A84C] focus:ring-[#C9A84C]/50 cursor-pointer"
+            />
+            <span className="text-sm text-gray-300 group-hover:text-white transition-colors select-none">Yorum ve Değerlendirmeleri Aktifleştir</span>
+          </label>
         </div>
 
         {/* General Details info card */}

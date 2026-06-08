@@ -11,7 +11,8 @@ import {
   LogOut, 
   ShieldAlert,
   Menu,
-  X
+  X,
+  MessageSquare
 } from "lucide-react";
 
 export default function SuperAdminLayout({
@@ -26,6 +27,7 @@ export default function SuperAdminLayout({
     { name: "Platform Analizleri", href: "/super-admin", icon: LayoutDashboard },
     { name: "Üye İşletmeler", href: "/super-admin/organizations", icon: Building2 },
     { name: "Kullanıcı Hesapları", href: "/super-admin/users", icon: Users },
+    { name: "Müşteri Değerlendirmeleri", href: "/super-admin/reviews", icon: MessageSquare },
     { name: "SaaS Paket Ayarları", href: "/super-admin/settings", icon: SettingsIcon },
   ];
 

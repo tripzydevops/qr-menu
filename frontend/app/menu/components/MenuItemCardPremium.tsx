@@ -64,6 +64,8 @@ interface MenuItem {
   calories: number | null;
   dietaryLabels: DietaryLabel[];
   translations?: Array<{ locale: string; name: string; description: string | null }>;
+  averageRating?: number | null;
+  reviewCount?: number;
 }
 
 interface MenuItemCardProps {
@@ -299,15 +301,28 @@ export default function MenuItemCardPremium({
         />
 
         {/* Title — Playfair Display serif, gold in dark / deep wine in light */}
-        <h3 
-          className="text-lg md:text-xl font-bold leading-tight tracking-wide mb-2.5 line-clamp-2"
-          style={{ 
-            color: isDark ? goldLight : '#1E1214',
-            fontFamily: "var(--font-playfair), 'Playfair Display', Georgia, serif",
-          }}
-        >
-          {name}
-        </h3>
+        <div className="flex justify-between items-start gap-2 mb-2.5">
+          <h3 
+            className="text-lg md:text-xl font-bold leading-tight tracking-wide line-clamp-2"
+            style={{ 
+              color: isDark ? goldLight : '#1E1214',
+              fontFamily: "var(--font-playfair), 'Playfair Display', Georgia, serif",
+            }}
+          >
+            {name}
+          </h3>
+          {item.averageRating !== undefined && (
+            <div className="flex items-center space-x-1 shrink-0 mt-1">
+              <span className="text-[10px] text-[#C9A84C] font-bold">★</span>
+              <span className="text-[11px] font-bold font-mono" style={{ color: isDark ? '#FFF' : '#0A0B0E' }}>
+                {item.averageRating !== null ? item.averageRating.toFixed(1) : '—'}
+              </span>
+              <span className="text-[9px] text-gray-500 font-mono">
+                ({item.reviewCount || 0})
+              </span>
+            </div>
+          )}
+        </div>
         
         {/* Description — elegant light text with generous line height */}
         {description && (

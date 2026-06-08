@@ -44,6 +44,8 @@ interface MenuItem {
   calories: number | null;
   dietaryLabels: DietaryLabel[];
   translations?: Array<{ locale: string; name: string; description: string | null }>;
+  averageRating?: number | null;
+  reviewCount?: number;
 }
 
 interface MenuItemCardProps {
@@ -237,10 +239,17 @@ export default function MenuItemCard({
           isDark ? 'border-white/[0.03]' : 'border-black/[0.03]'
         }`}>
           {/* Rating */}
-          <div className="flex items-center space-x-0.5">
-            <span className="text-[10px] font-bold font-mono" style={{ color: accentColor }}>4.9</span>
-            <span className="text-[9px]" style={{ color: accentColor }}>★</span>
-          </div>
+          {item.averageRating !== undefined && (
+            <div className="flex items-center space-x-0.5">
+              <span className="text-[10px] font-bold font-mono" style={{ color: accentColor }}>
+                {item.averageRating !== null ? item.averageRating.toFixed(1) : '—'}
+              </span>
+              <span className="text-[9px] text-[#DFBA73] font-bold mr-1">★</span>
+              <span className="text-[8px] text-gray-500 font-medium font-mono">
+                ({item.reviewCount || 0})
+              </span>
+            </div>
+          )}
 
           {/* ADD Button */}
           <button

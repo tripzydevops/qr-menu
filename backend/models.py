@@ -48,6 +48,7 @@ class Venue(Base):
     defaultLocale = Column(String, default="tr")
     supportedLocales = Column(ARRAY(String), default=["tr", "en"])
     organizationId = Column(String, ForeignKey("Organization.id", ondelete="CASCADE"), nullable=False)
+    reviewsEnabled = Column(Boolean, default=True)
     createdAt = Column(DateTime, default=datetime.datetime.utcnow)
     updatedAt = Column(DateTime, default=datetime.datetime.utcnow, onupdate=datetime.datetime.utcnow)
 
@@ -124,6 +125,8 @@ class MenuItem(Base):
     orderItems = relationship("OrderItem", back_populates="menuItem", cascade="all, delete-orphan")
     recipe = relationship("Recipe", back_populates="menuItem", uselist=False, cascade="all, delete-orphan")
     pricingAlerts = relationship("PricingAlert", back_populates="menuItem")
+    reviews = relationship("Review", back_populates="menuItem", cascade="all, delete-orphan")
+
 
 
 class MenuItemTranslation(Base):
@@ -441,4 +444,18 @@ class PricingAlertRule(Base):
     updatedAt = Column(DateTime, default=datetime.datetime.utcnow, onupdate=datetime.datetime.utcnow)
 
     venue = relationship("Venue", back_populates="pricingAlertRule")
+
+
+class Review(Base):
+    __tablename__ = "Review"
+
+    id = Column(String, primary_key=True, index=True)
+    rating = Column(Integer, nullable=False)
+    comment = Column(String, nullable=True)
+    guestName = Column(String, default="Guest")
+    menuItemId = Column(String, ForeignKey("MenuItem.id", ondelete="CASCADE"), nullable=False)
+    createdAt = Column(DateTime, default=datetime.datetime.utcnow)
+
+    menuItem = relationship("MenuItem", back_populates="reviews")
+
 

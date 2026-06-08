@@ -4,6 +4,9 @@ import "./globals.css";
 export const metadata: Metadata = {
   title: "Tripzy QR Menu - Premium Digital Menus",
   description: "A fast, gorgeous, and seamless digital menu experience for restaurants, cafes, and hotels in Turkey.",
+  icons: {
+    icon: "/favicon.svg",
+  },
 };
 
 export default function RootLayout({

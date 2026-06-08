@@ -29,6 +29,14 @@ const DIETARY_MAP: Record<string, { icon: React.ComponentType<any>; label: strin
   'gluten-free': { icon: Wheat, label: 'Gluten-Free', colorClass: 'bg-amber-950/65 text-amber-400 border-amber-900/30' }
 };
 
+interface ClientReview {
+  id: string;
+  rating: number;
+  comment: string | null;
+  guestName: string | null;
+  createdAt: string;
+}
+
 interface ItemDetailSheetProps {
   isOpen: boolean;
   item: MenuItem | null;
@@ -41,6 +49,8 @@ interface ItemDetailSheetProps {
   onAddToOrder: (item: MenuItem, quantity: number, notes: string) => void;
   theme?: "dark" | "light";
   isPremium?: boolean;
+  reviewsEnabled?: boolean;
+  qrToken?: string;
 }
 
 const ALLERGEN_MAP: Record<string, { icon: string; labelKey: string }> = {
@@ -84,12 +94,91 @@ export default function ItemDetailSheet({
   venueName,
   onAddToOrder,
   theme = "dark",
-  isPremium = false
+  isPremium = false,
+  reviewsEnabled = true,
+  qrToken = ""
 }: ItemDetailSheetProps) {
   const [showShareCard, setShowShareCard] = useState(false);
   const [isRendered, setIsRendered] = useState(false);
   const [quantity, setQuantity] = useState(1);
   const [notes, setNotes] = useState('');
+
+  // Reviews State
+  const [reviews, setReviews] = useState<ClientReview[]>([]);
+  const [loadingReviews, setLoadingReviews] = useState(false);
+  const [submittingReview, setSubmittingReview] = useState(false);
+  const [newRating, setNewRating] = useState(5);
+  const [newComment, setNewComment] = useState('');
+  const [newGuestName, setNewGuestName] = useState('');
+  const [reviewError, setReviewError] = useState<string | null>(null);
+
+  // Fetch reviews when item changes and reviews are enabled
+  useEffect(() => {
+    if (isOpen && item && reviewsEnabled && qrToken) {
+      const fetchReviews = async () => {
+        try {
+          setLoadingReviews(true);
+          const apiUrl = process.env.NEXT_PUBLIC_API_URL || "";
+          const res = await fetch(`${apiUrl}/api/menu/${qrToken}/reviews?menuItemId=${item.id}`);
+          if (res.ok) {
+            const data = await res.json();
+            setReviews(data);
+          }
+        } catch (e) {
+          console.error("Failed to fetch reviews: ", e);
+        } finally {
+          setLoadingReviews(false);
+        }
+      };
+      fetchReviews();
+    }
+  }, [isOpen, item, reviewsEnabled, qrToken]);
+
+  const handleSubmitReview = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!item || !qrToken) return;
+
+    try {
+      setSubmittingReview(true);
+      setReviewError(null);
+      const apiUrl = process.env.NEXT_PUBLIC_API_URL || "";
+      const res = await fetch(`${apiUrl}/api/menu/${qrToken}/reviews`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          menuItemId: item.id,
+          rating: newRating,
+          comment: newComment || null,
+          guestName: newGuestName || null,
+        }),
+      });
+
+      if (res.ok) {
+        const created = await res.json();
+        // Optimistically prepend the new review
+        setReviews(prev => [created, ...prev]);
+        // Update item average rating locally
+        if (item) {
+          const count = item.reviewCount || 0;
+          const currentAvg = item.averageRating || 0;
+          item.reviewCount = count + 1;
+          item.averageRating = ((currentAvg * count) + newRating) / (count + 1);
+        }
+        // Reset form
+        setNewComment('');
+        setNewGuestName('');
+        setNewRating(5);
+      } else {
+        const errorData = await res.json();
+        setReviewError(errorData.detail || "Failed to submit review.");
+      }
+    } catch (err) {
+      console.error(err);
+      setReviewError("An unexpected error occurred.");
+    } finally {
+      setSubmittingReview(false);
+    }
+  };
 
   useEffect(() => {
     if (isOpen) {
@@ -435,6 +524,174 @@ export default function ItemDetailSheet({
               </button>
             </div>
           </div>
+
+          {/* Reviews Section */}
+          {reviewsEnabled && (
+            <div className={`mt-8 pt-6 border-t ${isDark ? 'border-white/[0.06]' : 'border-black/[0.06]'}`}>
+              <h3 className={`font-serif text-base font-bold mb-4 ${isDark ? 'text-white' : 'text-[#1E1214]'}`}>
+                {locale === 'en' ? 'Guest Reviews' : 'Misafir Değerlendirmeleri'}
+              </h3>
+
+              {/* Reviews Summary / Average */}
+              <div className={`flex items-center gap-4 p-4 rounded-2xl mb-6 ${
+                isDark ? 'bg-white/[0.02] border border-white/[0.04]' : 'bg-black/[0.02] border border-black/[0.04]'
+              }`}>
+                <div className="text-center border-r pr-4 border-gray-800/20 shrink-0">
+                  <div className={`text-3xl font-bold font-mono ${isDark ? 'text-white' : 'text-[#1E1214]'}`}>
+                    {item.averageRating !== null && item.averageRating !== undefined ? item.averageRating.toFixed(1) : '—'}
+                  </div>
+                  <div className="flex items-center justify-center text-[#DFBA73] text-xs mt-0.5">
+                    ★
+                  </div>
+                  <div className="text-[10px] text-gray-500 font-medium mt-1 font-mono">
+                    {reviews.length} {locale === 'en' ? 'reviews' : 'yorum'}
+                  </div>
+                </div>
+
+                <div className="flex-grow">
+                  <p className={`text-xs leading-relaxed ${isDark ? 'text-gray-300' : 'text-gray-600'}`}>
+                    {locale === 'en' 
+                      ? 'Ratings and reviews are left anonymously or by guests at this table.' 
+                      : 'Puanlar ve yorumlar bu masadaki misafirler tarafından bırakılmıştır.'}
+                  </p>
+                </div>
+              </div>
+
+              {/* Reviews List */}
+              <div className="space-y-4 mb-6 max-h-60 overflow-y-auto no-scrollbar pr-1">
+                {loadingReviews ? (
+                  <div className="text-center py-4 text-xs text-gray-500">
+                    {locale === 'en' ? 'Loading reviews...' : 'Yorumlar yükleniyor...'}
+                  </div>
+                ) : reviews.length === 0 ? (
+                  <div className="text-center py-4 text-xs text-gray-500 italic">
+                    {locale === 'en' ? 'No reviews yet. Be the first!' : 'Henüz yorum yapılmamış. İlk yorumu siz yapın!'}
+                  </div>
+                ) : (
+                  reviews.map((rev) => (
+                    <div 
+                      key={rev.id} 
+                      className={`p-3.5 rounded-xl border text-xs ${
+                        isDark ? 'bg-white/[0.01] border-white/[0.04]' : 'bg-black/[0.01] border-black/[0.04]'
+                      }`}
+                    >
+                      <div className="flex justify-between items-center mb-1.5">
+                        <span className={`font-bold ${isDark ? 'text-gray-350' : 'text-gray-800'}`}>
+                          {rev.guestName || 'Guest'}
+                        </span>
+                        <div className="flex items-center space-x-1 font-mono text-[10px] font-bold" style={{ color: accentColor }}>
+                          <span>{rev.rating}</span>
+                          <span>★</span>
+                        </div>
+                      </div>
+                      {rev.comment && (
+                        <p className={`${isDark ? 'text-gray-300' : 'text-[#4A4340]'} leading-relaxed font-light`}>
+                          {rev.comment}
+                        </p>
+                      )}
+                      <span className="text-[9px] text-gray-500 block mt-2 font-mono">
+                        {new Date(rev.createdAt).toLocaleDateString(locale === 'tr' ? 'tr-TR' : 'en-US', {
+                          day: 'numeric',
+                          month: 'short',
+                          year: 'numeric'
+                        })}
+                      </span>
+                    </div>
+                  ))
+                )}
+              </div>
+
+              {/* Write a Review Form */}
+              <form onSubmit={handleSubmitReview} className={`p-4 rounded-2xl border ${
+                isDark ? 'bg-[#0E0F14] border-white/[0.05]' : 'bg-white border-black/[0.05]'
+              }`}>
+                <h4 className={`text-xs font-bold uppercase tracking-wider mb-3 ${isDark ? 'text-gray-400' : 'text-gray-600'}`}>
+                  {locale === 'en' ? 'Write a Review' : 'Yorum Yap'}
+                </h4>
+
+                {reviewError && (
+                  <div className="bg-red-500/10 border border-red-500/20 text-red-400 text-xs px-3 py-2 rounded-xl mb-3">
+                    {reviewError}
+                  </div>
+                )}
+
+                {/* Rating selection (Interactive Stars) */}
+                <div className="flex items-center space-x-2 mb-4">
+                  <span className="text-xs text-gray-400">
+                    {locale === 'en' ? 'Your Rating:' : 'Puanınız:'}
+                  </span>
+                  <div className="flex space-x-1">
+                    {[1, 2, 3, 4, 5].map((star) => (
+                      <button
+                        key={star}
+                        type="button"
+                        onClick={() => setNewRating(star)}
+                        className={`text-xl transition-transform active:scale-125 focus:outline-none ${
+                          star <= newRating ? 'text-[#DFBA73]' : 'text-gray-600'
+                        }`}
+                      >
+                        ★
+                      </button>
+                    ))}
+                  </div>
+                </div>
+
+                <div className="space-y-3 mb-4">
+                  {/* Name Input */}
+                  <div>
+                    <input 
+                      type="text"
+                      placeholder={locale === 'en' ? 'Your Name (Optional)' : 'Adınız (İsteğe Bağlı)'}
+                      value={newGuestName}
+                      onChange={(e) => setNewGuestName(e.target.value)}
+                      maxLength={40}
+                      className={`w-full text-xs rounded-xl px-3 py-2.5 focus:outline-none transition-colors border ${
+                        isDark 
+                          ? "bg-white/[0.01] border-white/[0.08] text-white focus:border-white/[0.2]" 
+                          : "bg-black/[0.01] border-black/[0.08] text-[#1E1214] focus:border-black/[0.2]"
+                      }`}
+                    />
+                  </div>
+
+                  {/* Comment Input */}
+                  <div>
+                    <textarea 
+                      placeholder={locale === 'en' ? 'Share your thoughts about this dish...' : 'Bu yemek hakkındaki düşüncelerinizi paylaşın...'}
+                      value={newComment}
+                      onChange={(e) => setNewComment(e.target.value)}
+                      maxLength={500}
+                      rows={3}
+                      className={`w-full text-xs rounded-xl px-3 py-2.5 focus:outline-none transition-colors border resize-none ${
+                        isDark 
+                          ? "bg-white/[0.01] border-white/[0.08] text-white focus:border-white/[0.2]" 
+                          : "bg-black/[0.01] border-black/[0.08] text-[#1E1214] focus:border-black/[0.2]"
+                      }`}
+                    />
+                  </div>
+                </div>
+
+                {/* Submit button */}
+                <button
+                  type="submit"
+                  disabled={submittingReview}
+                  className="w-full py-2.5 rounded-xl text-xs font-bold transition-all flex items-center justify-center gap-1.5"
+                  style={{
+                    backgroundColor: accentColor,
+                    color: getContrastTextColor(accentColor)
+                  }}
+                >
+                  {submittingReview ? (
+                    <>
+                      <div className="h-3.5 w-3.5 border-2 border-current border-t-transparent rounded-full animate-spin" />
+                      <span>{locale === 'en' ? 'Submitting...' : 'Gönderiliyor...'}</span>
+                    </>
+                  ) : (
+                    <span>{locale === 'en' ? 'Submit Review' : 'Yorumu Gönder'}</span>
+                  )}
+                </button>
+              </form>
+            </div>
+          )}
         </div>
 
         {/* Share canvas modal popup */}

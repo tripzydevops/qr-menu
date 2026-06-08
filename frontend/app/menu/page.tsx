@@ -43,6 +43,7 @@ interface MenuData {
   plan?: string | null;
   premiumMenuEnabled?: boolean;
   premiumMenuSelected?: boolean;
+  reviewsEnabled?: boolean;
   categories: Category[];
 }
 
@@ -65,6 +66,7 @@ const MOCK_DATA: Record<string, MenuData> = {
     plan: "premium",
     premiumMenuEnabled: true,
     premiumMenuSelected: true,
+    reviewsEnabled: true,
     categories: [] // Seeding has them, we'll populate basic items
   }
 };
@@ -849,6 +851,8 @@ function MenuContent() {
         onAddToOrder={handleAddToOrder}
         theme={theme}
         isPremium={showPremium}
+        reviewsEnabled={menu.reviewsEnabled}
+        qrToken={token}
       />
 
       {/* Floating Bottom Cart Bar */}

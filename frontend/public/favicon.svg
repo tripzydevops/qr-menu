@@ -1,0 +1,21 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 32 32" width="32" height="32">
+  <defs>
+    <linearGradient id="gold" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#C9A84C" />
+      <stop offset="100%" stop-color="#A2843A" />
+    </linearGradient>
+    <linearGradient id="crimson" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#2D1115" />
+      <stop offset="100%" stop-color="#140608" />
+    </linearGradient>
+  </defs>
+  <!-- Background -->
+  <rect width="32" height="32" rx="8" fill="url(#crimson)" />
+  <rect width="30" height="30" x="1" y="1" rx="7" fill="none" stroke="url(#gold)" stroke-width="0.5" stroke-opacity="0.3" />
+  
+  <!-- Stylized T -->
+  <path d="M 9 9 L 23 9 L 23 12 L 17.5 12 L 17.5 24 L 14.5 24 L 14.5 12 L 9 12 Z" fill="url(#gold)" />
+  
+  <!-- Sparkle/Star -->
+  <path d="M 23 6 L 24.2 8.2 L 26.5 8.5 L 24.8 10.2 L 25.2 12.5 L 23 11.2 L 20.8 12.5 L 21.2 10.2 L 19.5 8.5 L 21.8 8.2 Z" fill="#FFF" opacity="0.95" />
+</svg>

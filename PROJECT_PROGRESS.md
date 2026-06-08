@@ -25,13 +25,15 @@ The platform is designed as a next-generation, recommendation-driven digital QR 
     *   Category creator with sort-order reordering.
     *   Menu item CRUD (TR/EN names, prices, calorie counters, allergen flags, and dietary preferences).
     *   Image uploader integrated with Supabase storage.
-*   **Inventory Costing & Recipe Engine UI (Gated by Org Flag):**
-    *   **Stok & Malzemeler:** CRUD dashboard to track hammadde stock levels, WAC average costs, and supplier contact lists.
-    *   **Faturalar:** Form to insert invoices, edit line-items, and trigger WAC calculations. Integrates an "AI Fatura Tara" camera/file scanner.
-    *   **Reçeteler & Maliyet:** Dual-pane recipe builder modal displaying live line costs, total cost, target margin sliders, and suggested menu price recommendations.
+*   **Inventory Costing & Recipe Engine UI:**
+    *   **Stok & Malzemeler:** CRUD dashboard to track hammadde stock levels, WAC average costs, and supplier contact lists. Features automated AI ingredient density suggestions (Gemini model estimating density in g/mL on ingredient name input blur) and visual loading micro-animations.
+    *   **Faturalar:** Form to insert invoices (with package-based entries supporting Adet/Boyut/Fiyat for bulk purchasing), edit line-items, and trigger WAC calculations. Integrates an "AI Fatura Tara" camera/file scanner.
+    *   **Reçeteler & Maliyet:** Dual-pane recipe builder modal displaying live line costs, total cost, target margin sliders, and suggested menu price recommendations. Supports volume-to-weight conversions (cups, tbsp, tsp) based on ingredient density with live conversion helper badges (e.g. `(= 518.4 g)`).
     *   **Kârlılık:** Executive dashboard grouping items as Healthy (🟢), Warning (🟡), or Critical (🔴) based on cost drifts. Features one-click suggested price synchronization.
 *   **Guest QR Menu Interface (`/menu`):**
     *   Fully localized (TR/EN) with category navigation, sticky scroll-spy header, dietary filters, and online/offline resilience.
+*   **Premium Visual Branding:**
+    *   Staged custom vector `favicon.svg` branding (luxury gold stylized "T" with sparkle emblem on dark crimson background) and `/favicon.ico` fallback support to maintain a clean dev-console with zero `404` warnings.
 
 ### Layer 2: Autonomous Reasoning Engine & API (FastAPI)
 
@@ -40,16 +42,22 @@ The platform is designed as a next-generation, recommendation-driven digital QR 
     *   **Admin Router:** Secure endpoints for CRUD operations on venues, tables, categories, and items.
     *   **Super Admin Stats Router:** Endpoint returning system-wide platform statistics.
     *   **Inventory Router (`api/inventory.py`):** Prefix `/api/admin/inventory`. Exposes CRUD endpoints for ingredients, suppliers, invoices, recipes, rules, alerts, and syncs.
-*   **Costing & OCR Services:**
+*   **Costing, OCR & Density Services:**
     *   **`services/costing.py`**: Computes WAC average costings, triggers cascade-recalculations for recipes, and processes automatic stock deductions upon completion of orders.
     *   **`services/invoice_ocr.py`**: Integrates Gemini 1.5 Flash multimodal API to parse unstructured receipt photos/PDFs into structured invoice item objects.
     *   **`services/signal_bridge.py`**: Enrichment logger mapping transaction sizes, price brackets, and dietary profiles to `UserSignal` events for the Tripzy recommendation engine.
+    *   **AI Density Suggestion (`/ingredients/suggest-density`):** Connects to Gemini API to intelligently query and guess specific gravity/densities (g/mL) of standard Turkish/cafe cooking ingredients for auto-fill functionality.
 
-### Layer 3: Database & Infrastructure (Supabase & Prisma)
+### Layer 3: Data & Algorithms (Supabase & Prisma)
 
 *   **Unified Schema Design:**
     *   Synced a complete schema containing models for `Organization`, `Venue`, `Table`, `Category`, `MenuItem`, `DietaryLabel`, and `AnalyticsEvent` to Supabase PostgreSQL.
-    *   Expanded schema with 9 new inventory tables (`Ingredient`, `Supplier`, `Invoice`, `InvoiceItem`, `Recipe`, `RecipeIngredient`, `IngredientCostLog`, `PricingAlert`, `PricingAlertRule`).
+    *   Expanded schema with 9 new inventory tables (`Ingredient`, `Supplier`, `Invoice`, `InvoiceItem`, `Recipe`, `RecipeIngredient`, `IngredientCostLog`, `PricingAlert`, `PricingAlertRule`). Added density field to the `Ingredient` model.
+*   **Semantic Search & Vector Embeddings:**
+    *   Initialized `pgvector` extension in the Supabase PostgreSQL database.
+    *   Configured the `embedding` column on the `MenuItem` model using vector type of dimension 768.
+    *   Created a backfill script ([backfill_embeddings.py](file:///c:/Users/elif/.gemini/antigravity/scratch/qr-menu-saas/backend/backfill_embeddings.py)) to automatically generate and index embeddings for menu items based on names and descriptions.
+    *   Exposed a semantic similarity search endpoint `/api/menu/{qr_token}/search` supporting cosine similarity vector lookup, with standard text-search fallbacks.
 *   **Image Storage Migration (Supabase Storage):**
     *   Created a public `menu-images` bucket with PostgreSQL RLS policies allowing public reads and authenticated uploads, optimizing Vercel serverless functions.
 
@@ -58,8 +66,8 @@ The platform is designed as a next-generation, recommendation-driven digital QR 
 ## 3. Current System Verification Status
 
 We successfully ran integration scripts validating the new architecture:
-*   **Database Sync:** Complete. Schema is live on Supabase and database is seeded.
-*   **Backend Costing Test Suite:** All unit tests in [tests/test_costing.py](file:///C:/Users/elif/.gemini/antigravity/scratch/qr-menu-saas/backend/tests/test_costing.py) passed successfully (covering WAC calculations, recipe costing, alert rule deviations, price sync updates, and order stock deductions).
+*   **Database Sync:** Complete. Schema is live on Supabase, database is seeded, and standard Turkish ingredient densities are backfilled.
+*   **Backend Costing & Search Test Suite:** All unit tests in [tests/test_costing.py](file:///c:/Users/elif/.gemini/antigravity/scratch/qr-menu-saas/backend/tests/test_costing.py) and [test_embeddings.py](file:///c:/Users/elif/.gemini/antigravity/scratch/qr-menu-saas/backend/test_embeddings.py) passed successfully (covering WAC calculations, recipe costing, alert rules, price syncs, stock deductions, and vector semantic search).
 *   **Frontend Production Build:** Compiles successfully without syntax, TypeScript, or type compiler errors (`next build` completes with success).
 
 ---
@@ -71,10 +79,7 @@ To achieve full launch readiness in the Turkish market, the following items rema
 1.  **AI recommendation Integration (Layer 2):**
     *   Configure the Gemini API agent inside the FastAPI server to act as a virtual waiter/sommelier.
     *   Build the reasoning module to explain *why* food items are recommended.
-2.  **Semantic Search (Layer 3):**
-    *   Initialize `pgvector` extension in the Supabase database.
-    *   Write scripts to automatically generate and index vector embeddings for menu items based on their names, descriptions, and ingredients.
-3.  **Cross-Domain Agent Inference (Layer 1):**
+2.  **Cross-Domain Agent Inference (Layer 1):**
     *   Consume the logged `UserSignal` datasets inside the Tripzy travel engine to resolve user dining profiles.
 
 ---
@@ -91,4 +96,3 @@ Prisma connects to the PostgreSQL instance and detects all available tables acro
 
 ### Conclusion
 This warning is entirely harmless, does not affect runtime execution, and can be safely ignored. We intentionally exclude internal system tables from our schema to prevent code clutter and avoid unnecessary client generation.
-

@@ -53,6 +53,7 @@ model Venue {
   invoices         Invoice[]
   pricingAlerts    PricingAlert[]
   pricingAlertRule PricingAlertRule?
+  reviewsEnabled   Boolean      @default(true)
   createdAt        DateTime     @default(now())
   updatedAt        DateTime     @updatedAt
 }
@@ -107,6 +108,7 @@ model MenuItem {
   recipe        Recipe?
   pricingAlerts PricingAlert[]
   embedding     Unsupported("vector(768)")?
+  reviews       Review[]
   createdAt     DateTime              @default(now())
   updatedAt     DateTime              @updatedAt
 }
@@ -384,4 +386,15 @@ model PricingAlertRule {
   createdAt           DateTime @default(now())
   updatedAt           DateTime @updatedAt
 }
+
+model Review {
+  id         String   @id @default(uuid())
+  rating     Int      // Rating from 1 to 5 stars
+  comment    String?  // Optional written review
+  guestName  String?  @default("Guest")
+  menuItemId String
+  menuItem   MenuItem @relation(fields: [menuItemId], references: [id], onDelete: Cascade)
+  createdAt  DateTime @default(now())
+}
+
 
