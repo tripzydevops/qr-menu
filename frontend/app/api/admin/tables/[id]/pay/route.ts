@@ -78,6 +78,17 @@ export async function POST(
       return completedOrders;
     });
 
+    // Run stock deduction and signal bridge updates for each completed order
+    const { deductStockFromOrder, emitOrderSignals } = await import("@/lib/costing");
+    for (const order of updatedOrders) {
+      try {
+        await deductStockFromOrder(order.id);
+        await emitOrderSignals(order.id);
+      } catch (err) {
+        console.error(`Failed to run post-payment costing/signal hooks for order ${order.id}:`, err);
+      }
+    }
+
     const mappedOrders = updatedOrders.map((order) => ({
       id: order.id,
       venueId: order.venueId,

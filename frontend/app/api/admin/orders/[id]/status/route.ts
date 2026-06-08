@@ -45,6 +45,16 @@ export async function PUT(
       },
     });
 
+    if (status === "completed") {
+      try {
+        const { deductStockFromOrder, emitOrderSignals } = await import("@/lib/costing");
+        await deductStockFromOrder(order.id);
+        await emitOrderSignals(order.id);
+      } catch (err) {
+        console.error("Failed to run post-completion costing/signal hooks:", err);
+      }
+    }
+
     const mappedOrder = {
       id: order.id,
       venueId: order.venueId,
