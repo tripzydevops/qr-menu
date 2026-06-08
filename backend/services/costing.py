@@ -64,7 +64,15 @@ def process_invoice(db: Session, invoice_id: str) -> models.Invoice:
         current_stock = _dec(ingredient.currentStock)
         current_wac = _dec(ingredient.weightedCost)
         qty = _dec(item.quantity)
-        unit_cost = _dec(item.unitCost)
+        entered_unit_cost = _dec(item.unitCost)
+        vat_rate = _dec(item.vatRate)
+        is_inclusive = item.isVatInclusive
+
+        # Calculate Net Unit Cost (KDV-hariç)
+        if is_inclusive:
+            unit_cost = entered_unit_cost / (_ONE + vat_rate)
+        else:
+            unit_cost = entered_unit_cost
 
         # WAC formula: (currentStock * currentWAC + qty * unitCost) / (currentStock + qty)
         new_total_stock = current_stock + qty

@@ -318,6 +318,8 @@ model InvoiceItem {
   ingredient     Ingredient @relation(fields: [ingredientId], references: [id], onDelete: Cascade)
   quantity       Decimal
   unitCost       Decimal
+  vatRate        Decimal    @default(0.01) // e.g. 0.01 (1%), 0.10 (10%), 0.20 (20%)
+  isVatInclusive Boolean    @default(false)
   totalCost      Decimal
 }
 

@@ -466,6 +466,8 @@ class InvoiceItemCreate(BaseModel):
     ingredientId: str
     quantity: Decimal
     unitCost: Decimal
+    vatRate: Optional[Decimal] = Decimal("0.01")
+    isVatInclusive: Optional[bool] = False
 
 class InvoiceItemSchema(BaseModel):
     id: str
@@ -473,6 +475,8 @@ class InvoiceItemSchema(BaseModel):
     ingredientName: Optional[str] = None
     quantity: Decimal
     unitCost: Decimal
+    vatRate: Decimal
+    isVatInclusive: bool
     totalCost: Decimal
     class Config:
         from_attributes = True

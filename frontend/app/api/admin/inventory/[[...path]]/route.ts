@@ -152,7 +152,11 @@ async function processInvoice(invoiceId: string) {
     const currentStock = Number(ingredient.currentStock);
     const currentWac = Number(ingredient.weightedCost);
     const qty = Number(item.quantity);
-    const unitCost = Number(item.unitCost);
+    const enteredUnitCost = Number(item.unitCost);
+    const vatRate = Number(item.vatRate ?? 0.01);
+    const isVatInclusive = item.isVatInclusive ?? false;
+
+    const unitCost = isVatInclusive ? enteredUnitCost / (1 + vatRate) : enteredUnitCost;
 
     const newStock = currentStock + qty;
     const newWac = newStock > 0 ? (currentStock * currentWac + qty * unitCost) / newStock : unitCost;
@@ -299,6 +303,8 @@ export async function GET(
             ingredientName: item.ingredient?.name || null,
             quantity: Number(item.quantity),
             unitCost: Number(item.unitCost),
+            vatRate: Number(item.vatRate),
+            isVatInclusive: item.isVatInclusive,
             totalCost: Number(item.totalCost),
           })),
         }))
@@ -634,6 +640,8 @@ Extract raw items exactly as shown. For quantity and unitCost, ensure they are p
                 ingredientId: i.ingredientId,
                 quantity: Number(i.quantity),
                 unitCost: Number(i.unitCost),
+                vatRate: Number(i.vatRate || 0.01),
+                isVatInclusive: Boolean(i.isVatInclusive || false),
                 totalCost: Number(i.quantity) * Number(i.unitCost),
               })),
             },
@@ -660,6 +668,8 @@ Extract raw items exactly as shown. For quantity and unitCost, ensure they are p
           ingredientName: item.ingredient?.name || null,
           quantity: Number(item.quantity),
           unitCost: Number(item.unitCost),
+          vatRate: Number(item.vatRate || 0.01),
+          isVatInclusive: item.isVatInclusive || false,
           totalCost: Number(item.totalCost),
         })),
       }, { status: 201 });
@@ -859,6 +869,104 @@ Extract raw items exactly as shown. For quantity and unitCost, ensure they are p
       }
 
       return NextResponse.json(results);
+    }
+
+    // 9. Scan Recipe (Gemini AI Parser)
+    if (pathSegments[0] === "recipes" && pathSegments[1] === "scan") {
+      const venueId = searchParams.get("venueId");
+      if (!venueId) {
+        return NextResponse.json({ detail: "venueId is required" }, { status: 400 });
+      }
+
+      const allIngredients = await prisma.ingredient.findMany({
+        where: { venueId },
+        select: { id: true, name: true, unit: true, weightedCost: true },
+      });
+
+      let promptContext = "Available ingredients in database:\n" + 
+        allIngredients.map(ing => `- ID: "${ing.id}", Name: "${ing.name}", Unit: "${ing.unit}"`).join("\n");
+
+      const contentType = request.headers.get("content-type") || "";
+      let recipeContentPart: any = null;
+
+      const apiKey = process.env.GEMINI_API_KEY || process.env.GOOGLE_API_KEY;
+
+      if (contentType.includes("multipart/form-data")) {
+        const formData = await request.formData();
+        const file = formData.get("file") as File;
+        if (!file) {
+          return NextResponse.json({ detail: "File upload is required" }, { status: 400 });
+        }
+
+        const bytes = await file.arrayBuffer();
+        const base64Data = Buffer.from(bytes).toString("base64");
+        recipeContentPart = {
+          inlineData: {
+            mimeType: file.type,
+            data: base64Data,
+          }
+        };
+      } else {
+        const body = await request.json();
+        const { text } = body;
+        if (!text) {
+          return NextResponse.json({ detail: "Text description is required" }, { status: 400 });
+        }
+        recipeContentPart = { text: `Recipe text to parse:\n${text}` };
+      }
+
+      if (!apiKey) {
+        console.warn("[OCR] API Key missing, falling back to empty list.");
+        return NextResponse.json([]);
+      }
+
+      const url = `https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${apiKey}`;
+
+      const prompt = `Analyze the recipe content (text or image) and extract the structured list of ingredients.
+${promptContext}
+
+Match each ingredient in the recipe to the closest database ingredient name.
+For each matched ingredient, return a JSON array containing objects with this exact structure:
+[
+  {
+    "ingredientId": "string",
+    "amountUsed": number
+  }
+]
+Only return matches that correspond to the available ingredients listed. If a recipe ingredient doesn't match any listed database ingredient, omit it.
+The "amountUsed" must be a positive number in the unit specified for that ingredient in the database list.`;
+
+      const payload = {
+        contents: [
+          {
+            parts: [
+              { text: prompt },
+              recipeContentPart,
+            ],
+          },
+        ],
+        generationConfig: {
+          responseMimeType: "application/json",
+        },
+      };
+
+      const res = await fetch(url, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(payload),
+      });
+
+      if (res.ok) {
+        const data = await res.json();
+        const textResponse = data.candidates?.[0]?.content?.parts?.[0]?.text;
+        if (textResponse) {
+          const parsed = JSON.parse(textResponse.trim());
+          return NextResponse.json(parsed);
+        }
+      }
+
+      console.error("[Recipe OCR] Gemini API failed.");
+      return NextResponse.json([]);
     }
 
     return NextResponse.json({ detail: "Endpoint path not found" }, { status: 404 });

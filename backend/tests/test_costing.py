@@ -407,10 +407,86 @@ def test_stock_deduction():
         cleanup_test_entities(db)
         db.close()
 
+def test_wac_with_kdv():
+    db = SessionLocal()
+    cleanup_test_entities(db)
+    setup_test_entities(db)
+    try:
+        # Create ingredient
+        ing = models.Ingredient(
+            id="test-ing-kdv",
+            name="Flour",
+            unit="g",
+            currentStock=Decimal("0.0"),
+            weightedCost=Decimal("0.0"),
+            venueId="test-venue-1"
+        )
+        db.add(ing)
+        db.commit()
+
+        # Submit invoice: 
+        # Item 1: 10 units @ 110 TL, VAT 10% (Inclusive) -> Net cost = 100 TL. Total = 1100
+        # Item 2: 5 units @ 200 TL, VAT 10% (Exclusive) -> Net cost = 200 TL. Total = 1000
+        inv = models.Invoice(
+            id="test-inv-kdv",
+            supplierId="test-sup-1",
+            invoiceDate=datetime.datetime.utcnow(),
+            totalAmount=Decimal("2100.00"),
+            status="pending",
+            venueId="test-venue-1"
+        )
+        db.add(inv)
+        db.flush()
+
+        inv_item1 = models.InvoiceItem(
+            id="test-invitem-kdv-1",
+            invoiceId="test-inv-kdv",
+            ingredientId="test-ing-kdv",
+            quantity=Decimal("10.0"),
+            unitCost=Decimal("110.0"),
+            vatRate=Decimal("0.10"),
+            isVatInclusive=True,
+            totalCost=Decimal("1100.0")
+        )
+        inv_item2 = models.InvoiceItem(
+            id="test-invitem-kdv-2",
+            invoiceId="test-inv-kdv",
+            ingredientId="test-ing-kdv",
+            quantity=Decimal("5.0"),
+            unitCost=Decimal("200.0"),
+            vatRate=Decimal("0.10"),
+            isVatInclusive=False,
+            totalCost=Decimal("1000.0")
+        )
+        db.add(inv_item1)
+        db.add(inv_item2)
+        db.commit()
+
+        # Process invoice
+        costing.process_invoice(db, "test-inv-kdv")
+
+        # Verify:
+        # Total Qty = 15.0
+        # Total Net Cost = 10 * 100 + 5 * 200 = 1000 + 1000 = 2000
+        # WAC = 2000 / 15 = 133.333333...
+        db.refresh(ing)
+        assert ing.currentStock == Decimal("15.0000")
+        assert abs(ing.weightedCost - Decimal("133.333333")) < Decimal("0.0001")
+
+        print("test_wac_with_kdv passed.")
+    finally:
+        db.query(models.InvoiceItem).filter(models.InvoiceItem.id.like("test-%")).delete()
+        db.query(models.Invoice).filter(models.Invoice.id == "test-inv-kdv").delete()
+        db.query(models.IngredientCostLog).filter(models.IngredientCostLog.ingredientId == "test-ing-kdv").delete()
+        db.query(models.Ingredient).filter(models.Ingredient.id == "test-ing-kdv").delete()
+        cleanup_test_entities(db)
+        db.close()
+
 if __name__ == "__main__":
     print("Running costing and inventory engine tests...")
     test_wac_calculations()
     test_recipe_cost_and_alerts()
     test_price_sync()
     test_stock_deduction()
+    test_wac_with_kdv()
     print("All backend tests completed successfully!")

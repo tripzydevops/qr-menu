@@ -33,6 +33,8 @@ interface InvoiceItem {
   ingredientName?: string;
   quantity: number;
   unitCost: number;
+  vatRate?: number;
+  isVatInclusive?: boolean;
   totalCost?: number;
 }
 
@@ -94,7 +96,7 @@ export default function AdminInvoicesPage() {
   const handleAddLineItem = () => {
     setLineItems([
       ...lineItems,
-      { ingredientId: ingredients[0]?.id || "", quantity: 1, unitCost: 0 }
+      { ingredientId: ingredients[0]?.id || "", quantity: 1, unitCost: 0, vatRate: 0.01, isVatInclusive: false }
     ]);
   };
 
@@ -146,7 +148,9 @@ export default function AdminInvoicesPage() {
         items: lineItems.map(item => ({
           ingredientId: item.ingredientId,
           quantity: item.quantity,
-          unitCost: item.unitCost
+          unitCost: item.unitCost,
+          vatRate: item.vatRate ?? 0.01,
+          isVatInclusive: item.isVatInclusive ?? false
         }))
       };
 
@@ -223,7 +227,9 @@ export default function AdminInvoicesPage() {
             mappedItems.push({
               ingredientId: matchedIng ? matchedIng.id : (ingredients[0]?.id || ""),
               quantity: ocrItem.quantity || 1,
-              unitCost: ocrItem.unitCost || 0
+              unitCost: ocrItem.unitCost || 0,
+              vatRate: ocrItem.vatRate ?? 0.01,
+              isVatInclusive: ocrItem.isVatInclusive ?? false
             });
           });
         }
@@ -363,8 +369,8 @@ export default function AdminInvoicesPage() {
             {lineItems.length > 0 ? (
               <div className="space-y-3">
                 {lineItems.map((item, index) => (
-                  <div key={index} className="grid grid-cols-1 md:grid-cols-4 gap-3 bg-[#1C1C28]/40 border border-gray-800/35 p-3 rounded-xl items-end">
-                    <div className="col-span-2">
+                  <div key={index} className="grid grid-cols-1 md:grid-cols-6 gap-3 bg-[#1C1C28]/40 border border-gray-800/35 p-3 rounded-xl items-end">
+                    <div className="md:col-span-2">
                       <label className="text-[10px] text-gray-400 block mb-1">Malzeme</label>
                       <select
                         value={item.ingredientId}
@@ -394,23 +400,48 @@ export default function AdminInvoicesPage() {
                       />
                     </div>
 
+                    <div>
+                      <label className="text-[10px] text-gray-400 block mb-1">Birim Fiyat (₺)</label>
+                      <input
+                        type="number"
+                        step="0.01"
+                        value={item.unitCost}
+                        onChange={(e) => handleUpdateLineItem(index, "unitCost", parseFloat(e.target.value) || 0)}
+                        className={`w-full bg-[#1C1C28] border rounded-lg px-3 py-2 text-xs text-white font-mono focus:outline-none ${
+                          errors[`item_${index}_cost`] ? "border-red-500" : "border-gray-800"
+                        }`}
+                        placeholder="örn. 45"
+                      />
+                    </div>
+
+                    <div>
+                      <label className="text-[10px] text-gray-400 block mb-1">KDV Oranı</label>
+                      <select
+                        value={item.vatRate ?? 0.01}
+                        onChange={(e) => handleUpdateLineItem(index, "vatRate", parseFloat(e.target.value))}
+                        className="w-full bg-[#1C1C28] border border-gray-800 rounded-lg px-2 py-2 text-xs text-white focus:outline-none focus:border-[#C9A84C]/50"
+                      >
+                        <option value={0.01}>%1</option>
+                        <option value={0.10}>%10</option>
+                        <option value={0.20}>%20</option>
+                      </select>
+                    </div>
+
                     <div className="flex items-center space-x-2">
                       <div className="flex-grow">
-                        <label className="text-[10px] text-gray-400 block mb-1">Birim Alış Fiyatı (₺)</label>
-                        <input
-                          type="number"
-                          step="0.01"
-                          value={item.unitCost}
-                          onChange={(e) => handleUpdateLineItem(index, "unitCost", parseFloat(e.target.value) || 0)}
-                          className={`w-full bg-[#1C1C28] border rounded-lg px-3 py-2 text-xs text-white font-mono focus:outline-none ${
-                            errors[`item_${index}_cost`] ? "border-red-500" : "border-gray-800"
-                          }`}
-                          placeholder="örn. 45"
-                        />
+                        <label className="text-[10px] text-gray-400 block mb-1">KDV Dahil/Hariç</label>
+                        <select
+                          value={item.isVatInclusive ? "true" : "false"}
+                          onChange={(e) => handleUpdateLineItem(index, "isVatInclusive", e.target.value === "true")}
+                          className="w-full bg-[#1C1C28] border border-gray-800 rounded-lg px-2 py-2 text-xs text-white focus:outline-none focus:border-[#C9A84C]/50"
+                        >
+                          <option value="false">Hariç</option>
+                          <option value="true">Dahil</option>
+                        </select>
                       </div>
                       <button
                         onClick={() => handleRemoveLineItem(index)}
-                        className="p-2 rounded-lg bg-red-950/20 hover:bg-red-950/50 text-red-400 border border-red-900/30 self-end"
+                        className="p-2 rounded-lg bg-red-950/20 hover:bg-red-950/50 text-red-400 border border-red-900/30 self-end font-semibold shrink-0"
                         title="Kalemi Sil"
                       >
                         <Trash2 className="h-4 w-4" />
@@ -542,6 +573,9 @@ export default function AdminInvoicesPage() {
                                           <p className="font-semibold text-white">{item.ingredientName || "Bilinmeyen Malzeme"}</p>
                                           <p className="text-[10px] text-gray-500 font-mono">
                                             {item.quantity} x ₺{parseFloat(item.unitCost as any).toFixed(2)}
+                                            <span className="text-[9px] text-gray-400 ml-1">
+                                              ({item.isVatInclusive ? "KDV Dahil" : "KDV Hariç"} - %{Number(item.vatRate || 0.01) * 100})
+                                            </span>
                                           </p>
                                         </div>
                                         <div className="font-mono text-[#C9A84C] font-semibold">

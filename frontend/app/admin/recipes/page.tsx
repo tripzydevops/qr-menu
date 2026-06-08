@@ -12,7 +12,8 @@ import {
   TrendingUp,
   X,
   AlertTriangle,
-  RefreshCw
+  RefreshCw,
+  Sparkles
 } from "lucide-react";
 
 interface MenuItem {
@@ -68,6 +69,11 @@ export default function AdminRecipesPage() {
   const [recipeItems, setRecipeItems] = useState<RecipeItemForm[]>([]);
   const [targetMargin, setTargetMargin] = useState(0.70); // 70% default
   const [ingSearchQuery, setIngSearchQuery] = useState("");
+
+  // AI Scan states
+  const [aiScanOpen, setAiScanOpen] = useState(false);
+  const [aiText, setAiText] = useState("");
+  const [aiScanning, setAiScanning] = useState(false);
 
   // Form errors
   const [errors, setErrors] = useState<string | null>(null);
@@ -145,7 +151,64 @@ export default function AdminRecipesPage() {
       setTargetMargin(0.70);
       setRecipeItems([]);
     }
+    setAiScanOpen(false);
+    setAiText("");
     setModalOpen(true);
+  };
+
+  const handleAiScanRecipe = async (file?: File) => {
+    setErrors(null);
+    setAiScanning(true);
+    try {
+      const formData = new FormData();
+      let res;
+      if (file) {
+        formData.append("file", file);
+        res = await fetch(`${apiUrl}/api/admin/inventory/recipes/scan?venueId=${venueId}`, {
+          method: "POST",
+          body: formData,
+        });
+      } else {
+        if (!aiText.trim()) {
+          alert("Lütfen bir tarif metni yazın veya dosya yükleyin.");
+          setAiScanning(false);
+          return;
+        }
+        res = await fetch(`${apiUrl}/api/admin/inventory/recipes/scan?venueId=${venueId}`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ text: aiText }),
+        });
+      }
+
+      if (res.ok) {
+        const data = await res.json(); // List of { ingredientId, amountUsed }
+        if (Array.isArray(data) && data.length > 0) {
+          const matchedItems = data.map((item: any) => {
+            const ing = ingredients.find(i => i.id === item.ingredientId);
+            return {
+              ingredientId: item.ingredientId,
+              name: ing?.name || "Bilinmeyen Malzeme",
+              unit: ing?.unit || "g",
+              cost: parseFloat(ing?.weightedCost || "0.0"),
+              amountUsed: item.amountUsed,
+            };
+          });
+          setRecipeItems(matchedItems);
+          setAiText("");
+          setAiScanOpen(false);
+        } else {
+          alert("AI tariften hiçbir malzeme eşleştiremedi. Lütfen malzemelerin adlarını kontrol edin.");
+        }
+      } else {
+        alert("AI reçete tarama başarısız oldu.");
+      }
+    } catch (err) {
+      console.error(err);
+      alert("AI tarama sırasında bir hata oluştu.");
+    } finally {
+      setAiScanning(false);
+    }
   };
 
   const handleAddIngredientToRecipe = (ing: Ingredient) => {
@@ -490,7 +553,79 @@ export default function AdminRecipesPage() {
 
               {/* Right Column - Recipe Formulation */}
               <div className="w-full md:w-7/12 p-5 flex flex-col overflow-hidden bg-[#16213E]/10">
-                <h4 className="text-xs font-bold text-gray-300 uppercase tracking-wider mb-3">Reçete İçeriği</h4>
+                <div className="flex justify-between items-center mb-3">
+                  <h4 className="text-xs font-bold text-gray-300 uppercase tracking-wider">Reçete İçeriği</h4>
+                  <button
+                    onClick={() => { setAiScanOpen(!aiScanOpen); setAiText(""); }}
+                    className="flex items-center space-x-1 text-[10px] text-[#C9A84C] hover:text-[#C9A84C]/80 font-bold transition-all bg-[#1C1C28]/80 px-2.5 py-1.5 rounded-lg border border-gray-800 hover:border-[#C9A84C]/35"
+                  >
+                    <Sparkles className="h-3 w-3 text-[#C9A84C]" />
+                    <span>AI Reçete Tara</span>
+                  </button>
+                </div>
+
+                {/* AI Scan Form Panel */}
+                {aiScanOpen && (
+                  <div className="mb-4 bg-[#1C1C28]/80 border border-gray-800 rounded-xl p-3 space-y-3 flex-shrink-0">
+                    <h5 className="text-[10px] font-bold text-gray-300 uppercase tracking-wider flex items-center space-x-1.5">
+                      <Sparkles className="h-3.5 w-3.5 text-[#C9A84C]" />
+                      <span>Akıllı Yapay Zeka Reçete Okuyucu</span>
+                    </h5>
+                    
+                    <textarea
+                      placeholder="Örnek tarif metni girin: '2 dilim Baget Ekmek, 50g Hindi Füme, 20g Çedar Peyniri ve 15g Pesto Sos...'"
+                      value={aiText}
+                      onChange={(e) => setAiText(e.target.value)}
+                      rows={3}
+                      disabled={aiScanning}
+                      className="w-full bg-[#16213E]/60 border border-gray-800 rounded-lg p-2.5 text-xs text-white focus:outline-none focus:border-[#C9A84C]/40 placeholder-gray-600 resize-none"
+                    />
+
+                    <div className="flex flex-col sm:flex-row justify-between items-stretch sm:items-center gap-2">
+                      <label className="flex items-center justify-center space-x-1.5 px-3 py-1.5 rounded-lg bg-[#16213E]/60 border border-gray-800 hover:border-gray-750 text-gray-400 hover:text-white font-semibold text-[10px] transition-all cursor-pointer">
+                        {aiScanning ? (
+                          <Loader2 className="h-3.5 w-3.5 text-[#C9A84C] animate-spin" />
+                        ) : (
+                          <Plus className="h-3.5 w-3.5" />
+                        )}
+                        <span>{aiScanning ? "Okunuyor..." : "Reçete Görseli Yükle"}</span>
+                        <input
+                          type="file"
+                          accept="image/*,application/pdf"
+                          onChange={(e) => {
+                            if (e.target.files && e.target.files.length > 0) {
+                              handleAiScanRecipe(e.target.files[0]);
+                            }
+                          }}
+                          disabled={aiScanning}
+                          className="hidden"
+                        />
+                      </label>
+
+                      <div className="flex space-x-2">
+                        <button
+                          onClick={() => setAiScanOpen(false)}
+                          disabled={aiScanning}
+                          className="px-3 py-1.5 rounded-lg bg-gray-850 hover:bg-gray-800 text-[10px] font-bold text-white transition-all border border-gray-800"
+                        >
+                          Kapat
+                        </button>
+                        <button
+                          onClick={() => handleAiScanRecipe()}
+                          disabled={aiScanning}
+                          className="flex items-center justify-center space-x-1 px-4 py-1.5 rounded-lg bg-[#722F37] hover:bg-[#8B3E48] text-white font-bold text-[10px] transition-all shadow-md shadow-[#722F37]/15"
+                        >
+                          {aiScanning ? (
+                            <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                          ) : (
+                            <Check className="h-3.5 w-3.5" />
+                          )}
+                          <span>Metni Çözümle</span>
+                        </button>
+                      </div>
+                    </div>
+                  </div>
+                )}
                 
                 {/* Ingredients Form List */}
                 <div className="flex-grow overflow-y-auto space-y-2.5 pr-1 no-scrollbar">

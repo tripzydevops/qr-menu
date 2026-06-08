@@ -358,6 +358,8 @@ class InvoiceItem(Base):
     ingredientId = Column(String, ForeignKey("Ingredient.id", ondelete="CASCADE"), nullable=False)
     quantity = Column(Numeric(14, 4), nullable=False)
     unitCost = Column(Numeric(14, 6), nullable=False)
+    vatRate = Column(Numeric(5, 4), default=0.01)
+    isVatInclusive = Column(Boolean, default=False)
     totalCost = Column(Numeric(14, 2), nullable=False)
 
     invoice = relationship("Invoice", back_populates="items")
