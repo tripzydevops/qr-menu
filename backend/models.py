@@ -111,6 +111,7 @@ class MenuItem(Base):
     imageUrl = Column(String, nullable=True)
     allergens = Column(ARRAY(String), nullable=True)
     isAvailable = Column(Boolean, default=True)
+    isDeleted = Column(Boolean, default=False, nullable=False)
     sortOrder = Column(Integer, default=0)
     calories = Column(Integer, nullable=True)
     categoryId = Column(String, ForeignKey("Category.id", ondelete="CASCADE"), nullable=False)
@@ -372,7 +373,9 @@ class Recipe(Base):
     id = Column(String, primary_key=True, index=True)
     menuItemId = Column(String, ForeignKey("MenuItem.id", ondelete="CASCADE"), unique=True, nullable=False)
     targetMargin = Column(Numeric(5, 4), default=0.70)  # 70%
+    yieldQuantity = Column(Numeric(10, 4), default=1.0)
     currentCost = Column(Numeric(14, 4), default=0)
+    isDeleted = Column(Boolean, default=False, nullable=False)
     createdAt = Column(DateTime, default=datetime.datetime.utcnow)
     updatedAt = Column(DateTime, default=datetime.datetime.utcnow, onupdate=datetime.datetime.utcnow)
 

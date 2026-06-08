@@ -36,6 +36,10 @@ interface InvoiceItem {
   vatRate?: number;
   isVatInclusive?: boolean;
   totalCost?: number;
+  isPackage?: boolean;
+  packageCount?: number;
+  packageSize?: number;
+  packagePrice?: number;
 }
 
 interface Invoice {
@@ -96,7 +100,17 @@ export default function AdminInvoicesPage() {
   const handleAddLineItem = () => {
     setLineItems([
       ...lineItems,
-      { ingredientId: ingredients[0]?.id || "", quantity: 1, unitCost: 0, vatRate: 0.01, isVatInclusive: false }
+      { 
+        ingredientId: ingredients[0]?.id || "", 
+        quantity: 1, 
+        unitCost: 0, 
+        vatRate: 0.01, 
+        isVatInclusive: false,
+        isPackage: false,
+        packageCount: 1,
+        packageSize: 1,
+        packagePrice: 0
+      }
     ]);
   };
 
@@ -106,7 +120,55 @@ export default function AdminInvoicesPage() {
 
   const handleUpdateLineItem = (index: number, field: keyof InvoiceItem, value: any) => {
     setLineItems(
-      lineItems.map((item, i) => (i === index ? { ...item, [field]: value } : item))
+      lineItems.map((item, i) => {
+        if (i !== index) return item;
+        const updated = { ...item, [field]: value };
+
+        if (field === "ingredientId" && value) {
+          const savedConfigStr = typeof window !== "undefined" ? localStorage.getItem(`last_ing_config_${value}`) : null;
+          if (savedConfigStr) {
+            try {
+              const savedConfig = JSON.parse(savedConfigStr);
+              updated.isPackage = savedConfig.isPackage ?? false;
+              updated.packageCount = savedConfig.packageCount ?? 1;
+              updated.packageSize = savedConfig.packageSize ?? 1;
+              updated.packagePrice = savedConfig.packagePrice ?? 0;
+              updated.vatRate = savedConfig.vatRate ?? 0.01;
+              updated.isVatInclusive = savedConfig.isVatInclusive ?? false;
+
+              if (updated.isPackage) {
+                updated.quantity = updated.packageCount * updated.packageSize;
+                updated.unitCost = updated.packageSize > 0 ? updated.packagePrice / updated.packageSize : 0;
+              } else {
+                updated.quantity = savedConfig.quantity ?? 1;
+                updated.unitCost = savedConfig.unitCost ?? 0;
+              }
+            } catch (e) {
+              console.error("Failed to parse saved ingredient config", e);
+            }
+          }
+        }
+
+        if (field === "isPackage") {
+          const isPkg = value as boolean;
+          if (isPkg) {
+            updated.packageCount = 1;
+            updated.packageSize = updated.quantity;
+            updated.packagePrice = updated.quantity * updated.unitCost;
+          }
+        }
+
+        if (updated.isPackage) {
+          const count = updated.packageCount ?? 1;
+          const size = updated.packageSize ?? 1;
+          const price = updated.packagePrice ?? 0;
+
+          updated.quantity = count * size;
+          updated.unitCost = size > 0 ? price / size : 0;
+        }
+
+        return updated;
+      })
     );
   };
 
@@ -161,6 +223,23 @@ export default function AdminInvoicesPage() {
       });
 
       if (res.ok) {
+        if (typeof window !== "undefined") {
+          lineItems.forEach(item => {
+            if (item.ingredientId) {
+              const config = {
+                isPackage: item.isPackage,
+                packageCount: item.packageCount,
+                packageSize: item.packageSize,
+                packagePrice: item.packagePrice,
+                vatRate: item.vatRate,
+                isVatInclusive: item.isVatInclusive,
+                quantity: item.quantity,
+                unitCost: item.unitCost
+              };
+              localStorage.setItem(`last_ing_config_${item.ingredientId}`, JSON.stringify(config));
+            }
+          });
+        }
         setIsCreating(false);
         clearForm();
         fetchData();
@@ -229,7 +308,11 @@ export default function AdminInvoicesPage() {
               quantity: ocrItem.quantity || 1,
               unitCost: ocrItem.unitCost || 0,
               vatRate: ocrItem.vatRate ?? 0.01,
-              isVatInclusive: ocrItem.isVatInclusive ?? false
+              isVatInclusive: ocrItem.isVatInclusive ?? false,
+              isPackage: false,
+              packageCount: 1,
+              packageSize: ocrItem.quantity || 1,
+              packagePrice: (ocrItem.quantity || 1) * (ocrItem.unitCost || 0)
             });
           });
         }
@@ -368,68 +451,136 @@ export default function AdminInvoicesPage() {
 
             {lineItems.length > 0 ? (
               <div className="space-y-3">
-                {lineItems.map((item, index) => (
-                  <div key={index} className="grid grid-cols-1 md:grid-cols-6 gap-3 bg-[#1C1C28]/40 border border-gray-800/35 p-3 rounded-xl items-end">
-                    <div className="md:col-span-2">
-                      <label className="text-[10px] text-gray-400 block mb-1">Malzeme</label>
-                      <select
-                        value={item.ingredientId}
-                        onChange={(e) => handleUpdateLineItem(index, "ingredientId", e.target.value)}
-                        className={`w-full bg-[#1C1C28] border rounded-lg px-3 py-2 text-xs text-white focus:outline-none ${
-                          errors[`item_${index}_ing`] ? "border-red-500" : "border-gray-800"
-                        }`}
-                      >
-                        <option value="">Malzeme Seçin...</option>
-                        {ingredients.map(ing => (
-                          <option key={ing.id} value={ing.id}>{ing.name} ({ing.unit})</option>
-                        ))}
-                      </select>
-                    </div>
+                {lineItems.map((item, index) => {
+                  const currentIng = ingredients.find(ing => ing.id === item.ingredientId);
+                  const unit = currentIng ? currentIng.unit : "";
 
-                    <div>
-                      <label className="text-[10px] text-gray-400 block mb-1">Miktar</label>
-                      <input
-                        type="number"
-                        step="0.01"
-                        value={item.quantity}
-                        onChange={(e) => handleUpdateLineItem(index, "quantity", parseFloat(e.target.value) || 0)}
-                        className={`w-full bg-[#1C1C28] border rounded-lg px-3 py-2 text-xs text-white font-mono focus:outline-none ${
-                          errors[`item_${index}_qty`] ? "border-red-500" : "border-gray-800"
-                        }`}
-                        placeholder="örn. 10"
-                      />
-                    </div>
+                  return (
+                    <div key={index} className="grid grid-cols-1 md:grid-cols-12 gap-3 bg-[#1C1C28]/40 border border-gray-800/35 p-3 rounded-xl items-end">
+                      <div className="md:col-span-3">
+                        <label className="text-[10px] text-gray-400 block mb-1">Malzeme</label>
+                        <select
+                          value={item.ingredientId}
+                          onChange={(e) => handleUpdateLineItem(index, "ingredientId", e.target.value)}
+                          className={`w-full bg-[#1C1C28] border rounded-lg px-3 py-2 text-xs text-white focus:outline-none ${
+                            errors[`item_${index}_ing`] ? "border-red-500" : "border-gray-800"
+                          }`}
+                        >
+                          <option value="">Malzeme Seçin...</option>
+                          {ingredients.map(ing => (
+                            <option key={ing.id} value={ing.id}>{ing.name} ({ing.unit})</option>
+                          ))}
+                        </select>
+                      </div>
 
-                    <div>
-                      <label className="text-[10px] text-gray-400 block mb-1">Birim Fiyat (₺)</label>
-                      <input
-                        type="number"
-                        step="0.01"
-                        value={item.unitCost}
-                        onChange={(e) => handleUpdateLineItem(index, "unitCost", parseFloat(e.target.value) || 0)}
-                        className={`w-full bg-[#1C1C28] border rounded-lg px-3 py-2 text-xs text-white font-mono focus:outline-none ${
-                          errors[`item_${index}_cost`] ? "border-red-500" : "border-gray-800"
-                        }`}
-                        placeholder="örn. 45"
-                      />
-                    </div>
+                      <div className="md:col-span-1">
+                        <label className="text-[10px] text-gray-400 block mb-1">Giriş Türü</label>
+                        <select
+                          value={item.isPackage ? "package" : "unit"}
+                          onChange={(e) => handleUpdateLineItem(index, "isPackage", e.target.value === "package")}
+                          className="w-full bg-[#1C1C28] border border-gray-800 rounded-lg px-2 py-2 text-xs text-white focus:outline-none focus:border-[#C9A84C]/50"
+                        >
+                          <option value="unit">Birim</option>
+                          <option value="package">Paket</option>
+                        </select>
+                      </div>
 
-                    <div>
-                      <label className="text-[10px] text-gray-400 block mb-1">KDV Oranı</label>
-                      <select
-                        value={item.vatRate ?? 0.01}
-                        onChange={(e) => handleUpdateLineItem(index, "vatRate", parseFloat(e.target.value))}
-                        className="w-full bg-[#1C1C28] border border-gray-800 rounded-lg px-2 py-2 text-xs text-white focus:outline-none focus:border-[#C9A84C]/50"
-                      >
-                        <option value={0.01}>%1</option>
-                        <option value={0.10}>%10</option>
-                        <option value={0.20}>%20</option>
-                      </select>
-                    </div>
+                      {!item.isPackage ? (
+                        <>
+                          <div className="md:col-span-3">
+                            <label className="text-[10px] text-gray-400 block mb-1">
+                              Miktar {unit ? `(${unit})` : ""}
+                            </label>
+                            <input
+                              type="number"
+                              step="0.01"
+                              value={item.quantity}
+                              onChange={(e) => handleUpdateLineItem(index, "quantity", parseFloat(e.target.value) || 0)}
+                              className={`w-full bg-[#1C1C28] border rounded-lg px-3 py-2 text-xs text-white font-mono focus:outline-none ${
+                                errors[`item_${index}_qty`] ? "border-red-500" : "border-gray-800"
+                              }`}
+                              placeholder="örn. 10"
+                            />
+                          </div>
 
-                    <div className="flex items-center space-x-2">
-                      <div className="flex-grow">
-                        <label className="text-[10px] text-gray-400 block mb-1">KDV Dahil/Hariç</label>
+                          <div className="md:col-span-2">
+                            <label className="text-[10px] text-gray-400 block mb-1">
+                              Birim Fiyat {unit ? `(₺/${unit})` : " (₺)"}
+                            </label>
+                            <input
+                              type="number"
+                              step="0.01"
+                              value={item.unitCost}
+                              onChange={(e) => handleUpdateLineItem(index, "unitCost", parseFloat(e.target.value) || 0)}
+                              className={`w-full bg-[#1C1C28] border rounded-lg px-3 py-2 text-xs text-white font-mono focus:outline-none ${
+                                errors[`item_${index}_cost`] ? "border-red-500" : "border-gray-800"
+                              }`}
+                              placeholder="örn. 45"
+                            />
+                          </div>
+                        </>
+                      ) : (
+                        <>
+                          <div className="md:col-span-1">
+                            <label className="text-[10px] text-gray-400 block mb-1">Adet</label>
+                            <input
+                              type="number"
+                              value={item.packageCount ?? 1}
+                              onChange={(e) => handleUpdateLineItem(index, "packageCount", parseInt(e.target.value) || 0)}
+                              className={`w-full bg-[#1C1C28] border rounded-lg px-3 py-2 text-xs text-white font-mono focus:outline-none ${
+                                errors[`item_${index}_qty`] ? "border-red-500" : "border-gray-800"
+                              }`}
+                              placeholder="1"
+                            />
+                          </div>
+
+                          <div className="md:col-span-2">
+                            <label className="text-[10px] text-gray-400 block mb-1">
+                              Boyut {unit ? `(${unit})` : ""}
+                            </label>
+                            <input
+                              type="number"
+                              step="0.01"
+                              value={item.packageSize ?? 1}
+                              onChange={(e) => handleUpdateLineItem(index, "packageSize", parseFloat(e.target.value) || 0)}
+                              className={`w-full bg-[#1C1C28] border rounded-lg px-3 py-2 text-xs text-white font-mono focus:outline-none ${
+                                errors[`item_${index}_qty`] ? "border-red-500" : "border-gray-800"
+                              }`}
+                              placeholder="örn. 900"
+                            />
+                          </div>
+
+                          <div className="md:col-span-2">
+                            <label className="text-[10px] text-gray-400 block mb-1">Paket Fiyatı (₺)</label>
+                            <input
+                              type="number"
+                              step="0.01"
+                              value={item.packagePrice ?? 0}
+                              onChange={(e) => handleUpdateLineItem(index, "packagePrice", parseFloat(e.target.value) || 0)}
+                              className={`w-full bg-[#1C1C28] border rounded-lg px-3 py-2 text-xs text-white font-mono focus:outline-none ${
+                                errors[`item_${index}_cost`] ? "border-red-500" : "border-gray-800"
+                              }`}
+                              placeholder="örn. 209"
+                            />
+                          </div>
+                        </>
+                      )}
+
+                      <div className="md:col-span-1">
+                        <label className="text-[10px] text-gray-400 block mb-1">KDV Oranı</label>
+                        <select
+                          value={item.vatRate ?? 0.01}
+                          onChange={(e) => handleUpdateLineItem(index, "vatRate", parseFloat(e.target.value))}
+                          className="w-full bg-[#1C1C28] border border-gray-800 rounded-lg px-2 py-2 text-xs text-white focus:outline-none focus:border-[#C9A84C]/50"
+                        >
+                          <option value={0.01}>%1</option>
+                          <option value={0.10}>%10</option>
+                          <option value={0.20}>%20</option>
+                        </select>
+                      </div>
+
+                      <div className="md:col-span-1">
+                        <label className="text-[10px] text-gray-400 block mb-1">KDV</label>
                         <select
                           value={item.isVatInclusive ? "true" : "false"}
                           onChange={(e) => handleUpdateLineItem(index, "isVatInclusive", e.target.value === "true")}
@@ -439,16 +590,19 @@ export default function AdminInvoicesPage() {
                           <option value="true">Dahil</option>
                         </select>
                       </div>
-                      <button
-                        onClick={() => handleRemoveLineItem(index)}
-                        className="p-2 rounded-lg bg-red-950/20 hover:bg-red-950/50 text-red-400 border border-red-900/30 self-end font-semibold shrink-0"
-                        title="Kalemi Sil"
-                      >
-                        <Trash2 className="h-4 w-4" />
-                      </button>
+
+                      <div className="md:col-span-1">
+                        <button
+                          onClick={() => handleRemoveLineItem(index)}
+                          className="p-2.5 rounded-lg bg-red-950/20 hover:bg-red-950/50 text-red-400 border border-red-900/30 w-full flex items-center justify-center font-semibold shrink-0"
+                          title="Kalemi Sil"
+                        >
+                          <Trash2 className="h-4 w-4" />
+                        </button>
+                      </div>
                     </div>
-                  </div>
-                ))}
+                  );
+                })}
               </div>
             ) : (
               <div className="py-8 text-center text-gray-500 text-xs">

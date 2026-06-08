@@ -140,6 +140,7 @@ export async function GET(
         items: {
           where: {
             isAvailable: true,
+            isDeleted: false,
           },
           orderBy: {
             sortOrder: "asc",

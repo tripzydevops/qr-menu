@@ -27,6 +27,7 @@ interface MenuItem {
     id: string;
     targetMargin: string;
     currentCost: string;
+    yieldQuantity?: number;
     ingredients: Array<{
       id: string;
       ingredientId: string;
@@ -68,6 +69,7 @@ export default function AdminRecipesPage() {
   const [selectedItem, setSelectedItem] = useState<MenuItem | null>(null);
   const [recipeItems, setRecipeItems] = useState<RecipeItemForm[]>([]);
   const [targetMargin, setTargetMargin] = useState(0.70); // 70% default
+  const [yieldQuantity, setYieldQuantity] = useState<number>(1);
   const [ingSearchQuery, setIngSearchQuery] = useState("");
 
   // AI Scan states
@@ -109,6 +111,7 @@ export default function AdminRecipesPage() {
                   id: matchedRecipe.id,
                   targetMargin: matchedRecipe.targetMargin,
                   currentCost: matchedRecipe.currentCost,
+                  yieldQuantity: matchedRecipe.yieldQuantity,
                   ingredients: matchedRecipe.ingredients
                 } : null
               });
@@ -136,6 +139,7 @@ export default function AdminRecipesPage() {
 
     if (item.recipe) {
       setTargetMargin(parseFloat(item.recipe.targetMargin));
+      setYieldQuantity(item.recipe.yieldQuantity ? Number(item.recipe.yieldQuantity) : 1);
       const loadedItems = item.recipe.ingredients.map(ri => {
         const ing = ingredients.find(i => i.id === ri.ingredientId);
         return {
@@ -149,6 +153,7 @@ export default function AdminRecipesPage() {
       setRecipeItems(loadedItems);
     } else {
       setTargetMargin(0.70);
+      setYieldQuantity(1);
       setRecipeItems([]);
     }
     setAiScanOpen(false);
@@ -270,6 +275,7 @@ export default function AdminRecipesPage() {
       const payload = {
         menuItemId: selectedItem.id,
         targetMargin: targetMargin,
+        yieldQuantity: yieldQuantity,
         ingredients: recipeItems.map(item => ({
           ingredientId: item.ingredientId,
           amountUsed: item.amountUsed
@@ -426,7 +432,7 @@ export default function AdminRecipesPage() {
                               ? "bg-emerald-950/40 text-emerald-400 border-emerald-900/30"
                               : "bg-gray-950/40 text-gray-400 border-gray-900/30"
                           }`}>
-                            {item.recipe ? "REÇETELİ" : "REÇETESİZ"}
+                            {item.recipe ? `REÇETELİ (${Number(item.recipe.yieldQuantity || 1)} Pors.)` : "REÇETESİZ"}
                           </span>
                         </td>
                         <td className="px-6 py-4">
@@ -672,9 +678,27 @@ export default function AdminRecipesPage() {
 
                 {/* Live Computations Panel */}
                 <div className="border-t border-gray-800/60 pt-4 mt-4 space-y-3 flex-shrink-0 bg-[#16213E]/50 p-4 rounded-2xl border border-gray-800/40">
-                  <div className="flex justify-between items-center text-xs">
-                    <span className="text-gray-400">Toplam Porsiyon Maliyeti:</span>
-                    <span className="font-mono font-bold text-white text-sm">₺{calculateTotalCost().toFixed(2)}</span>
+                  <div className="grid grid-cols-2 gap-3 text-xs mb-1">
+                    <div>
+                      <span className="text-gray-400 block font-semibold">Porsiyon Verimi:</span>
+                      <input
+                        type="number"
+                        min="0.01"
+                        step="0.1"
+                        value={yieldQuantity}
+                        onChange={(e) => setYieldQuantity(Math.max(0.01, parseFloat(e.target.value) || 1))}
+                        className="mt-1 w-full bg-[#1C1C28] border border-gray-800 rounded px-2.5 py-1 font-mono text-xs text-white focus:outline-none focus:border-[#C9A84C]/50"
+                      />
+                    </div>
+                    <div className="flex flex-col justify-end">
+                      <span className="text-gray-400 block">Reçete Toplam Maliyeti:</span>
+                      <span className="font-mono font-bold text-gray-300 mt-1">₺{calculateTotalCost().toFixed(2)}</span>
+                    </div>
+                  </div>
+
+                  <div className="flex justify-between items-center text-xs border-t border-gray-850 pt-2.5">
+                    <span className="text-gray-400 font-bold">Porsiyon Başına Maliyet:</span>
+                    <span className="font-mono font-bold text-white text-sm">₺{(calculateTotalCost() / yieldQuantity).toFixed(2)}</span>
                   </div>
 
                   {/* Target Margin Slider */}
@@ -698,17 +722,17 @@ export default function AdminRecipesPage() {
                     <div>
                       <span className="text-gray-500 block">Önerilen Fiyat:</span>
                       <span className="font-mono font-bold text-emerald-400">
-                        ₺{calculateSuggestedPrice(calculateTotalCost()).toFixed(2)}
+                        ₺{calculateSuggestedPrice(calculateTotalCost() / yieldQuantity).toFixed(2)}
                       </span>
                     </div>
                     <div>
                       <span className="text-gray-500 block">Mevcut Marjınız:</span>
                       <span className={`font-mono font-bold ${
-                        ((parseFloat(selectedItem.price) - calculateTotalCost()) / parseFloat(selectedItem.price)) < targetMargin
+                        ((parseFloat(selectedItem.price) - (calculateTotalCost() / yieldQuantity)) / parseFloat(selectedItem.price)) < targetMargin
                           ? "text-red-400"
                           : "text-emerald-400"
                       }`}>
-                        {(((parseFloat(selectedItem.price) - calculateTotalCost()) / parseFloat(selectedItem.price)) * 100).toFixed(1)}%
+                        {(((parseFloat(selectedItem.price) - (calculateTotalCost() / yieldQuantity)) / parseFloat(selectedItem.price)) * 100).toFixed(1)}%
                       </span>
                     </div>
                   </div>

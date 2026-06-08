@@ -101,6 +101,7 @@ class MenuItemBase(BaseModel):
     imageUrl: Optional[str] = None
     allergens: List[str] = []
     isAvailable: bool = True
+    isDeleted: bool = False
     sortOrder: int = 0
     calories: Optional[int] = None
 
@@ -522,10 +523,12 @@ class RecipeIngredientSchema(BaseModel):
 class RecipeCreate(BaseModel):
     menuItemId: str
     targetMargin: Decimal = Decimal("0.70")
+    yieldQuantity: Optional[Decimal] = Decimal("1.0")
     ingredients: List[RecipeIngredientCreate]
 
 class RecipeUpdate(BaseModel):
     targetMargin: Optional[Decimal] = None
+    yieldQuantity: Optional[Decimal] = None
     ingredients: Optional[List[RecipeIngredientCreate]] = None
 
 class RecipeSchema(BaseModel):
@@ -534,8 +537,10 @@ class RecipeSchema(BaseModel):
     menuItemName: Optional[str] = None
     menuItemPrice: Optional[Decimal] = None
     targetMargin: Decimal
+    yieldQuantity: Decimal
     currentCost: Decimal
     currentMargin: Optional[Decimal] = None
+    isDeleted: bool = False
     ingredients: List[RecipeIngredientSchema] = []
     createdAt: datetime
     updatedAt: datetime

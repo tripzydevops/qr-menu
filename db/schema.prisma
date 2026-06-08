@@ -96,6 +96,7 @@ model MenuItem {
   imageUrl      String?
   allergens     String[]              // e.g. ["gluten", "nuts", "dairy"]
   isAvailable   Boolean               @default(true)
+  isDeleted     Boolean               @default(false)
   sortOrder     Int                   @default(0)
   calories      Int?
   categoryId    String
@@ -328,7 +329,9 @@ model Recipe {
   menuItemId     String             @unique
   menuItem       MenuItem           @relation(fields: [menuItemId], references: [id], onDelete: Cascade)
   targetMargin   Decimal            @default(0.70) // 70%
-  currentCost    Decimal            @default(0)
+  yieldQuantity  Decimal            @default(1.0)  // The number of portions this recipe yields
+  currentCost    Decimal            @default(0)    // Portion cost (Total Cost / yieldQuantity)
+  isDeleted      Boolean            @default(false)
   ingredients    RecipeIngredient[]
   createdAt      DateTime           @default(now())
   updatedAt      DateTime           @updatedAt

@@ -112,8 +112,9 @@ export async function DELETE(
       );
     }
 
-    await prisma.menuItem.delete({
+    await prisma.menuItem.update({
       where: { id },
+      data: { isDeleted: true },
     });
 
     return new NextResponse(null, { status: 204 });

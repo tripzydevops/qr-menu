@@ -42,15 +42,18 @@ async function recalculateRecipeCost(recipeId: string): Promise<number> {
     }
   }
 
+  const yieldQuantity = Number(recipe.yieldQuantity || 1);
+  const portionCost = yieldQuantity > 0 ? totalCost / yieldQuantity : totalCost;
+
   await prisma.recipe.update({
     where: { id: recipeId },
     data: {
-      currentCost: totalCost,
+      currentCost: portionCost,
       updatedAt: new Date(),
     },
   });
 
-  return totalCost;
+  return portionCost;
 }
 
 // 2. Recalculate Affected Recipes for an Ingredient
@@ -315,7 +318,9 @@ export async function GET(
     if (pathSegments[0] === "recipes") {
       const recipes = await prisma.recipe.findMany({
         where: {
+          isDeleted: false,
           menuItem: {
+            isDeleted: false,
             category: { venueId },
           },
         },
@@ -341,6 +346,7 @@ export async function GET(
             menuItemName: r.menuItem?.nameEn || null,
             menuItemPrice: price,
             targetMargin: Number(r.targetMargin),
+            yieldQuantity: Number(r.yieldQuantity || 1.0),
             currentCost: cost,
             currentMargin,
             createdAt: r.createdAt.toISOString(),
@@ -363,6 +369,7 @@ export async function GET(
     if (pathSegments[0] === "profitability") {
       const menuItems = await prisma.menuItem.findMany({
         where: {
+          isDeleted: false,
           category: { venueId },
         },
         include: {
@@ -378,7 +385,7 @@ export async function GET(
       let itemsWithRecipes = 0;
 
       for (const mi of menuItems) {
-        if (!mi.recipe) continue;
+        if (!mi.recipe || mi.recipe.isDeleted) continue;
         itemsWithRecipes++;
 
         const price = Number(mi.price);
@@ -677,7 +684,7 @@ Extract raw items exactly as shown. For quantity and unitCost, ensure they are p
 
     // 5. Create Recipe
     if (pathSegments[0] === "recipes") {
-      const { menuItemId, targetMargin, ingredients } = body; // ingredients: Array of { ingredientId, amountUsed }
+      const { menuItemId, targetMargin, ingredients, yieldQuantity } = body; // ingredients: Array of { ingredientId, amountUsed }
 
       const existing = await prisma.recipe.findUnique({
         where: { menuItemId },
@@ -691,6 +698,7 @@ Extract raw items exactly as shown. For quantity and unitCost, ensure they are p
           data: {
             menuItemId,
             targetMargin: Number(targetMargin),
+            yieldQuantity: yieldQuantity ? Number(yieldQuantity) : 1.0,
             currentCost: 0,
             ingredients: {
               create: ingredients.map((i: any) => ({
@@ -736,6 +744,7 @@ Extract raw items exactly as shown. For quantity and unitCost, ensure they are p
         menuItemName: updated.menuItem?.nameEn || null,
         menuItemPrice: price,
         targetMargin: Number(updated.targetMargin),
+        yieldQuantity: Number(updated.yieldQuantity || 1.0),
         currentCost: cost,
         currentMargin: price > 0 ? (price - cost) / price : 0,
         ingredients: updated.ingredients.map((ri) => ({
@@ -779,6 +788,7 @@ Extract raw items exactly as shown. For quantity and unitCost, ensure they are p
         menuItemName: r.menuItem?.nameEn || null,
         menuItemPrice: price,
         targetMargin: Number(r.targetMargin),
+        yieldQuantity: Number(r.yieldQuantity || 1.0),
         currentCost: cost,
         currentMargin,
         ingredients: r.ingredients.map((ri) => ({
@@ -820,7 +830,7 @@ Extract raw items exactly as shown. For quantity and unitCost, ensure they are p
           where: { id: miId },
           include: { recipe: true },
         });
-        if (!menuItem || !menuItem.recipe) continue;
+        if (!menuItem || menuItem.isDeleted || !menuItem.recipe || menuItem.recipe.isDeleted) continue;
 
         const oldPrice = Number(menuItem.price);
         const cost = Number(menuItem.recipe.currentCost);
@@ -1031,7 +1041,7 @@ export async function PUT(
     // 3. Update Recipe
     if (pathSegments[0] === "recipes" && pathSegments[1]) {
       const id = pathSegments[1];
-      const { targetMargin, ingredients } = body; // ingredients: Array of { ingredientId, amountUsed }
+      const { targetMargin, ingredients, yieldQuantity } = body; // ingredients: Array of { ingredientId, amountUsed }
 
       const updated = await prisma.$transaction(async (tx) => {
         // Clear old recipe ingredients
@@ -1043,6 +1053,7 @@ export async function PUT(
           where: { id },
           data: {
             targetMargin: Number(targetMargin),
+            yieldQuantity: yieldQuantity ? Number(yieldQuantity) : 1.0,
             updatedAt: new Date(),
             ingredients: {
               create: ingredients.map((i: any) => ({
@@ -1086,6 +1097,7 @@ export async function PUT(
         menuItemName: finalRecipe.menuItem?.nameEn || null,
         menuItemPrice: price,
         targetMargin: Number(finalRecipe.targetMargin),
+        yieldQuantity: Number(finalRecipe.yieldQuantity || 1.0),
         currentCost: cost,
         currentMargin: price > 0 ? (price - cost) / price : 0,
         ingredients: finalRecipe.ingredients.map((ri) => ({
@@ -1155,7 +1167,10 @@ export async function DELETE(
     // 3. Delete Recipe
     if (pathSegments[0] === "recipes" && pathSegments[1]) {
       const id = pathSegments[1];
-      await prisma.recipe.delete({ where: { id } });
+      await prisma.recipe.update({
+        where: { id },
+        data: { isDeleted: true },
+      });
       return new NextResponse(null, { status: 204 });
     }
 

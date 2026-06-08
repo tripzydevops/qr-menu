@@ -21,6 +21,7 @@ export async function GET(request: NextRequest) {
       include: {
         translations: true,
         items: {
+          where: { isDeleted: false },
           orderBy: { sortOrder: "asc" },
           include: {
             translations: true,

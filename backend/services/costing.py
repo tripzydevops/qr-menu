@@ -133,10 +133,13 @@ def recalculate_recipe_cost(db: Session, recipe_id: str) -> Decimal:
         if ingredient:
             total_cost += _dec(ri.amountUsed) * _dec(ingredient.weightedCost)
 
-    recipe.currentCost = total_cost
+    yield_qty = _dec(recipe.yieldQuantity) if recipe.yieldQuantity else _ONE
+    portion_cost = total_cost / yield_qty
+
+    recipe.currentCost = portion_cost
     recipe.updatedAt = datetime.datetime.utcnow()
     db.flush()
-    return total_cost
+    return portion_cost
 
 
 # ---------------------------------------------------------------------------
@@ -456,7 +459,8 @@ def deduct_stock_from_order(db: Session, order_id: str) -> List[dict]:
             if not ingredient:
                 continue
 
-            deduction = _dec(ri.amountUsed) * qty
+            yield_qty = _dec(recipe.yieldQuantity) if recipe.yieldQuantity else _ONE
+            deduction = (_dec(ri.amountUsed) * qty) / yield_qty
             ingredient.currentStock = _dec(ingredient.currentStock) - deduction
             ingredient.updatedAt = datetime.datetime.utcnow()
 

@@ -36,6 +36,7 @@ export async function deductStockFromOrder(orderId: string, tx: any = prisma) {
     if (!recipe) continue;
 
     const qty = Number(item.quantity);
+    const yieldQuantity = Number(recipe.yieldQuantity || 1);
 
     for (const ri of recipe.ingredients) {
       const ingredient = await tx.ingredient.findUnique({
@@ -43,7 +44,7 @@ export async function deductStockFromOrder(orderId: string, tx: any = prisma) {
       });
       if (!ingredient) continue;
 
-      const deduction = Number(ri.amountUsed) * qty;
+      const deduction = yieldQuantity > 0 ? (Number(ri.amountUsed) * qty) / yieldQuantity : Number(ri.amountUsed) * qty;
       const newStock = Number(ingredient.currentStock) - deduction;
 
       await tx.ingredient.update({
