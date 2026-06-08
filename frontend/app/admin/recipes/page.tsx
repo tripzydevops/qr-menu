@@ -126,6 +126,15 @@ export default function AdminRecipesPage() {
   const [loading, setLoading] = useState(true);
   const [isSaving, setIsSaving] = useState(false);
   const [searchQuery, setSearchQuery] = useState("");
+  const [categories, setCategories] = useState<any[]>([]);
+
+  // Add Recipe Modal state
+  const [addRecipeModalOpen, setAddRecipeModalOpen] = useState(false);
+  const [newRecipeNameTr, setNewRecipeNameTr] = useState("");
+  const [newRecipeNameEn, setNewRecipeNameEn] = useState("");
+  const [newRecipeCategoryId, setNewRecipeCategoryId] = useState("");
+  const [newRecipePrice, setNewRecipePrice] = useState("0");
+  const [creatingRecipe, setCreatingRecipe] = useState(false);
 
   // Builder Modal state
   const [modalOpen, setModalOpen] = useState(false);
@@ -155,6 +164,7 @@ export default function AdminRecipesPage() {
         const categoriesData = await itemsRes.json();
         const ingredientsData = await ingRes.json();
         setIngredients(ingredientsData);
+        setCategories(categoriesData);
 
         // Flatten menu items with category names
         const flattenedItems: MenuItem[] = [];
@@ -431,6 +441,58 @@ export default function AdminRecipesPage() {
     }
   };
 
+  const handleCreateInternalRecipe = async () => {
+    if (!newRecipeNameTr.trim() || !newRecipeNameEn.trim() || !newRecipeCategoryId) {
+      alert("Lütfen tüm zorunlu alanları doldurun.");
+      return;
+    }
+    setCreatingRecipe(true);
+    try {
+      const payload = {
+        categoryId: newRecipeCategoryId,
+        nameTr: newRecipeNameTr,
+        nameEn: newRecipeNameEn,
+        price: parseFloat(newRecipePrice) || 0,
+        showOnMenu: false, // Hidden from menu!
+        isAvailable: true
+      };
+      const res = await fetch(`${apiUrl}/api/admin/menu-items`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(payload)
+      });
+      if (res.ok) {
+        const newItem = await res.json();
+        setAddRecipeModalOpen(false);
+        setNewRecipeNameTr("");
+        setNewRecipeNameEn("");
+        setNewRecipePrice("0");
+        
+        await fetchData();
+        
+        const catName = categories.find(c => c.id === newItem.categoryId)?.nameTr || "";
+        const formattedItem: MenuItem = {
+          id: newItem.id,
+          nameTr: newItem.nameTr,
+          nameEn: newItem.nameEn,
+          price: newItem.price.toString(),
+          categoryId: newItem.categoryId,
+          categoryName: catName,
+          showOnMenu: false,
+          recipe: null
+        };
+        openBuilderModal(formattedItem);
+      } else {
+        alert("Reçete ürünü oluşturulamadı.");
+      }
+    } catch (e) {
+      console.error(e);
+      alert("Bağlantı hatası.");
+    } finally {
+      setCreatingRecipe(false);
+    }
+  };
+
   const filteredMenuItems = menuItems.filter(item =>
     item.nameTr.toLowerCase().includes(searchQuery.toLowerCase()) ||
     item.nameEn.toLowerCase().includes(searchQuery.toLowerCase()) ||
@@ -457,6 +519,20 @@ export default function AdminRecipesPage() {
           >
             <RefreshCw className="h-4 w-4 text-[#C9A84C]" />
             <span>Maliyetleri Yenile</span>
+          </button>
+          <button
+            onClick={() => {
+              if (categories.length === 0) {
+                alert("Önce Menü Yönetiminden bir kategori oluşturmalısınız.");
+                return;
+              }
+              setNewRecipeCategoryId(categories[0].id);
+              setAddRecipeModalOpen(true);
+            }}
+            className="flex items-center space-x-1.5 px-4 py-2.5 rounded-xl bg-gradient-to-r from-[#722F37] to-[#C9A84C]/80 hover:to-[#C9A84C] text-white font-semibold text-xs transition-all shadow-md shadow-[#722F37]/15"
+          >
+            <Plus className="h-4 w-4" />
+            <span>Yeni Reçete Ekle</span>
           </button>
         </div>
       </div>
@@ -889,6 +965,90 @@ export default function AdminRecipesPage() {
                   <Check className="h-4 w-4" />
                 )}
                 <span>Reçeteyi Kaydet</span>
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+      {/* Add Recipe Modal */}
+      {addRecipeModalOpen && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+          <div className="absolute inset-0 bg-black/75 backdrop-blur-sm" onClick={() => setAddRecipeModalOpen(false)} />
+          <div className="relative w-full max-w-md bg-[#16213E] border border-gray-800 rounded-2xl p-6 shadow-2xl space-y-4 flex flex-col max-h-[85vh]">
+            <h3 className="font-serif text-lg font-bold text-white flex-shrink-0">
+              Yeni Reçete Kartı Oluştur
+            </h3>
+            
+            <div className="space-y-3.5 overflow-y-auto flex-grow pr-1">
+              <div>
+                <label className="text-xs text-gray-400 block mb-1">Reçete Adı (TR)</label>
+                <input 
+                  type="text" 
+                  value={newRecipeNameTr}
+                  onChange={(e) => setNewRecipeNameTr(e.target.value)}
+                  className="w-full bg-[#1C1C28] border border-gray-850 rounded-xl px-4 py-2 text-xs text-white focus:outline-none focus:border-[#C9A84C]/50"
+                  placeholder="örn. Pizza Hamuru veya Domates Sosu"
+                />
+              </div>
+              
+              <div>
+                <label className="text-xs text-gray-400 block mb-1">Reçete Adı (EN)</label>
+                <input 
+                  type="text" 
+                  value={newRecipeNameEn}
+                  onChange={(e) => setNewRecipeNameEn(e.target.value)}
+                  className="w-full bg-[#1C1C28] border border-gray-850 rounded-xl px-4 py-2 text-xs text-white focus:outline-none focus:border-[#C9A84C]/50"
+                  placeholder="örn. Pizza Dough"
+                />
+              </div>
+
+              <div>
+                <label className="text-xs text-gray-400 block mb-1">Kategori</label>
+                <select 
+                  value={newRecipeCategoryId}
+                  onChange={(e) => setNewRecipeCategoryId(e.target.value)}
+                  className="w-full bg-[#1C1C28] border border-gray-850 rounded-xl px-4 py-2 text-xs text-white focus:outline-none focus:border-[#C9A84C]/50"
+                >
+                  {categories.map((c: any) => (
+                    <option key={c.id} value={c.id}>{c.nameTr}</option>
+                  ))}
+                </select>
+              </div>
+
+              <div>
+                <label className="text-xs text-gray-400 block mb-1">Satış Fiyatı (Opsiyonel)</label>
+                <input 
+                  type="number" 
+                  value={newRecipePrice}
+                  onChange={(e) => setNewRecipePrice(e.target.value)}
+                  className="w-full bg-[#1C1C28] border border-gray-850 rounded-xl px-4 py-2 text-xs text-white focus:outline-none focus:border-[#C9A84C]/50 font-mono"
+                  placeholder="Müşteriye satılmayacaksa 0 bırakın"
+                />
+                <p className="text-[10px] text-gray-500 mt-1">
+                  Bu reçete otomatik olarak **Menüde Gizli** işaretlenecektir (Müşteriler QR kodda göremez).
+                </p>
+              </div>
+            </div>
+
+            <div className="flex justify-end space-x-2 pt-4 border-t border-gray-800/40 flex-shrink-0">
+              <button 
+                onClick={() => setAddRecipeModalOpen(false)}
+                disabled={creatingRecipe}
+                className="px-4 py-2.5 rounded-xl bg-gray-800 hover:bg-gray-700 text-xs font-bold text-white border border-gray-700/50"
+              >
+                İptal
+              </button>
+              <button 
+                onClick={handleCreateInternalRecipe}
+                disabled={creatingRecipe}
+                className="flex items-center space-x-1 px-5 py-2.5 rounded-xl bg-[#722F37] hover:bg-[#8B3E48] text-white font-bold text-xs shadow-md shadow-[#722F37]/15"
+              >
+                {creatingRecipe ? (
+                  <Loader2 className="h-4 w-4 animate-spin" />
+                ) : (
+                  <Plus className="h-4 w-4" />
+                )}
+                <span>Oluştur & Formüle Et</span>
               </button>
             </div>
           </div>
