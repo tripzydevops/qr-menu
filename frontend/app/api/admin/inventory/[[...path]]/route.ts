@@ -239,6 +239,49 @@ export async function GET(
   try {
     const pathSegments = params.path || [];
     const { searchParams } = new URL(request.url);
+
+    // 0. Suggest Density (does not require venueId)
+    if (pathSegments[0] === "ingredients" && pathSegments[1] === "suggest-density") {
+      const name = searchParams.get("name");
+      if (!name) {
+        return NextResponse.json({ detail: "name parameter is required" }, { status: 400 });
+      }
+
+      const apiKey = process.env.GEMINI_API_KEY || process.env.GOOGLE_API_KEY;
+      if (!apiKey) {
+        return NextResponse.json({ density: 1.0 });
+      }
+
+      const url = `https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${apiKey}`;
+      const prompt = `You are a culinary science assistant. Estimate the density (specific gravity) in g/mL of the ingredient named: "${name}".
+Return a JSON object with this exact structure:
+{
+  "density": number
+}
+Ensure the density is a positive float. Typical examples: Water = 1.0, Yogurt = 1.08, Olive Oil = 0.92, Flour = 0.52, Sugar = 0.85, Milk = 1.03, Honey = 1.42. If you don't know or the name is unclear, default to 1.0.`;
+
+      const payload = {
+        contents: [{ parts: [{ text: prompt }] }],
+        generationConfig: { responseMimeType: "application/json" },
+      };
+
+      const res = await fetch(url, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(payload),
+      });
+
+      if (res.ok) {
+        const data = await res.json();
+        const textResponse = data.candidates?.[0]?.content?.parts?.[0]?.text;
+        if (textResponse) {
+          const parsed = JSON.parse(textResponse.trim());
+          return NextResponse.json({ density: Number(parsed.density || 1.0) });
+        }
+      }
+      return NextResponse.json({ density: 1.0 });
+    }
+
     const venueId = searchParams.get("venueId");
 
     if (!venueId) {

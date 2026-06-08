@@ -12,7 +12,8 @@ import {
   Search,
   Mail,
   Phone,
-  Settings
+  Settings,
+  Sparkles
 } from "lucide-react";
 
 interface Ingredient {
@@ -49,6 +50,7 @@ export default function AdminInventoryPage() {
   const [ingUnit, setIngUnit] = useState("g");
   const [ingReorder, setIngReorder] = useState("");
   const [ingDensity, setIngDensity] = useState("1.0");
+  const [fetchingDensity, setFetchingDensity] = useState(false);
 
   const [supModalOpen, setSupModalOpen] = useState(false);
   const [editingSup, setEditingSup] = useState<Supplier | null>(null);
@@ -217,6 +219,24 @@ export default function AdminInventoryPage() {
       }
     } catch (e) {
       console.error(e);
+    }
+  };
+
+  const handleSuggestDensity = async (name: string) => {
+    if (!name.trim()) return;
+    try {
+      setFetchingDensity(true);
+      const res = await fetch(`${apiUrl}/api/admin/inventory/ingredients/suggest-density?name=${encodeURIComponent(name)}`);
+      if (res.ok) {
+        const data = await res.json();
+        if (data.density) {
+          setIngDensity(data.density.toString());
+        }
+      }
+    } catch (e) {
+      console.error(e);
+    } finally {
+      setFetchingDensity(false);
     }
   };
 
@@ -508,6 +528,7 @@ export default function AdminInventoryPage() {
                   type="text"
                   value={ingName}
                   onChange={(e) => setIngName(e.target.value)}
+                  onBlur={() => handleSuggestDensity(ingName)}
                   className={`w-full bg-[#1C1C28] border rounded-xl px-4 py-2.5 text-sm text-white focus:outline-none ${
                     errors.name ? "border-red-500 focus:border-red-500" : "border-gray-800 focus:border-[#C9A84C]/50"
                   }`}
@@ -554,12 +575,19 @@ export default function AdminInventoryPage() {
                     step="0.01"
                     value={ingDensity}
                     onChange={(e) => setIngDensity(e.target.value)}
-                    className={`w-full bg-[#1C1C28] border rounded-xl px-4 py-2.5 text-sm text-white font-mono focus:outline-none pr-12 ${
+                    className={`w-full bg-[#1C1C28] border rounded-xl px-4 py-2.5 text-sm text-white font-mono focus:outline-none pr-16 ${
                       errors.density ? "border-red-500 focus:border-red-500" : "border-gray-800 focus:border-[#C9A84C]/50"
                     }`}
                     placeholder="örn. 1.0 (Su), 1.08 (Yoğurt)..."
                   />
-                  <span className="absolute right-4 top-3 text-[10px] text-gray-500 font-bold">g/mL</span>
+                  <div className="absolute right-4 top-3 flex items-center space-x-1.5 text-[10px] text-gray-500 font-bold select-none">
+                    {fetchingDensity ? (
+                      <Loader2 className="h-3 w-3 animate-spin text-[#C9A84C]" />
+                    ) : (
+                      <Sparkles className="h-3.5 w-3.5 text-[#C9A84C]/80 animate-pulse" />
+                    )}
+                    <span>g/mL</span>
+                  </div>
                 </div>
                 {errors.density && <p className="text-red-500 text-[11px] mt-1">{errors.density}</p>}
                 <p className="text-[10px] text-gray-500 mt-1">
