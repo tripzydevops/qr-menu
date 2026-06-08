@@ -252,7 +252,7 @@ export async function GET(
         return NextResponse.json({ density: 1.0 });
       }
 
-      const url = `https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${apiKey}`;
+      const url = `https://generativelanguage.googleapis.com/v1beta/models/gemini-3.5-flash:generateContent?key=${apiKey}`;
       const prompt = `You are a culinary science assistant. Estimate the density (specific gravity) in g/mL of the ingredient named: "${name}".
 Return a JSON object with this exact structure:
 {
@@ -567,7 +567,7 @@ export async function POST(
       const base64Data = Buffer.from(bytes).toString("base64");
       const mimeType = file.type;
 
-      const url = `https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${apiKey}`;
+      const url = `https://generativelanguage.googleapis.com/v1beta/models/gemini-3.5-flash:generateContent?key=${apiKey}`;
 
       const prompt = `Analyze this invoice image/document and extract the structured information. Return a JSON object with the following structure:
 {
@@ -995,7 +995,7 @@ Extract raw items exactly as shown. For quantity and unitCost, ensure they are p
         return NextResponse.json([]);
       }
 
-      const url = `https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${apiKey}`;
+      const url = `https://generativelanguage.googleapis.com/v1beta/models/gemini-3.5-flash:generateContent?key=${apiKey}`;
 
       const prompt = `Analyze the recipe content (text or image) and extract the structured list of ingredients.
 ${promptContext}

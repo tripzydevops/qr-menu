@@ -33,6 +33,15 @@ except ImportError:
 # Create database tables if they do not exist
 Base.metadata.create_all(bind=engine)
 
+# Add showOnMenu column dynamically if it doesn't exist
+try:
+    from sqlalchemy import text
+    with engine.connect() as conn:
+        conn.execute(text('ALTER TABLE "MenuItem" ADD COLUMN IF NOT EXISTS "showOnMenu" BOOLEAN DEFAULT TRUE;'))
+        conn.commit()
+except Exception as e:
+    print(f"[Startup Migration] Failed to add showOnMenu column: {e}")
+
 app = FastAPI(
     title="Tripzy QR Menu SaaS API",
     description="Backend service for presenting digital menus to guests via QR codes.",
@@ -135,7 +144,7 @@ def get_menu_by_qr_token(qr_token: str, request: Request, locale: Optional[str] 
 
     # Filter items that are available for guests
     for category in categories:
-        category.items = [item for item in category.items if item.isAvailable]
+        category.items = [item for item in category.items if item.isAvailable and getattr(item, "showOnMenu", True)]
         # Sort items within category
         category.items = sorted(category.items, key=lambda x: x.sortOrder)
 
@@ -249,30 +258,31 @@ def search_menu_items(qr_token: str, q: str, db: Session = Depends(get_db)):
     if not table:
         raise HTTPException(status_code=404, detail="Table not found")
         
-    # 2. Get query embedding
-    query_vector = get_embedding_sync(q)
-    vector_str = "[" + ",".join(map(str, query_vector)) + "]"
-    
-    # 3. Query closest items using cosine distance (<=>)
-    from sqlalchemy import text
-    query = text("""
-        SELECT id FROM "MenuItem" 
-        WHERE "categoryId" IN (SELECT id FROM "Category" WHERE "venueId" = :venue_id)
-          AND "isAvailable" = true
-          AND "embedding" IS NOT NULL
-        ORDER BY "embedding" <=> cast(:query_vector as vector)
-        LIMIT 10;
-    """)
-    
     try:
+        # 2. Get query embedding
+        query_vector = get_embedding_sync(q)
+        vector_str = "[" + ",".join(map(str, query_vector)) + "]"
+        
+        # 3. Query closest items using cosine distance (<=>)
+        from sqlalchemy import text
+        query = text("""
+            SELECT id FROM "MenuItem" 
+            WHERE "categoryId" IN (SELECT id FROM "Category" WHERE "venueId" = :venue_id)
+              AND "isAvailable" = true
+              AND "showOnMenu" = true
+              AND "embedding" IS NOT NULL
+            ORDER BY "embedding" <=> cast(:query_vector as vector)
+            LIMIT 10;
+        """)
         results = db.execute(query, {"venue_id": table.venueId, "query_vector": vector_str}).fetchall()
         item_ids = [r[0] for r in results]
     except Exception as e:
-        print(f"[Search] pgvector query failed: {e}. Falling back to standard case-insensitive text search.")
+        print(f"[Search] pgvector query/embedding failed: {e}. Falling back to standard case-insensitive text search.")
         # Fallback to standard text search if pgvector fails (e.g. extension not configured in tests)
         fallback_query = db.query(models.MenuItem).filter(
             models.MenuItem.categoryId.in_(db.query(models.Category.id).filter(models.Category.venueId == table.venueId)),
             models.MenuItem.isAvailable == True,
+            models.MenuItem.showOnMenu == True,
             (models.MenuItem.nameTr.ilike(f"%{q}%")) | (models.MenuItem.nameEn.ilike(f"%{q}%")) |
             (models.MenuItem.descriptionTr.ilike(f"%{q}%")) | (models.MenuItem.descriptionEn.ilike(f"%{q}%"))
         ).limit(10).all()
@@ -552,6 +562,7 @@ def create_menu_item(item_in: schemas.MenuItemCreate, db: Session = Depends(get_
         imageUrl=item_in.imageUrl,
         allergens=item_in.allergens,
         isAvailable=item_in.isAvailable,
+        showOnMenu=item_in.showOnMenu,
         sortOrder=item_in.sortOrder,
         calories=item_in.calories,
         categoryId=item_in.categoryId
@@ -591,6 +602,7 @@ def update_menu_item(id: str, item_in: schemas.MenuItemCreate, db: Session = Dep
     item.imageUrl = item_in.imageUrl
     item.allergens = item_in.allergens
     item.isAvailable = item_in.isAvailable
+    item.showOnMenu = item_in.showOnMenu
     item.sortOrder = item_in.sortOrder
     item.calories = item_in.calories
     item.categoryId = item_in.categoryId
@@ -1856,7 +1868,7 @@ async def import_menu_ai(file: UploadFile = File(...)):
             }
         }
         
-        url = f"https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key={api_key}"
+        url = f"https://generativelanguage.googleapis.com/v1beta/models/gemini-3.5-flash:generateContent?key={api_key}"
         async with httpx.AsyncClient(timeout=30.0) as client:
             response = await client.post(url, json=payload)
             if response.status_code != 200:
