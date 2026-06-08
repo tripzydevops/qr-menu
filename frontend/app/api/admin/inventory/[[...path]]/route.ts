@@ -260,6 +260,7 @@ export async function GET(
           currentStock: Number(ing.currentStock),
           reorderLevel: ing.reorderLevel ? Number(ing.reorderLevel) : null,
           weightedCost: Number(ing.weightedCost),
+          density: Number(ing.density),
         }))
       );
     }
@@ -357,6 +358,7 @@ export async function GET(
               ingredientName: ri.ingredient?.name || null,
               ingredientUnit: ri.ingredient?.unit || null,
               ingredientCost: ri.ingredient ? Number(ri.ingredient.weightedCost) : 0,
+              ingredientDensity: ri.ingredient ? Number(ri.ingredient.density) : 1.0,
               amountUsed: Number(ri.amountUsed),
               lineCost: ri.ingredient ? Number(ri.amountUsed) * Number(ri.ingredient.weightedCost) : 0,
             })),
@@ -588,7 +590,7 @@ Extract raw items exactly as shown. For quantity and unitCost, ensure they are p
 
     // 2. Add Ingredient
     if (pathSegments[0] === "ingredients") {
-      const { name, unit, reorderLevel } = body;
+      const { name, unit, reorderLevel, density } = body;
       const existing = await prisma.ingredient.findFirst({
         where: { venueId, name },
       });
@@ -603,6 +605,7 @@ Extract raw items exactly as shown. For quantity and unitCost, ensure they are p
           currentStock: 0,
           weightedCost: 0,
           reorderLevel: reorderLevel ? Number(reorderLevel) : null,
+          density: density !== undefined ? Number(density) : 1.0,
           venueId,
         },
       });
@@ -612,6 +615,7 @@ Extract raw items exactly as shown. For quantity and unitCost, ensure they are p
         currentStock: Number(ing.currentStock),
         reorderLevel: ing.reorderLevel ? Number(ing.reorderLevel) : null,
         weightedCost: Number(ing.weightedCost),
+        density: Number(ing.density),
       }, { status: 201 });
     }
 
@@ -753,6 +757,7 @@ Extract raw items exactly as shown. For quantity and unitCost, ensure they are p
           ingredientName: ri.ingredient?.name || null,
           ingredientUnit: ri.ingredient?.unit || null,
           ingredientCost: ri.ingredient ? Number(ri.ingredient.weightedCost) : 0,
+          ingredientDensity: ri.ingredient ? Number(ri.ingredient.density) : 1.0,
           amountUsed: Number(ri.amountUsed),
           lineCost: ri.ingredient ? Number(ri.amountUsed) * Number(ri.ingredient.weightedCost) : 0,
         })),
@@ -797,6 +802,7 @@ Extract raw items exactly as shown. For quantity and unitCost, ensure they are p
           ingredientName: ri.ingredient?.name || null,
           ingredientUnit: ri.ingredient?.unit || null,
           ingredientCost: ri.ingredient ? Number(ri.ingredient.weightedCost) : 0,
+          ingredientDensity: ri.ingredient ? Number(ri.ingredient.density) : 1.0,
           amountUsed: Number(ri.amountUsed),
           lineCost: ri.ingredient ? Number(ri.amountUsed) * Number(ri.ingredient.weightedCost) : 0,
         })),
@@ -891,11 +897,11 @@ Extract raw items exactly as shown. For quantity and unitCost, ensure they are p
 
       const allIngredients = await prisma.ingredient.findMany({
         where: { venueId },
-        select: { id: true, name: true, unit: true, weightedCost: true },
+        select: { id: true, name: true, unit: true, weightedCost: true, density: true },
       });
 
       let promptContext = "Available ingredients in database:\n" + 
-        allIngredients.map(ing => `- ID: "${ing.id}", Name: "${ing.name}", Unit: "${ing.unit}"`).join("\n");
+        allIngredients.map(ing => `- ID: "${ing.id}", Name: "${ing.name}", Unit: "${ing.unit}", Density: "${Number(ing.density)} g/mL"`).join("\n");
 
       const contentType = request.headers.get("content-type") || "";
       let recipeContentPart: any = null;
@@ -945,7 +951,17 @@ For each matched ingredient, return a JSON array containing objects with this ex
   }
 ]
 Only return matches that correspond to the available ingredients listed. If a recipe ingredient doesn't match any listed database ingredient, omit it.
-The "amountUsed" must be a positive number in the unit specified for that ingredient in the database list.`;
+The "amountUsed" must be a positive number in the unit specified for that ingredient in the database list.
+IMPORTANT CONVERSION RULE:
+If the recipe specifies a volume-based quantity (e.g., cup, tablespoon, teaspoon, ml, liter) but the database ingredient's unit is weight-based (e.g., g, kg), you MUST convert the volume to weight using the provided Density (in g/mL) for that ingredient.
+Standard conversions to use:
+- 1 cup (Su bardağı) = 240 mL
+- 1 tablespoon (Yemek kaşığı / tbsp) = 15 mL
+- 1 teaspoon (Tatlı kaşığı / tsp) = 5 mL
+For example:
+- If the recipe specifies "2 cups of Yogurt" and Yogurt has "Density: 1.08 g/mL", convert 2 cups to mL (2 * 240 = 480 mL), then to grams using density (480 * 1.08 = 518.4 g). If Yogurt's database unit is "g", return 518.4.
+- If the recipe specifies "3 tablespoons of Flour" and Flour has "Density: 0.52 g/mL", convert 3 tbsp to mL (3 * 15 = 45 mL), then to grams (45 * 0.52 = 23.4 g). If Flour's database unit is "g", return 23.4.
+Perform all conversions carefully before outputting the final "amountUsed" in the database ingredient's unit!`;
 
       const payload = {
         contents: [
@@ -1001,7 +1017,7 @@ export async function PUT(
     // 1. Update Ingredient
     if (pathSegments[0] === "ingredients" && pathSegments[1]) {
       const id = pathSegments[1];
-      const { name, unit, reorderLevel } = body;
+      const { name, unit, reorderLevel, density } = body;
 
       const ing = await prisma.ingredient.update({
         where: { id },
@@ -1009,6 +1025,7 @@ export async function PUT(
           name,
           unit,
           reorderLevel: reorderLevel ? Number(reorderLevel) : null,
+          density: density !== undefined ? Number(density) : 1.0,
           updatedAt: new Date(),
         },
       });
@@ -1018,6 +1035,7 @@ export async function PUT(
         currentStock: Number(ing.currentStock),
         reorderLevel: ing.reorderLevel ? Number(ing.reorderLevel) : null,
         weightedCost: Number(ing.weightedCost),
+        density: Number(ing.density),
       });
     }
 
@@ -1106,6 +1124,7 @@ export async function PUT(
           ingredientName: ri.ingredient?.name || null,
           ingredientUnit: ri.ingredient?.unit || null,
           ingredientCost: ri.ingredient ? Number(ri.ingredient.weightedCost) : 0,
+          ingredientDensity: ri.ingredient ? Number(ri.ingredient.density) : 1.0,
           amountUsed: Number(ri.amountUsed),
           lineCost: ri.ingredient ? Number(ri.amountUsed) * Number(ri.ingredient.weightedCost) : 0,
         })),

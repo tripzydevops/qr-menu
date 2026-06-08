@@ -66,6 +66,7 @@ def create_ingredient(ing_in: schemas.IngredientCreate, db: Session = Depends(ge
         currentStock=Decimal("0.0"),
         reorderLevel=Decimal(str(ing_in.reorderLevel)) if ing_in.reorderLevel is not None else None,
         weightedCost=Decimal("0.0"),
+        density=Decimal(str(ing_in.density)),
         venueId=ing_in.venueId,
         organizationId=venue.organizationId
     )
@@ -85,6 +86,7 @@ def update_ingredient(id: str, ing_in: schemas.IngredientBase, db: Session = Dep
     db_ing.name = ing_in.name
     db_ing.unit = ing_in.unit
     db_ing.reorderLevel = Decimal(str(ing_in.reorderLevel)) if ing_in.reorderLevel is not None else None
+    db_ing.density = Decimal(str(ing_in.density))
     db_ing.updatedAt = datetime.datetime.utcnow()
     
     db.commit()

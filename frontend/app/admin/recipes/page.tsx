@@ -34,6 +34,7 @@ interface MenuItem {
       ingredientName?: string;
       ingredientUnit?: string;
       ingredientCost?: string;
+      ingredientDensity?: number;
       amountUsed: string;
     }>;
   } | null;
@@ -44,15 +45,74 @@ interface Ingredient {
   name: string;
   unit: string;
   weightedCost: string;
+  density: number;
 }
 
 interface RecipeItemForm {
   ingredientId: string;
   name: string;
   unit: string;
+  density: number;
   cost: number;
   amountUsed: number;
+  inputAmount: number;
+  inputUnit: string;
 }
+
+const convertUnit = (amount: number, fromUnit: string, toUnit: string, density: number): number => {
+  let volumeMl = 0;
+  let isVolume = false;
+
+  if (fromUnit === "ml") {
+    volumeMl = amount;
+    isVolume = true;
+  } else if (fromUnit === "liter") {
+    volumeMl = amount * 1000;
+    isVolume = true;
+  } else if (fromUnit === "cup") {
+    volumeMl = amount * 240;
+    isVolume = true;
+  } else if (fromUnit === "tbsp") {
+    volumeMl = amount * 15;
+    isVolume = true;
+  } else if (fromUnit === "tsp") {
+    volumeMl = amount * 5;
+    isVolume = true;
+  }
+
+  if (isVolume) {
+    const weightG = volumeMl * density;
+    if (toUnit === "g") return weightG;
+    if (toUnit === "kg") return weightG / 1000;
+    if (toUnit === "ml") return volumeMl;
+    if (toUnit === "liter") return volumeMl / 1000;
+    return weightG;
+  }
+
+  let weightG = 0;
+  let isWeight = false;
+  if (fromUnit === "g") {
+    weightG = amount;
+    isWeight = true;
+  } else if (fromUnit === "kg") {
+    weightG = amount * 1000;
+    isWeight = true;
+  }
+
+  if (isWeight) {
+    if (toUnit === "g") return weightG;
+    if (toUnit === "kg") return weightG / 1000;
+    const volMl = weightG / (density || 1.0);
+    if (toUnit === "ml") return volMl;
+    if (toUnit === "liter") return volMl / 1000;
+    if (toUnit === "cup") return volMl / 240;
+    if (toUnit === "tbsp") return volMl / 15;
+    if (toUnit === "tsp") return volMl / 5;
+    return weightG;
+  }
+
+  return amount;
+};
 
 export default function AdminRecipesPage() {
   const venueId = "venue-karakoy-main"; // Seed default
@@ -142,12 +202,17 @@ export default function AdminRecipesPage() {
       setYieldQuantity(item.recipe.yieldQuantity ? Number(item.recipe.yieldQuantity) : 1);
       const loadedItems = item.recipe.ingredients.map(ri => {
         const ing = ingredients.find(i => i.id === ri.ingredientId);
+        const density = ing ? Number(ing.density) : 1.0;
+        const amountUsed = parseFloat(ri.amountUsed);
         return {
           ingredientId: ri.ingredientId,
           name: ri.ingredientName || ing?.name || "Bilinmeyen Malzeme",
           unit: ri.ingredientUnit || ing?.unit || "g",
+          density,
           cost: parseFloat(ri.ingredientCost || ing?.weightedCost || "0.0"),
-          amountUsed: parseFloat(ri.amountUsed)
+          amountUsed,
+          inputAmount: amountUsed,
+          inputUnit: ri.ingredientUnit || ing?.unit || "g",
         };
       });
       setRecipeItems(loadedItems);
@@ -191,12 +256,16 @@ export default function AdminRecipesPage() {
         if (Array.isArray(data) && data.length > 0) {
           const matchedItems = data.map((item: any) => {
             const ing = ingredients.find(i => i.id === item.ingredientId);
+            const defaultAmount = parseFloat(item.amountUsed) || 0;
             return {
               ingredientId: item.ingredientId,
               name: ing?.name || "Bilinmeyen Malzeme",
               unit: ing?.unit || "g",
+              density: ing?.density || 1.0,
               cost: parseFloat(ing?.weightedCost || "0.0"),
-              amountUsed: item.amountUsed,
+              amountUsed: defaultAmount,
+              inputAmount: defaultAmount,
+              inputUnit: ing?.unit || "g",
             };
           });
           setRecipeItems(matchedItems);
@@ -223,14 +292,19 @@ export default function AdminRecipesPage() {
       return;
     }
 
+    const defaultAmount = ing.unit === "unit" ? 1 : 10;
+
     setRecipeItems([
       ...recipeItems,
       {
         ingredientId: ing.id,
         name: ing.name,
         unit: ing.unit,
+        density: ing.density || 1.0,
         cost: parseFloat(ing.weightedCost),
-        amountUsed: ing.unit === "unit" ? 1 : 10 // Default amount
+        amountUsed: defaultAmount,
+        inputAmount: defaultAmount,
+        inputUnit: ing.unit,
       }
     ]);
   };
@@ -239,9 +313,22 @@ export default function AdminRecipesPage() {
     setRecipeItems(recipeItems.filter((_, i) => i !== index));
   };
 
-  const handleUpdateAmount = (index: number, amount: number) => {
+  const handleUpdateAmount = (index: number, amount: number, unit?: string) => {
     setRecipeItems(
-      recipeItems.map((item, i) => (i === index ? { ...item, amountUsed: amount } : item))
+      recipeItems.map((item, i) => {
+        if (i === index) {
+          const nextUnit = unit !== undefined ? unit : item.inputUnit;
+          const nextAmount = amount;
+          const amountUsed = convertUnit(nextAmount, nextUnit, item.unit, item.density);
+          return {
+            ...item,
+            inputAmount: nextAmount,
+            inputUnit: nextUnit,
+            amountUsed,
+          };
+        }
+        return item;
+      })
     );
   };
 
@@ -642,18 +729,43 @@ export default function AdminRecipesPage() {
                         <div key={item.ingredientId} className="bg-[#1C1C28]/60 border border-gray-800/40 p-3 rounded-xl flex items-center justify-between gap-4">
                           <div className="flex-grow min-w-0">
                             <p className="font-semibold text-white truncate text-xs">{item.name}</p>
-                            <p className="text-[9px] text-gray-500 font-mono mt-0.5">₺{item.cost.toFixed(2)} / {item.unit}</p>
+                            <div className="flex items-center space-x-2 mt-0.5">
+                              <span className="text-[9px] text-gray-500 font-mono">₺{item.cost.toFixed(2)} / {item.unit}</span>
+                              {item.inputUnit !== item.unit && (
+                                <span className="text-[9px] bg-gray-800/40 border border-gray-700/20 px-1.5 py-0.2 rounded font-mono text-[#C9A84C] font-semibold">
+                                  (= {item.amountUsed.toFixed(1)} {item.unit})
+                                </span>
+                              )}
+                            </div>
                           </div>
                           
                           <div className="flex items-center space-x-1.5 flex-shrink-0">
                             <input
                               type="number"
                               step="0.01"
-                              value={item.amountUsed}
+                              value={item.inputAmount}
                               onChange={(e) => handleUpdateAmount(index, parseFloat(e.target.value) || 0)}
                               className="w-16 bg-[#1C1C28] border border-gray-800 rounded px-2 py-1 text-center font-mono text-xs text-white focus:outline-none focus:border-[#C9A84C]/50"
                             />
-                            <span className="text-xs text-gray-400 w-8">{item.unit}</span>
+                            <select
+                              value={item.inputUnit}
+                              onChange={(e) => handleUpdateAmount(index, item.inputAmount, e.target.value)}
+                              className="bg-[#1C1C28] border border-gray-800 rounded px-1.5 py-1 text-xs text-white focus:outline-none focus:border-[#C9A84C]/50 w-24"
+                            >
+                              {item.unit === "unit" ? (
+                                <option value="unit">Adet</option>
+                              ) : (
+                                <>
+                                  <option value="g">Gram (g)</option>
+                                  <option value="kg">Kilo (kg)</option>
+                                  <option value="ml">Mili. (ml)</option>
+                                  <option value="liter">Litre (L)</option>
+                                  <option value="cup">Bardak (cup)</option>
+                                  <option value="tbsp">Y.Kaşık (tbsp)</option>
+                                  <option value="tsp">T.Kaşık (tsp)</option>
+                                </>
+                              )}
+                            </select>
                           </div>
 
                           <div className="text-right flex-shrink-0 w-20">

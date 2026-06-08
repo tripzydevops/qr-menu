@@ -307,6 +307,7 @@ class Ingredient(Base):
     currentStock = Column(Numeric(14, 4), default=0)
     reorderLevel = Column(Numeric(14, 4), nullable=True)
     weightedCost = Column(Numeric(14, 6), default=0)  # WAC per unit
+    density = Column(Numeric(14, 4), default=1.0, nullable=False)
     venueId = Column(String, ForeignKey("Venue.id", ondelete="CASCADE"), nullable=False)
     organizationId = Column(String, nullable=True)  # Used when sharedInventory=true
     createdAt = Column(DateTime, default=datetime.datetime.utcnow)

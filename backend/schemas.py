@@ -420,6 +420,7 @@ class IngredientBase(BaseModel):
     name: str
     unit: str  # "g", "ml", "kg", "liter", "unit"
     reorderLevel: Optional[Decimal] = None
+    density: Decimal = Decimal("1.0")
 
 class IngredientCreate(IngredientBase):
     venueId: str
@@ -428,6 +429,7 @@ class IngredientUpdate(BaseModel):
     name: Optional[str] = None
     unit: Optional[str] = None
     reorderLevel: Optional[Decimal] = None
+    density: Optional[Decimal] = None
 
 class IngredientSchema(IngredientBase):
     id: str

@@ -22,6 +22,7 @@ interface Ingredient {
   currentStock: string;
   weightedCost: string;
   reorderLevel: string | null;
+  density: number;
 }
 
 interface Supplier {
@@ -47,6 +48,7 @@ export default function AdminInventoryPage() {
   const [ingName, setIngName] = useState("");
   const [ingUnit, setIngUnit] = useState("g");
   const [ingReorder, setIngReorder] = useState("");
+  const [ingDensity, setIngDensity] = useState("1.0");
 
   const [supModalOpen, setSupModalOpen] = useState(false);
   const [editingSup, setEditingSup] = useState<Supplier | null>(null);
@@ -88,6 +90,9 @@ export default function AdminInventoryPage() {
     if (ingReorder && isNaN(parseFloat(ingReorder))) {
       newErrors.reorder = "Kritik stok miktarı sayısal bir değer olmalıdır.";
     }
+    if (ingDensity && (isNaN(parseFloat(ingDensity)) || parseFloat(ingDensity) <= 0)) {
+      newErrors.density = "Yoğunluk sıfırdan büyük sayısal bir değer olmalıdır.";
+    }
 
     if (Object.keys(newErrors).length > 0) {
       setErrors(newErrors);
@@ -106,13 +111,15 @@ export default function AdminInventoryPage() {
         ? {
             name: ingName,
             unit: ingUnit,
-            reorderLevel: ingReorder ? parseFloat(ingReorder) : null
+            reorderLevel: ingReorder ? parseFloat(ingReorder) : null,
+            density: parseFloat(ingDensity)
           }
         : {
             venueId,
             name: ingName,
             unit: ingUnit,
-            reorderLevel: ingReorder ? parseFloat(ingReorder) : null
+            reorderLevel: ingReorder ? parseFloat(ingReorder) : null,
+            density: parseFloat(ingDensity)
           };
 
       const res = await fetch(url, {
@@ -217,6 +224,7 @@ export default function AdminInventoryPage() {
     setIngName("");
     setIngUnit("g");
     setIngReorder("");
+    setIngDensity("1.0");
     setErrors({});
   };
 
@@ -239,6 +247,7 @@ export default function AdminInventoryPage() {
     setIngName(ing.name);
     setIngUnit(ing.unit);
     setIngReorder(ing.reorderLevel?.toString() || "");
+    setIngDensity(ing.density?.toString() || "1.0");
     setIngModalOpen(true);
   };
 
@@ -535,6 +544,27 @@ export default function AdminInventoryPage() {
                   />
                   {errors.reorder && <p className="text-red-500 text-[11px] mt-1">{errors.reorder}</p>}
                 </div>
+              </div>
+
+              <div>
+                <label className="text-xs text-gray-400 block mb-1">Özgül Ağırlık / Yoğunluk (g/mL)</label>
+                <div className="relative">
+                  <input
+                    type="number"
+                    step="0.01"
+                    value={ingDensity}
+                    onChange={(e) => setIngDensity(e.target.value)}
+                    className={`w-full bg-[#1C1C28] border rounded-xl px-4 py-2.5 text-sm text-white font-mono focus:outline-none pr-12 ${
+                      errors.density ? "border-red-500 focus:border-red-500" : "border-gray-800 focus:border-[#C9A84C]/50"
+                    }`}
+                    placeholder="örn. 1.0 (Su), 1.08 (Yoğurt)..."
+                  />
+                  <span className="absolute right-4 top-3 text-[10px] text-gray-500 font-bold">g/mL</span>
+                </div>
+                {errors.density && <p className="text-red-500 text-[11px] mt-1">{errors.density}</p>}
+                <p className="text-[10px] text-gray-500 mt-1">
+                  Reçetelerde bardak, kaşık gibi hacim birimlerini ağırlığa çevirmek için kullanılır. (Su = 1.0)
+                </p>
               </div>
             </div>
 

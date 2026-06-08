@@ -274,6 +274,7 @@ model Ingredient {
   currentStock   Decimal            @default(0)
   reorderLevel   Decimal?           // Alert when stock falls below this
   weightedCost   Decimal            @default(0) // Weighted Average Cost per unit
+  density        Decimal            @default(1.0) @db.Decimal(14, 4)
   venueId        String
   venue          Venue              @relation(fields: [venueId], references: [id], onDelete: Cascade)
   organizationId String?            // Used when sharedInventory=true
