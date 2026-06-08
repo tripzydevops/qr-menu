@@ -551,6 +551,9 @@ export async function POST(
 
     // 1. Invoices scan (Gemini OCR)
     if (pathSegments[0] === "invoices" && pathSegments[1] === "scan") {
+      const { searchParams } = new URL(request.url);
+      const venueId = searchParams.get("venueId");
+
       const formData = await request.formData();
       const file = formData.get("file") as File;
       if (!file) {
@@ -569,20 +572,53 @@ export async function POST(
 
       const url = `https://generativelanguage.googleapis.com/v1beta/models/gemini-3.5-flash:generateContent?key=${apiKey}`;
 
-      const prompt = `Analyze this invoice image/document and extract the structured information. Return a JSON object with the following structure:
+      let existingSuppliers: any[] = [];
+      let existingIngredients: any[] = [];
+
+      if (venueId) {
+        existingSuppliers = await prisma.supplier.findMany({
+          where: { venueId },
+          select: { id: true, name: true }
+        });
+
+        const venue = await prisma.venue.findUnique({
+          where: { id: venueId },
+          include: { organization: true }
+        });
+        const org = venue?.organization;
+
+        existingIngredients = await prisma.ingredient.findMany({
+          where: org?.sharedInventory ? { organizationId: org.id } : { venueId },
+          select: { id: true, name: true, unit: true }
+        });
+      }
+
+      let prompt = `Analyze this invoice image/document and extract the structured information. Return a JSON object with the following structure:
 {
   "supplierName": "string or null",
+  "matchedSupplierId": "string or null",
   "invoiceNumber": "string or null",
   "invoiceDate": "YYYY-MM-DD or null",
   "items": [
     {
       "itemName": "string",
+      "matchedIngredientId": "string or null",
       "quantity": number,
       "unitCost": number
     }
   ]
 }
 Extract raw items exactly as shown. For quantity and unitCost, ensure they are positive numeric values.`;
+
+      if (existingSuppliers.length > 0) {
+        prompt += `\n\nHere are the existing suppliers in the database: ${JSON.stringify(existingSuppliers)}`;
+        prompt += `\nBased on the supplier name extracted from the invoice, match it to one of these existing suppliers if there is a semantic match (e.g. 'MIGROS TICARET A.S.' matches 'migros'). If a match is found, populate 'matchedSupplierId' with its ID. Otherwise, return null for 'matchedSupplierId'.`;
+      }
+
+      if (existingIngredients.length > 0) {
+        prompt += `\n\nHere are the existing ingredients/materials in the database: ${JSON.stringify(existingIngredients)}`;
+        prompt += `\nBased on the item name/description extracted from the invoice, match each item to one of these existing ingredients if there is a semantic match (e.g. 'ALTINKILIC TAZE KASR' matches 'Kaşar Peyniri', 'SÜZME SÜT 1L' matches 'Süt', 'KIRMIZI ET' or 'DANA ET' matches 'Kıyma (Dana)'). If a match is found, populate 'matchedIngredientId' with its ID. Otherwise, return null for 'matchedIngredientId'.`;
+      }
 
       const payload = {
         contents: [
@@ -615,6 +651,76 @@ Extract raw items exactly as shown. For quantity and unitCost, ensure they are p
         if (textResponse) {
           try {
             const parsed = JSON.parse(textResponse.trim());
+
+            // Auto-creation logic if venueId is provided
+            if (venueId && typeof parsed === "object" && parsed !== null) {
+              // 1. Resolve or Create Supplier
+              const supplierName = parsed.supplierName;
+              const matchedSupId = parsed.matchedSupplierId;
+
+              if (supplierName && !matchedSupId) {
+                const existingSup = await prisma.supplier.findFirst({
+                  where: {
+                    venueId,
+                    name: { equals: supplierName, mode: "insensitive" }
+                  }
+                });
+                if (existingSup) {
+                  parsed.matchedSupplierId = existingSup.id;
+                } else {
+                  const newSup = await prisma.supplier.create({
+                    data: {
+                      name: supplierName,
+                      venueId
+                    }
+                  });
+                  parsed.matchedSupplierId = newSup.id;
+                }
+              }
+
+              // 2. Resolve or Create Ingredients
+              const items = parsed.items;
+              if (Array.isArray(items)) {
+                const venue = await prisma.venue.findUnique({
+                  where: { id: venueId },
+                  include: { organization: true }
+                });
+                const orgId = venue?.organizationId;
+
+                for (const item of items) {
+                  if (item && typeof item === "object") {
+                    const itemName = item.itemName;
+                    const matchedIngId = item.matchedIngredientId;
+
+                    if (itemName && !matchedIngId) {
+                      const existingIng = await prisma.ingredient.findFirst({
+                        where: {
+                          venueId,
+                          name: { equals: itemName, mode: "insensitive" }
+                        }
+                      });
+                      if (existingIng) {
+                        item.matchedIngredientId = existingIng.id;
+                      } else {
+                        const newIng = await prisma.ingredient.create({
+                          data: {
+                            name: itemName,
+                            unit: "adet",
+                            currentStock: 0,
+                            weightedCost: 0,
+                            density: 1.0,
+                            venueId,
+                            organizationId: orgId
+                          }
+                        });
+                        item.matchedIngredientId = newIng.id;
+                      }
+                    }
+                  }
+                }
+              }
+            }
+
             return NextResponse.json(parsed);
           } catch (jsonErr: any) {
             console.error("[OCR] Failed to parse JSON response from Gemini:", jsonErr);
