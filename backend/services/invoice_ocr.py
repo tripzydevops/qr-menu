@@ -4,7 +4,7 @@ import httpx
 import json
 from typing import List, Dict, Any, Optional
 
-def parse_invoice_image(
+async def parse_invoice_image(
     file_bytes: bytes, 
     mime_type: str,
     existing_suppliers: Optional[List[Dict[str, Any]]] = None,
@@ -88,8 +88,8 @@ def parse_invoice_image(
     }
 
     try:
-        with httpx.Client(timeout=30.0) as client:
-            response = client.post(url, json=payload)
+        async with httpx.AsyncClient(timeout=30.0) as client:
+            response = await client.post(url, json=payload)
             if response.status_code == 200:
                 data = response.json()
                 text_response = data["candidates"][0]["content"]["parts"][0]["text"]

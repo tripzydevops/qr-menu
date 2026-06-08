@@ -357,18 +357,7 @@ function MenuContent() {
     fetchMenu();
   }, [token, locale]);
 
-  // Preload all menu item images to prevent rendering lag on scroll
-  useEffect(() => {
-    if (!menu || typeof window === "undefined") return;
-    menu.categories.forEach((category) => {
-      category.items.forEach((item) => {
-        if (item.imageUrl) {
-          const img = new window.Image();
-          img.src = item.imageUrl;
-        }
-      });
-    });
-  }, [menu]);
+
 
   // Scroll spy effect to active category indicator
   useEffect(() => {

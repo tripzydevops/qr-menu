@@ -1,4 +1,4 @@
-from fastapi import FastAPI, Depends, HTTPException, status, Request, UploadFile, File
+from fastapi import FastAPI, Depends, HTTPException, status, Request, UploadFile, File, BackgroundTasks
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
 from sqlalchemy.orm import Session
@@ -15,7 +15,7 @@ try:
     from . import models, schemas
     from .services.storage import upload_image
     from .services.analytics import log_view, get_analytics_summary
-    from .services.embeddings import get_embedding_sync
+    from .services.embeddings import get_embedding_sync, get_embedding
     from .api.inventory import router as inventory_router
     from .services.costing import deduct_stock_from_order
     from .services.signal_bridge import emit_order_signals
@@ -25,7 +25,7 @@ except ImportError:
     import schemas
     from services.storage import upload_image
     from services.analytics import log_view, get_analytics_summary
-    from services.embeddings import get_embedding_sync
+    from services.embeddings import get_embedding_sync, get_embedding
     from api.inventory import router as inventory_router
     from services.costing import deduct_stock_from_order
     from services.signal_bridge import emit_order_signals
@@ -246,7 +246,7 @@ def call_waiter(qr_token: str, request_in: schemas.WaiterRequestCreate, db: Sess
     return db_request
 
 @app.get("/api/menu/{qr_token}/search", response_model=List[schemas.MenuItemSchema])
-def search_menu_items(qr_token: str, q: str, db: Session = Depends(get_db)):
+async def search_menu_items(qr_token: str, q: str, db: Session = Depends(get_db)):
     """
     Perform semantic vector similarity search on menu items using pgvector.
     """
@@ -260,7 +260,7 @@ def search_menu_items(qr_token: str, q: str, db: Session = Depends(get_db)):
         
     try:
         # 2. Get query embedding
-        query_vector = get_embedding_sync(q)
+        query_vector = await get_embedding(q)
         vector_str = "[" + ",".join(map(str, query_vector)) + "]"
         
         # 3. Query closest items using cosine distance (<=>)
@@ -546,8 +546,16 @@ def update_menu_item_embedding(db: Session, item_id: str, name_tr: str, name_en:
     except Exception as e:
         print(f"[Embeddings] Failed to update embedding for item {item_id}: {e}")
 
+def update_menu_item_embedding_task(item_id: str, name_tr: str, name_en: str, desc_tr: Optional[str], desc_en: Optional[str]):
+    from database import SessionLocal
+    db = SessionLocal()
+    try:
+        update_menu_item_embedding(db, item_id, name_tr, name_en, desc_tr, desc_en)
+    finally:
+        db.close()
+
 @app.post("/api/admin/menu-items", response_model=schemas.MenuItemSchema, status_code=status.HTTP_201_CREATED)
-def create_menu_item(item_in: schemas.MenuItemCreate, db: Session = Depends(get_db)):
+def create_menu_item(item_in: schemas.MenuItemCreate, background_tasks: BackgroundTasks, db: Session = Depends(get_db)):
     cat = db.query(models.Category).filter(models.Category.id == item_in.categoryId).first()
     if not cat:
         raise HTTPException(status_code=404, detail="Category not found")
@@ -581,15 +589,20 @@ def create_menu_item(item_in: schemas.MenuItemCreate, db: Session = Depends(get_
     db.commit()
     db.refresh(db_item)
     
-    # Generate and save embedding vector
-    update_menu_item_embedding(db, db_item.id, db_item.nameTr, db_item.nameEn, db_item.descriptionTr, db_item.descriptionEn)
+    # Generate and save embedding vector asynchronously
+    background_tasks.add_task(
+        update_menu_item_embedding_task,
+        db_item.id,
+        db_item.nameTr,
+        db_item.nameEn,
+        db_item.descriptionTr,
+        db_item.descriptionEn
+    )
     
-    # Refresh to include updated embedding in return payload (if needed)
-    db.refresh(db_item)
     return db_item
 
 @app.put("/api/admin/menu-items/{id}", response_model=schemas.MenuItemSchema)
-def update_menu_item(id: str, item_in: schemas.MenuItemCreate, db: Session = Depends(get_db)):
+def update_menu_item(id: str, item_in: schemas.MenuItemCreate, background_tasks: BackgroundTasks, db: Session = Depends(get_db)):
     item = db.query(models.MenuItem).filter(models.MenuItem.id == id).first()
     if not item:
         raise HTTPException(status_code=404, detail="Menu Item not found")
@@ -630,10 +643,16 @@ def update_menu_item(id: str, item_in: schemas.MenuItemCreate, db: Session = Dep
     db.commit()
     db.refresh(item)
     
-    # Update embedding vector
-    update_menu_item_embedding(db, item.id, item.nameTr, item.nameEn, item.descriptionTr, item.descriptionEn)
+    # Update embedding vector asynchronously
+    background_tasks.add_task(
+        update_menu_item_embedding_task,
+        item.id,
+        item.nameTr,
+        item.nameEn,
+        item.descriptionTr,
+        item.descriptionEn
+    )
     
-    db.refresh(item)
     return item
 
 @app.delete("/api/admin/menu-items/{id}", status_code=status.HTTP_204_NO_CONTENT)

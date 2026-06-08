@@ -85,6 +85,8 @@ model Category {
   translations CategoryTranslation[]
   createdAt    DateTime              @default(now())
   updatedAt    DateTime              @updatedAt
+
+  @@index([venueId])
 }
 
 model MenuItem {
@@ -112,6 +114,8 @@ model MenuItem {
   reviews       Review[]
   createdAt     DateTime              @default(now())
   updatedAt     DateTime              @updatedAt
+
+  @@index([categoryId])
 }
 
 model MenuItemTranslation {
@@ -181,6 +185,9 @@ model AnalyticsEvent {
   path      String?
   userAgent String?
   createdAt DateTime @default(now())
+
+  @@index([venueId])
+  @@index([createdAt])
 }
 
 enum UserRole {
@@ -231,6 +238,9 @@ model Order {
   items         OrderItem[]
   createdAt     DateTime    @default(now())
   updatedAt     DateTime    @updatedAt
+
+  @@index([venueId])
+  @@index([tableId])
 }
 
 model OrderItem {
@@ -242,6 +252,9 @@ model OrderItem {
   quantity   Int
   price      Decimal
   notes      String?
+
+  @@index([orderId])
+  @@index([menuItemId])
 }
 
 model WaiterRequest {
@@ -264,6 +277,10 @@ model UserSignal {
   eventType String   // "view_item", "expand_item", "filter_dietary", "scroll_category", "add_to_cart"
   eventData Json     // e.g. { "itemId": "item-1", "durationMs": 4500 }
   createdAt DateTime @default(now())
+
+  @@index([venueId])
+  @@index([sessionId])
+  @@index([createdAt])
 }
 
 // =============================================

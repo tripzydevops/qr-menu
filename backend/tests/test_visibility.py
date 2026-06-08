@@ -10,10 +10,14 @@ from database import SessionLocal
 import models
 import main
 
-# Mock get_embedding_sync to force fallback to standard text search
+# Mock get_embedding_sync and get_embedding to force fallback to standard text search
 def mock_get_embedding_sync(q):
     raise Exception("Force text search fallback for test")
+async def mock_get_embedding(q):
+    raise Exception("Force text search fallback for test")
 main.get_embedding_sync = mock_get_embedding_sync
+main.get_embedding = mock_get_embedding
+
 
 def test_visibility():
     db = SessionLocal()

@@ -1,4 +1,4 @@
-from fastapi import APIRouter, Depends, HTTPException, status, UploadFile, File
+from fastapi import APIRouter, Depends, HTTPException, status, UploadFile, File, Request
 from sqlalchemy.orm import Session
 from typing import List, Optional, Dict
 from decimal import Decimal
@@ -8,12 +8,12 @@ import datetime
 try:
     from ..database import get_db
     from .. import models, schemas
-    from ..services import costing, invoice_ocr
+    from ..services import costing, invoice_ocr, recipe_ocr
 except ImportError:
     from database import get_db
     import models
     import schemas
-    from services import costing, invoice_ocr
+    from services import costing, invoice_ocr, recipe_ocr
 
 router = APIRouter(prefix="/api/admin/inventory", tags=["inventory"])
 
@@ -343,6 +343,74 @@ async def scan_invoice(
         return extracted
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"OCR Scan failed: {str(e)}")
+
+@router.post("/recipes/scan")
+async def scan_recipe(
+    request: Request,
+    venueId: str,
+    db: Session = Depends(get_db)
+):
+    try:
+        # 1. Verify feature flag gating for inventory
+        venue = verify_inventory_gating(venueId, db)
+        org = db.query(models.Organization).filter(models.Organization.id == venue.organizationId).first()
+        
+        # 2. Get existing ingredients for the context
+        if org and org.sharedInventory:
+            ings = db.query(models.Ingredient).filter(models.Ingredient.organizationId == org.id).all()
+        else:
+            ings = db.query(models.Ingredient).filter(models.Ingredient.venueId == venueId).all()
+
+        existing_ingredients = [
+            {
+                "id": i.id, 
+                "name": i.name, 
+                "unit": i.unit, 
+                "density": float(i.density) if i.density is not None else 1.0
+            } 
+            for i in ings
+        ]
+
+        # 3. Read request content depending on the content-type
+        content_type = request.headers.get("content-type", "")
+        file_bytes = None
+        mime_type = None
+        text_content = None
+
+        if "multipart/form-data" in content_type:
+            form = await request.form()
+            file_part = form.get("file")
+            if not file_part:
+                raise HTTPException(status_code=400, detail="File upload is required for multipart/form-data")
+            
+            # file_part is usually a Starlette UploadFile
+            if hasattr(file_part, "read"):
+                file_bytes = await file_part.read()
+                mime_type = getattr(file_part, "content_type", None)
+            else:
+                raise HTTPException(status_code=400, detail="Uploaded object is not a readable file")
+        else:
+            # Fallback to JSON
+            try:
+                body = await request.json()
+                text_content = body.get("text")
+                if not text_content:
+                    raise HTTPException(status_code=400, detail="Text description is required in JSON payload")
+            except Exception as e:
+                raise HTTPException(status_code=400, detail=f"Invalid JSON payload or missing fields: {str(e)}")
+
+        # 4. Call recipe_ocr service
+        extracted = recipe_ocr.parse_recipe(
+            file_bytes=file_bytes,
+            mime_type=mime_type,
+            text_content=text_content,
+            existing_ingredients=existing_ingredients
+        )
+        return extracted
+    except HTTPException as he:
+        raise he
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Recipe scan failed: {str(e)}")
 
 # ---------------------------------------------------------------------------
 # 4. Recipes Endpoints
