@@ -873,6 +873,7 @@ Extract raw items exactly as shown. For quantity and unitCost, ensure they are p
 
     // 9. Scan Recipe (Gemini AI Parser)
     if (pathSegments[0] === "recipes" && pathSegments[1] === "scan") {
+      const { searchParams } = new URL(request.url);
       const venueId = searchParams.get("venueId");
       if (!venueId) {
         return NextResponse.json({ detail: "venueId is required" }, { status: 400 });
