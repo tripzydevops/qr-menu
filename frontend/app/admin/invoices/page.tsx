@@ -285,6 +285,10 @@ export default function AdminInvoicesPage() {
       if (res.ok) {
         const data = await res.json();
         
+        if (data._debugError) {
+          alert(`AI Fatura Tarama Hatası (Gemini):\n${data._debugError}`);
+        }
+
         // Match supplier
         if (data.supplierName) {
           const matchedSup = suppliers.find(s => 
