@@ -953,8 +953,10 @@ def save_system_settings(settings_data: Dict[str, Any], db: Session = Depends(ge
 # --- ORDERS & SERVICE REQUESTS (ADMIN) ---
 
 @app.get("/api/admin/orders", response_model=List[schemas.OrderSchema])
-def list_orders(venueId: str, status: Optional[str] = None, db: Session = Depends(get_db)):
+def list_orders(venueId: str, status: Optional[str] = None, includeArchived: bool = False, db: Session = Depends(get_db)):
     query = db.query(models.Order).filter(models.Order.venueId == venueId)
+    if not includeArchived:
+        query = query.filter(models.Order.isArchived == False)
     if status:
         query = query.filter(models.Order.status == status)
     orders = query.order_by(models.Order.createdAt.desc()).all()
@@ -978,6 +980,24 @@ def update_order_status(id: str, status_data: Dict[str, str], db: Session = Depe
         raise HTTPException(status_code=400, detail="Invalid status")
         
     order.status = new_status
+    db.commit()
+    db.refresh(order)
+    
+    if order.tableId:
+        table = db.query(models.Table).filter(models.Table.id == order.tableId).first()
+        if table:
+            order.tableName = table.name
+            
+    return order
+
+@app.put("/api/admin/orders/{id}/archive", response_model=schemas.OrderSchema)
+def archive_order(id: str, archive_data: Dict[str, bool], db: Session = Depends(get_db)):
+    order = db.query(models.Order).filter(models.Order.id == id).first()
+    if not order:
+        raise HTTPException(status_code=404, detail="Order not found")
+        
+    is_archived = archive_data.get("isArchived", True)
+    order.isArchived = is_archived
     db.commit()
     db.refresh(order)
     
@@ -1952,6 +1972,47 @@ def confirm_import(payload: schemas.BulkImportRequest, db: Session = Depends(get
     except Exception as e:
         db.rollback()
         raise HTTPException(status_code=500, detail=f"Database save failed: {str(e)}")
+
+@app.on_event("startup")
+async def startup_event():
+    import asyncio
+    
+    async def auto_archive_scheduler():
+        try:
+            from database import SessionLocal
+        except ImportError:
+            from .database import SessionLocal
+            
+        while True:
+            try:
+                print("[Auto-Archive] Running scheduled daily archive job...")
+                db = SessionLocal()
+                cutoff_date = datetime.datetime.utcnow() - datetime.timedelta(days=30)
+                
+                # Archive old completed/cancelled orders
+                archived_orders_count = db.query(models.Order).filter(
+                    models.Order.isArchived == False,
+                    models.Order.status.in_(["completed", "cancelled"]),
+                    models.Order.createdAt < cutoff_date
+                ).update({models.Order.isArchived: True}, synchronize_session=False)
+                
+                # Archive old processed/void invoices
+                archived_invoices_count = db.query(models.Invoice).filter(
+                    models.Invoice.isArchived == False,
+                    models.Invoice.status.in_(["processed", "void"]),
+                    models.Invoice.createdAt < cutoff_date
+                ).update({models.Invoice.isArchived: True}, synchronize_session=False)
+                
+                db.commit()
+                db.close()
+                print(f"[Auto-Archive] Archived {archived_orders_count} orders and {archived_invoices_count} invoices.")
+            except Exception as e:
+                print(f"[Auto-Archive] Error during automatic archiving: {e}")
+                
+            # Sleep for 24 hours (86400 seconds)
+            await asyncio.sleep(24 * 3600)
+
+    asyncio.create_task(auto_archive_scheduler())
 
 
 

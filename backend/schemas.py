@@ -366,6 +366,7 @@ class OrderSchema(OrderBase):
     paymentMethod: Optional[str] = None
     paidAt: Optional[datetime] = None
     items: List[OrderItemSchema] = []
+    isArchived: bool = False
     createdAt: datetime
     updatedAt: datetime
 
@@ -509,6 +510,7 @@ class InvoiceSchema(BaseModel):
     status: str
     venueId: str
     items: List[InvoiceItemSchema] = []
+    isArchived: bool = False
     createdAt: datetime
     updatedAt: datetime
     class Config:

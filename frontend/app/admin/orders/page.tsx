@@ -22,6 +22,7 @@ interface Order {
   tableName?: string;
   createdAt: string;
   items: OrderItem[];
+  isArchived?: boolean;
 }
 
 interface WaiterRequest {
@@ -43,6 +44,7 @@ export default function AdminOrdersPage() {
   const [printingEnabled, setPrintingEnabled] = useState(false);
   const [activePrintOrder, setActivePrintOrder] = useState<Order | null>(null);
   const [orgName, setOrgName] = useState("Karaköy Lokantası");
+  const [showArchived, setShowArchived] = useState(false);
 
   // Load organization settings
   useEffect(() => {
@@ -69,7 +71,7 @@ export default function AdminOrdersPage() {
         const apiUrl = process.env.NEXT_PUBLIC_API_URL || "";
         
         // Fetch all orders
-        const ordersRes = await fetch(`${apiUrl}/api/admin/orders?venueId=${venueId}`);
+        const ordersRes = await fetch(`${apiUrl}/api/admin/orders?venueId=${venueId}&includeArchived=${showArchived}`);
         const ordersData = await ordersRes.json();
         
         // Fetch pending waiter requests
@@ -87,7 +89,7 @@ export default function AdminOrdersPage() {
     fetchData();
     const interval = setInterval(fetchData, 6000);
     return () => clearInterval(interval);
-  }, [refreshKey]);
+  }, [refreshKey, showArchived]);
 
   const handleUpdateOrderStatus = async (orderId: string, status: string) => {
     try {
@@ -121,6 +123,22 @@ export default function AdminOrdersPage() {
     }
   };
 
+  const handleArchiveOrder = async (orderId: string, isArchived: boolean) => {
+    try {
+      const apiUrl = process.env.NEXT_PUBLIC_API_URL || "";
+      const res = await fetch(`${apiUrl}/api/admin/orders/${orderId}/archive`, {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ isArchived })
+      });
+      if (res.ok) {
+        setRefreshKey(prev => prev + 1);
+      }
+    } catch (err) {
+      console.error("Failed to archive order", err);
+    }
+  };
+
   const handlePrintOrder = (order: Order) => {
     setActivePrintOrder(order);
   };
@@ -145,8 +163,8 @@ export default function AdminOrdersPage() {
   }, []);
 
   // Filter orders based on active tab
-  const activeOrders = orders.filter(o => o.status === "pending" || o.status === "preparing" || o.status === "ready" || o.status === "served");
-  const pastOrders = orders.filter(o => o.status === "completed" || o.status === "cancelled");
+  const activeOrders = orders.filter(o => !o.isArchived && (o.status === "pending" || o.status === "preparing" || o.status === "ready" || o.status === "served"));
+  const pastOrders = orders.filter(o => (showArchived ? o.isArchived : !o.isArchived) && (o.status === "completed" || o.status === "cancelled"));
 
   const formatDate = (dateString: string) => {
     const d = new Date(dateString);
@@ -432,69 +450,101 @@ export default function AdminOrdersPage() {
 
           {/* History Tab */}
           {activeTab === "history" && (
-            pastOrders.length === 0 ? (
-              <div className="flex flex-col items-center justify-center py-20 bg-[#16213E]/20 border border-gray-800/40 rounded-3xl space-y-3">
-                <span className="text-4xl">📜</span>
-                <p className="text-gray-400 text-sm font-semibold">Geçmiş sipariş kaydı bulunmuyor.</p>
+            <div className="space-y-4">
+              <div className="flex justify-between items-center bg-[#16213E]/20 border border-gray-800/40 px-5 py-3.5 rounded-2xl gap-4">
+                <span className="text-xs text-gray-400">
+                  {showArchived ? "Arşivlenmiş geçmiş siparişler listelenmektedir." : "Kapatılmış ve iptal edilmiş güncel siparişler listelenmektedir."}
+                </span>
+                <label className="flex items-center space-x-2.5 cursor-pointer select-none">
+                  <input
+                    type="checkbox"
+                    checked={showArchived}
+                    onChange={(e) => setShowArchived(e.target.checked)}
+                    className="rounded bg-[#1C1C28] border-gray-800 text-[#722F37] focus:ring-0 focus:ring-offset-0 h-4.5 w-4.5 cursor-pointer"
+                  />
+                  <span className="text-xs text-gray-300 font-bold">Arşivi Göster</span>
+                </label>
               </div>
-            ) : (
-              <div className="bg-[#16213E]/30 border border-gray-800/40 rounded-2xl overflow-hidden shadow-sm">
-                <div className="overflow-x-auto">
-                  <table className="w-full text-left border-collapse">
-                    <thead>
-                      <tr className="bg-[#16213E]/80 border-b border-gray-800/40 text-xs font-semibold text-gray-400">
-                        <th className="p-4">Masa</th>
-                        <th className="p-4">Sipariş ID</th>
-                        <th className="p-4">İçerik</th>
-                        <th className="p-4">Zaman</th>
-                        <th className="p-4">Tutar</th>
-                        <th className="p-4">Durum</th>
-                        {printingEnabled && <th className="p-4 text-right">Yazdır</th>}
-                      </tr>
-                    </thead>
-                    <tbody className="divide-y divide-gray-800/20 text-xs">
-                      {pastOrders.map((order) => (
-                        <tr key={order.id} className="hover:bg-[#2A2A3D]/25 transition-colors">
-                          <td className="p-4 font-semibold text-white">{order.tableName || "Masa"}</td>
-                          <td className="p-4 font-mono text-gray-400">{order.id.slice(0, 8)}</td>
-                          <td className="p-4">
-                            <div className="space-y-1">
-                              {order.items.map(i => (
-                                <span key={i.id} className="block text-[11px] text-gray-300">
-                                  {i.quantity}x {i.menuItemNameTr || "Ürün"}
-                                </span>
-                              ))}
-                            </div>
-                          </td>
-                          <td className="p-4 font-mono text-gray-400">{formatDate(order.createdAt)}</td>
-                          <td className="p-4 font-mono font-bold text-white">₺{Number(order.totalAmount).toFixed(2)}</td>
-                          <td className="p-4">
-                            <span className={`px-2.5 py-1 rounded-lg font-bold text-[10px] tracking-wide uppercase ${
-                              order.status === "completed" 
-                                ? "bg-emerald-950/40 text-emerald-400 border border-emerald-900/30" 
-                                : "bg-red-950/40 text-red-400 border border-red-900/30"
-                            }`}>
-                              {order.status === "completed" ? "Tamamlandı" : "İptal Edildi"}
-                            </span>
-                          </td>
-                          {printingEnabled && (
+
+              {pastOrders.length === 0 ? (
+                <div className="flex flex-col items-center justify-center py-20 bg-[#16213E]/20 border border-gray-800/40 rounded-3xl space-y-3">
+                  <span className="text-4xl">📜</span>
+                  <p className="text-gray-400 text-sm font-semibold">
+                    {showArchived ? "Arşivlenmiş sipariş bulunmuyor." : "Geçmiş sipariş kaydı bulunmuyor."}
+                  </p>
+                </div>
+              ) : (
+                <div className="bg-[#16213E]/30 border border-gray-800/40 rounded-2xl overflow-hidden shadow-sm">
+                  <div className="overflow-x-auto">
+                    <table className="w-full text-left border-collapse">
+                      <thead>
+                        <tr className="bg-[#16213E]/80 border-b border-gray-800/40 text-xs font-semibold text-gray-400">
+                          <th className="p-4">Masa</th>
+                          <th className="p-4">Sipariş ID</th>
+                          <th className="p-4">İçerik</th>
+                          <th className="p-4">Zaman</th>
+                          <th className="p-4">Tutar</th>
+                          <th className="p-4">Durum</th>
+                          {printingEnabled && <th className="p-4 text-right">Yazdır</th>}
+                          <th className="p-4 text-right">İşlem</th>
+                        </tr>
+                      </thead>
+                      <tbody className="divide-y divide-gray-800/20 text-xs">
+                        {pastOrders.map((order) => (
+                          <tr key={order.id} className="hover:bg-[#2A2A3D]/25 transition-colors">
+                            <td className="p-4 font-semibold text-white">{order.tableName || "Masa"}</td>
+                            <td className="p-4 font-mono text-gray-400">{order.id.slice(0, 8)}</td>
+                            <td className="p-4">
+                              <div className="space-y-1">
+                                {order.items.map(i => (
+                                  <span key={i.id} className="block text-[11px] text-gray-300">
+                                    {i.quantity}x {i.menuItemNameTr || "Ürün"}
+                                  </span>
+                                ))}
+                              </div>
+                            </td>
+                            <td className="p-4 font-mono text-gray-400">{formatDate(order.createdAt)}</td>
+                            <td className="p-4 font-mono font-bold text-white">₺{Number(order.totalAmount).toFixed(2)}</td>
+                            <td className="p-4">
+                              <span className={`px-2.5 py-1 rounded-lg font-bold text-[10px] tracking-wide uppercase ${
+                                order.status === "completed" 
+                                  ? "bg-emerald-950/40 text-emerald-400 border border-emerald-900/30" 
+                                  : "bg-red-950/40 text-red-400 border border-red-900/30"
+                              }`}>
+                                {order.status === "completed" ? "Tamamlandı" : "İptal Edildi"}
+                              </span>
+                            </td>
+                            {printingEnabled && (
+                              <td className="p-4 text-right">
+                                <button
+                                  onClick={() => handlePrintOrder(order)}
+                                  className="p-1.5 rounded-lg border bg-[#121224] text-indigo-400 border-indigo-900/30 hover:bg-indigo-950/40 transition-colors inline-flex items-center justify-center"
+                                  title="Yazdır"
+                                >
+                                  <Printer className="h-3.5 w-3.5" />
+                                </button>
+                              </td>
+                            )}
                             <td className="p-4 text-right">
                               <button
-                                onClick={() => handlePrintOrder(order)}
-                                className="p-1.5 rounded-lg border bg-[#121224] text-indigo-400 border-indigo-900/30 hover:bg-indigo-950/40 transition-colors inline-flex items-center justify-center animate-pulse-border"
-                                title="Yazdır"
+                                onClick={() => handleArchiveOrder(order.id, !order.isArchived)}
+                                className={`px-3 py-1.5 rounded-xl border text-[10px] font-bold transition-all ${
+                                  order.isArchived
+                                    ? "bg-emerald-950/20 border-emerald-900/30 text-emerald-400 hover:bg-emerald-950/40"
+                                    : "bg-amber-950/20 border-amber-900/30 text-amber-400 hover:bg-amber-950/40"
+                                }`}
                               >
-                                <Printer className="h-3.5 w-3.5" />
+                                {order.isArchived ? "Geri Yükle" : "Arşivle"}
                               </button>
                             </td>
-                          )}
-                        </tr>
-                      ))}
-                    </tbody>
-                  </table>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
                 </div>
-              </div>
-            )
+              )}
+            </div>
           )}
         </div>
       )}

@@ -236,11 +236,13 @@ model Order {
   paymentMethod String?     // "cash", "card", "online"
   paidAt        DateTime?
   items         OrderItem[]
+  isArchived    Boolean     @default(false)
   createdAt     DateTime    @default(now())
   updatedAt     DateTime    @updatedAt
 
   @@index([venueId])
   @@index([tableId])
+  @@index([isArchived])
 }
 
 model OrderItem {
@@ -329,8 +331,12 @@ model Invoice {
   venueId        String
   venue          Venue         @relation(fields: [venueId], references: [id], onDelete: Cascade)
   items          InvoiceItem[]
+  isArchived     Boolean       @default(false)
   createdAt      DateTime      @default(now())
   updatedAt      DateTime      @updatedAt
+
+  @@index([venueId])
+  @@index([isArchived])
 }
 
 model InvoiceItem {

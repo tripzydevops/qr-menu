@@ -250,6 +250,7 @@ class Order(Base):
     totalAmount = Column(Numeric(10, 2), nullable=False)
     paymentMethod = Column(String, nullable=True)
     paidAt = Column(DateTime, nullable=True)
+    isArchived = Column(Boolean, default=False, nullable=False, index=True)
     createdAt = Column(DateTime, default=datetime.datetime.utcnow)
     updatedAt = Column(DateTime, default=datetime.datetime.utcnow, onupdate=datetime.datetime.utcnow)
 
@@ -349,6 +350,7 @@ class Invoice(Base):
     totalAmount = Column(Numeric(14, 2), nullable=False)
     status = Column(String, default="pending")  # "pending", "processed", "void"
     venueId = Column(String, ForeignKey("Venue.id", ondelete="CASCADE"), nullable=False)
+    isArchived = Column(Boolean, default=False, nullable=False, index=True)
     createdAt = Column(DateTime, default=datetime.datetime.utcnow)
     updatedAt = Column(DateTime, default=datetime.datetime.utcnow, onupdate=datetime.datetime.utcnow)
 

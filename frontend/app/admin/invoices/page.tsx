@@ -15,7 +15,8 @@ import {
   AlertCircle,
   Calendar,
   Sparkles,
-  DollarSign
+  DollarSign,
+  X
 } from "lucide-react";
 
 interface Ingredient {
@@ -56,6 +57,7 @@ interface Invoice {
   totalAmount: string;
   status: string; // "pending", "processed", "void"
   items: InvoiceItem[];
+  isArchived?: boolean;
 }
 
 export default function AdminInvoicesPage() {
@@ -69,6 +71,7 @@ export default function AdminInvoicesPage() {
   const [isCreating, setIsCreating] = useState(false);
   const [isScanning, setIsScanning] = useState(false);
   const [expandedInvoiceId, setExpandedInvoiceId] = useState<string | null>(null);
+  const [showArchived, setShowArchived] = useState(false);
 
   // Form states
   const [invNumber, setInvNumber] = useState("");
@@ -79,11 +82,19 @@ export default function AdminInvoicesPage() {
   // Errors state
   const [errors, setErrors] = useState<Record<string, string>>({});
 
+  // New ingredient form states
+  const [isCreatingIngredient, setIsCreatingIngredient] = useState(false);
+  const [newIngName, setNewIngName] = useState("");
+  const [newIngUnit, setNewIngUnit] = useState("g");
+  const [newIngDensity, setNewIngDensity] = useState(1.0);
+  const [targetLineItemIndex, setTargetLineItemIndex] = useState<number | null>(null);
+  const [creatingIngLoading, setCreatingIngLoading] = useState(false);
+
   const fetchData = async () => {
     try {
       setLoading(true);
       const [invRes, ingRes, supRes] = await Promise.all([
-        fetch(`${apiUrl}/api/admin/inventory/invoices?venueId=${venueId}`),
+        fetch(`${apiUrl}/api/admin/inventory/invoices?venueId=${venueId}&includeArchived=${showArchived}`),
         fetch(`${apiUrl}/api/admin/inventory/ingredients?venueId=${venueId}`),
         fetch(`${apiUrl}/api/admin/inventory/suppliers?venueId=${venueId}`)
       ]);
@@ -100,7 +111,7 @@ export default function AdminInvoicesPage() {
 
   useEffect(() => {
     fetchData();
-  }, []);
+  }, [showArchived]);
 
   const handleAddLineItem = () => {
     setLineItems([
@@ -177,6 +188,55 @@ export default function AdminInvoicesPage() {
         return updated;
       })
     );
+  };
+
+  const handleCreateNewIngredient = async () => {
+    if (!newIngName.trim()) {
+      alert("Lütfen malzeme adını girin.");
+      return;
+    }
+    
+    try {
+      setCreatingIngLoading(true);
+      const payload = {
+        venueId,
+        name: newIngName.trim(),
+        unit: newIngUnit,
+        density: Number(newIngDensity) || 1.0,
+      };
+
+      const res = await fetch(`${apiUrl}/api/admin/inventory/ingredients`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(payload)
+      });
+
+      if (res.ok) {
+        const newIng = await res.json();
+        // Update local ingredients list
+        setIngredients(prev => [...prev, newIng].sort((a, b) => a.name.localeCompare(b.name)));
+        
+        // If we opened this for a specific line item row, update its ingredientId!
+        if (targetLineItemIndex !== null) {
+          handleUpdateLineItem(targetLineItemIndex, "ingredientId", newIng.id);
+        }
+        
+        // Reset states and close modal
+        setNewIngName("");
+        setNewIngUnit("g");
+        setNewIngDensity(1.0);
+        setIsCreatingIngredient(false);
+        setTargetLineItemIndex(null);
+      } else {
+        const err = await res.json();
+        alert(err.detail || "Malzeme eklenemedi.");
+      }
+    } catch (e) {
+      console.error(e);
+      alert("Malzeme eklenirken bir hata oluştu.");
+    } finally {
+      setCreatingIngLoading(false);
+    }
   };
 
   const calculateGrandTotal = () => {
@@ -267,6 +327,21 @@ export default function AdminInvoicesPage() {
     try {
       const res = await fetch(`${apiUrl}/api/admin/inventory/invoices/${id}`, {
         method: "DELETE"
+      });
+      if (res.ok) {
+        fetchData();
+      }
+    } catch (e) {
+      console.error(e);
+    }
+  };
+
+  const handleArchiveInvoice = async (invoiceId: string, isArchived: boolean) => {
+    try {
+      const res = await fetch(`${apiUrl}/api/admin/inventory/invoices/${invoiceId}/archive`, {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ isArchived })
       });
       if (res.ok) {
         fetchData();
@@ -414,6 +489,18 @@ export default function AdminInvoicesPage() {
           </p>
         </div>
         <div className="flex items-center space-x-3">
+          {!isCreating && (
+            <label className="flex items-center space-x-2 cursor-pointer select-none bg-[#16213E]/40 border border-gray-800/60 px-3.5 py-2.5 rounded-xl">
+              <input
+                type="checkbox"
+                checked={showArchived}
+                onChange={(e) => setShowArchived(e.target.checked)}
+                className="rounded bg-[#1C1C28] border-gray-800 text-[#722F37] focus:ring-0 focus:ring-offset-0 h-4.5 w-4.5 cursor-pointer"
+              />
+              <span className="text-xs text-gray-300 font-bold">Arşivi Göster</span>
+            </label>
+          )}
+
           {/* Scan invoice file input */}
           <label className="flex items-center space-x-1.5 px-4 py-2.5 rounded-xl bg-[#2A2A3D]/80 border border-gray-800 hover:border-[#C9A84C]/35 text-white font-semibold text-xs transition-all hover:bg-gray-800 cursor-pointer">
             {isScanning ? (
@@ -521,7 +608,19 @@ export default function AdminInvoicesPage() {
                   return (
                     <div key={index} className="grid grid-cols-1 md:grid-cols-12 gap-3 bg-[#1C1C28]/40 border border-gray-800/35 p-3 rounded-xl items-end">
                       <div className="md:col-span-2">
-                        <label className="text-[10px] text-gray-400 block mb-1">Malzeme</label>
+                        <div className="flex justify-between items-center mb-1">
+                          <label className="text-[10px] text-gray-400 block">Malzeme</label>
+                          <button
+                            type="button"
+                            onClick={() => {
+                              setTargetLineItemIndex(index);
+                              setIsCreatingIngredient(true);
+                            }}
+                            className="text-[10px] text-[#C9A84C] hover:underline"
+                          >
+                            + Yeni Ekle
+                          </button>
+                        </div>
                         <select
                           value={item.ingredientId}
                           onChange={(e) => handleUpdateLineItem(index, "ingredientId", e.target.value)}
@@ -561,7 +660,7 @@ export default function AdminInvoicesPage() {
 
                       {!item.isPackage ? (
                         <>
-                          <div className="md:col-span-2">
+                          <div className="md:col-span-1">
                             <label className="text-[10px] text-gray-400 block mb-1">
                               Miktar {unit ? `(${unit})` : ""}
                             </label>
@@ -577,7 +676,7 @@ export default function AdminInvoicesPage() {
                             />
                           </div>
 
-                          <div className="md:col-span-2">
+                          <div className="md:col-span-1">
                             <label className="text-[10px] text-gray-400 block mb-1">
                               Birim Fiyat {unit ? `(₺/${unit})` : " (₺)"}
                             </label>
@@ -591,6 +690,13 @@ export default function AdminInvoicesPage() {
                               }`}
                               placeholder="örn. 45"
                             />
+                          </div>
+
+                          <div className="md:col-span-2">
+                            <label className="text-[10px] text-gray-400 block mb-1">Tutar (₺)</label>
+                            <div className="w-full bg-[#1C1C28]/80 border border-gray-800 rounded-lg px-2 py-2 text-xs text-[#C9A84C] font-mono font-bold flex items-center h-[38px]">
+                              ₺{(item.quantity * item.unitCost).toFixed(2)}
+                            </div>
                           </div>
                         </>
                       ) : (
@@ -624,7 +730,7 @@ export default function AdminInvoicesPage() {
                             />
                           </div>
 
-                          <div className="md:col-span-2">
+                          <div className="md:col-span-1">
                             <label className="text-[10px] text-gray-400 block mb-1">Paket Fiyatı (₺)</label>
                             <input
                               type="number"
@@ -636,6 +742,18 @@ export default function AdminInvoicesPage() {
                               }`}
                               placeholder="örn. 209"
                             />
+                            {item.packageSize > 0 && item.packagePrice > 0 && (
+                              <span className="text-[9px] text-gray-500 mt-1 block font-mono">
+                                (Birim: ₺{(item.packagePrice / item.packageSize).toFixed(4)})
+                              </span>
+                            )}
+                          </div>
+
+                          <div className="md:col-span-1">
+                            <label className="text-[10px] text-gray-400 block mb-1">Tutar (₺)</label>
+                            <div className="w-full bg-[#1C1C28]/80 border border-gray-800 rounded-lg px-2 py-2 text-xs text-[#C9A84C] font-mono font-bold flex items-center h-[38px] overflow-hidden whitespace-nowrap text-ellipsis" title={`₺${((item.packageCount ?? 1) * (item.packagePrice ?? 0)).toFixed(2)}`}>
+                              ₺{((item.packageCount ?? 1) * (item.packagePrice ?? 0)).toFixed(2)}
+                            </div>
                           </div>
                         </>
                       )}
@@ -776,15 +894,27 @@ export default function AdminInvoicesPage() {
                               </span>
                             </td>
                             <td className="px-6 py-4 text-right">
-                              {!isVoid && (
+                              <div className="flex justify-end items-center space-x-2">
                                 <button
-                                  onClick={() => handleVoidInvoice(inv.id)}
-                                  className="p-1.5 rounded-lg bg-red-950/15 hover:bg-red-950/40 text-red-400 border border-red-950/30"
-                                  title="Faturayı İptal Et"
+                                  onClick={() => handleArchiveInvoice(inv.id, !inv.isArchived)}
+                                  className={`px-3 py-1.5 rounded-xl border text-[10px] font-bold transition-all ${
+                                    inv.isArchived
+                                      ? "bg-emerald-950/20 border-emerald-900/30 text-emerald-400 hover:bg-emerald-950/40"
+                                      : "bg-amber-950/20 border-amber-900/30 text-amber-400 hover:bg-amber-950/40"
+                                  }`}
                                 >
-                                  <Trash2 className="h-3.5 w-3.5" />
+                                  {inv.isArchived ? "Geri Yükle" : "Arşivle"}
                                 </button>
-                              )}
+                                {!isVoid && !inv.isArchived && (
+                                  <button
+                                    onClick={() => handleVoidInvoice(inv.id)}
+                                    className="p-1.5 rounded-lg bg-red-950/15 hover:bg-red-950/40 text-red-400 border border-red-950/30"
+                                    title="Faturayı İptal Et"
+                                  >
+                                    <Trash2 className="h-3.5 w-3.5" />
+                                  </button>
+                                )}
+                              </div>
                             </td>
                           </tr>
 
@@ -837,6 +967,105 @@ export default function AdminInvoicesPage() {
               </table>
             </div>
           )}
+        </div>
+      )}
+
+      {/* Inline Create Ingredient Modal */}
+      {isCreatingIngredient && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm animate-in fade-in duration-200">
+          <div className="w-full max-w-md bg-[#16213E]/95 border border-gray-800/80 rounded-2xl p-6 shadow-2xl space-y-4 animate-in fade-in zoom-in-95 duration-200">
+            <div className="flex justify-between items-center pb-2 border-b border-gray-800/40">
+              <h3 className="font-serif text-lg font-bold text-white flex items-center space-x-2">
+                <Plus className="h-5 w-5 text-[#C9A84C]" />
+                <span>Yeni Malzeme Ekle</span>
+              </h3>
+              <button
+                onClick={() => {
+                  setIsCreatingIngredient(false);
+                  setTargetLineItemIndex(null);
+                  setNewIngName("");
+                  setNewIngUnit("g");
+                  setNewIngDensity(1.0);
+                }}
+                className="text-gray-400 hover:text-white"
+              >
+                <X className="h-5 w-5" />
+              </button>
+            </div>
+
+            <div className="space-y-4">
+              <div>
+                <label className="text-xs text-gray-400 block mb-1">Malzeme Adı (Zorunlu)</label>
+                <input
+                  type="text"
+                  value={newIngName}
+                  onChange={(e) => setNewIngName(e.target.value)}
+                  className="w-full bg-[#1C1C28] border border-gray-800 rounded-xl px-4 py-2.5 text-xs text-white focus:outline-none focus:border-[#C9A84C]/50"
+                  placeholder="örn. Süzme Peynir, Tereyağı"
+                  autoFocus
+                />
+              </div>
+
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <label className="text-xs text-gray-400 block mb-1">Birim</label>
+                  <select
+                    value={newIngUnit}
+                    onChange={(e) => setNewIngUnit(e.target.value)}
+                    className="w-full bg-[#1C1C28] border border-gray-800 rounded-xl px-4 py-2.5 text-xs text-white focus:outline-none focus:border-[#C9A84C]/50"
+                  >
+                    <option value="g">Gram (g)</option>
+                    <option value="kg">Kilogram (kg)</option>
+                    <option value="ml">Mililitre (ml)</option>
+                    <option value="liter">Litre (L)</option>
+                    <option value="unit">Adet (unit)</option>
+                  </select>
+                </div>
+
+                <div>
+                  <label className="text-xs text-gray-400 block mb-1">Yoğunluk (g/ml)</label>
+                  <input
+                    type="number"
+                    step="0.01"
+                    value={newIngDensity}
+                    onChange={(e) => setNewIngDensity(parseFloat(e.target.value) || 1.0)}
+                    className="w-full bg-[#1C1C28] border border-gray-800 rounded-xl px-4 py-2.5 text-xs text-white focus:outline-none focus:border-[#C9A84C]/50"
+                    placeholder="1.0"
+                  />
+                </div>
+              </div>
+              <p className="text-[10px] text-gray-500">
+                Yoğunluk, reçetelerde hacim (ml/L) ve kütle (g/kg) dönüşümleri yapılırken kullanılır. Emin değilseniz 1.0 bırakabilirsiniz.
+              </p>
+            </div>
+
+            <div className="flex justify-end space-x-2 pt-2 border-t border-gray-800/40">
+              <button
+                onClick={() => {
+                  setIsCreatingIngredient(false);
+                  setTargetLineItemIndex(null);
+                  setNewIngName("");
+                  setNewIngUnit("g");
+                  setNewIngDensity(1.0);
+                }}
+                className="px-4 py-2 rounded-xl bg-gray-800 hover:bg-gray-700 text-xs font-bold text-white transition-all border border-gray-700/50"
+              >
+                İptal
+              </button>
+              <button
+                onClick={handleCreateNewIngredient}
+                disabled={creatingIngLoading}
+                className="flex items-center space-x-1 px-4 py-2 rounded-xl bg-gradient-to-r from-[#722F37] to-[#C9A84C]/80 hover:to-[#C9A84C] text-white font-bold text-xs transition-all shadow-md shadow-[#722F37]/15 disabled:opacity-50"
+              >
+                {creatingIngLoading ? (
+                  <Loader2 className="h-4 w-4 animate-spin" />
+                ) : (
+                  <Check className="h-4 w-4" />
+                )}
+                <span>Kaydet</span>
+              </button>
+            </div>
+          </div>
         </div>
       )}
     </div>

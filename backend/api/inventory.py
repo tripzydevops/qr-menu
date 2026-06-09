@@ -161,9 +161,12 @@ def delete_supplier(id: str, db: Session = Depends(get_db)):
 # 3. Invoices Endpoints
 # ---------------------------------------------------------------------------
 @router.get("/invoices", response_model=List[schemas.InvoiceSchema])
-def list_invoices(venueId: str, db: Session = Depends(get_db)):
+def list_invoices(venueId: str, includeArchived: bool = False, db: Session = Depends(get_db)):
     verify_inventory_gating(venueId, db)
-    invoices = db.query(models.Invoice).filter(models.Invoice.venueId == venueId).order_by(models.Invoice.invoiceDate.desc()).all()
+    query = db.query(models.Invoice).filter(models.Invoice.venueId == venueId)
+    if not includeArchived:
+        query = query.filter(models.Invoice.isArchived == False)
+    invoices = query.order_by(models.Invoice.invoiceDate.desc()).all()
     
     # Map supplier names
     for inv in invoices:
@@ -250,6 +253,28 @@ def void_invoice(id: str, db: Session = Depends(get_db)):
     verify_inventory_gating(inv.venueId, db)
     
     inv.status = "void"
+    inv.updatedAt = datetime.datetime.utcnow()
+    db.commit()
+    db.refresh(inv)
+    
+    if inv.supplier:
+        inv.supplierName = inv.supplier.name
+    for item in inv.items:
+        if item.ingredient:
+            item.ingredientName = item.ingredient.name
+            item.ingredientUnit = item.ingredient.unit
+    return inv
+
+@router.put("/invoices/{id}/archive", response_model=schemas.InvoiceSchema)
+def archive_invoice(id: str, archive_data: Dict[str, bool], db: Session = Depends(get_db)):
+    inv = db.query(models.Invoice).filter(models.Invoice.id == id).first()
+    if not inv:
+        raise HTTPException(status_code=404, detail="Invoice not found")
+        
+    verify_inventory_gating(inv.venueId, db)
+    
+    is_archived = archive_data.get("isArchived", True)
+    inv.isArchived = is_archived
     inv.updatedAt = datetime.datetime.utcnow()
     db.commit()
     db.refresh(inv)
