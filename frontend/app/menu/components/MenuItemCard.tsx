@@ -158,7 +158,7 @@ export default function MenuItemCard({
           src={item.imageUrl || defaultFoodImage} 
           alt={name}
           className="w-full h-full object-cover transition-transform duration-500 hover:scale-105"
-          loading="eager"
+          loading="lazy"
           onError={(e) => {
             (e.target as HTMLImageElement).src = defaultFoodImage;
           }}

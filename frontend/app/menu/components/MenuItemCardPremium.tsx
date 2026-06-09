@@ -185,7 +185,7 @@ export default function MenuItemCardPremium({
           style={{
             transform: isHovered ? 'scale(1.08)' : 'scale(1)',
           }}
-          loading="eager"
+          loading="lazy"
           onError={(e) => {
             (e.target as HTMLImageElement).src = defaultFoodImage;
           }}
