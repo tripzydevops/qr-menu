@@ -37,7 +37,7 @@ def parse_recipe(
         print("[Recipe OCR] GEMINI_API_KEY not found. Returning mock/fallback results.")
         return fallback_parse_recipe(text_content, existing_ingredients)
 
-    url = f"https://generativelanguage.googleapis.com/v1beta/models/gemini-3.5-flash:generateContent?key={api_key}"
+    url = f"https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key={api_key}"
 
     # Build prompt context with existing ingredients
     prompt_context = "Available ingredients in database:\n"
@@ -113,7 +113,7 @@ def parse_recipe(
     }
 
     try:
-        with httpx.Client(timeout=30.0) as client:
+        with httpx.Client(timeout=90.0) as client:
             response = client.post(url, json=payload)
             if response.status_code == 200:
                 data = response.json()

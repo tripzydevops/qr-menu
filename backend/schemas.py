@@ -422,6 +422,7 @@ class IngredientBase(BaseModel):
     unit: str  # "g", "ml", "kg", "liter", "unit"
     reorderLevel: Optional[Decimal] = None
     density: Decimal = Decimal("1.0")
+    lastBrand: Optional[str] = None
 
 class IngredientCreate(IngredientBase):
     venueId: str
@@ -431,6 +432,7 @@ class IngredientUpdate(BaseModel):
     unit: Optional[str] = None
     reorderLevel: Optional[Decimal] = None
     density: Optional[Decimal] = None
+    lastBrand: Optional[str] = None
 
 class IngredientSchema(IngredientBase):
     id: str
@@ -472,16 +474,21 @@ class InvoiceItemCreate(BaseModel):
     unitCost: Decimal
     vatRate: Optional[Decimal] = Decimal("0.01")
     isVatInclusive: Optional[bool] = False
+    rawName: Optional[str] = None
+    brand: Optional[str] = None
 
 class InvoiceItemSchema(BaseModel):
     id: str
     ingredientId: str
     ingredientName: Optional[str] = None
+    ingredientUnit: Optional[str] = None
     quantity: Decimal
     unitCost: Decimal
     vatRate: Decimal
     isVatInclusive: bool
     totalCost: Decimal
+    rawName: Optional[str] = None
+    brand: Optional[str] = None
     class Config:
         from_attributes = True
 

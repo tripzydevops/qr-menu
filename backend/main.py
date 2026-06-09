@@ -1890,7 +1890,7 @@ async def import_menu_ai(file: UploadFile = File(...)):
             }
         }
         
-        url = f"https://generativelanguage.googleapis.com/v1beta/models/gemini-3.5-flash:generateContent?key={api_key}"
+        url = f"https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key={api_key}"
         async with httpx.AsyncClient(timeout=30.0) as client:
             response = await client.post(url, json=payload)
             if response.status_code != 200:

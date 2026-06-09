@@ -172,6 +172,7 @@ async function processInvoice(invoiceId: string) {
       data: {
         currentStock: newStock,
         weightedCost: newWac,
+        ...(item.brand ? { lastBrand: item.brand } : {}),
         updatedAt: new Date(),
       },
     });
@@ -252,7 +253,7 @@ export async function GET(
         return NextResponse.json({ density: 1.0 });
       }
 
-      const url = `https://generativelanguage.googleapis.com/v1beta/models/gemini-3.5-flash:generateContent?key=${apiKey}`;
+      const url = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${apiKey}`;
       const prompt = `You are a culinary science assistant. Estimate the density (specific gravity) in g/mL of the ingredient named: "${name}".
 Return a JSON object with this exact structure:
 {
@@ -348,11 +349,14 @@ Ensure the density is a positive float. Typical examples: Water = 1.0, Yogurt = 
             id: item.id,
             ingredientId: item.ingredientId,
             ingredientName: item.ingredient?.name || null,
+            ingredientUnit: item.ingredient?.unit || null,
             quantity: Number(item.quantity),
             unitCost: Number(item.unitCost),
             vatRate: Number(item.vatRate),
             isVatInclusive: item.isVatInclusive,
             totalCost: Number(item.totalCost),
+            brand: item.brand,
+            rawName: item.rawName,
           })),
         }))
       );
@@ -573,7 +577,7 @@ export async function POST(
       const base64Data = Buffer.from(bytes).toString("base64");
       const mimeType = file.type;
 
-      const url = `https://generativelanguage.googleapis.com/v1beta/models/gemini-3.5-flash:generateContent?key=${apiKey}`;
+      const url = `https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${apiKey}`;
 
       let existingSuppliers: any[] = [];
       let existingIngredients: any[] = [];
@@ -605,13 +609,14 @@ export async function POST(
   "items": [
     {
       "itemName": "string",
+      "brand": "string or null",
       "matchedIngredientId": "string or null",
       "quantity": number,
       "unitCost": number
     }
   ]
 }
-Extract raw items exactly as shown. For quantity and unitCost, ensure they are positive numeric values.`;
+Extract raw items. For quantity and unitCost, ensure they are positive numeric values. For 'brand', extract the brand name of the product if clearly visible (e.g. 'Altınkılıç', 'Sütaş', 'Pınar'); otherwise return null.`;
 
       if (existingSuppliers.length > 0) {
         prompt += `\n\nHere are the existing suppliers in the database: ${JSON.stringify(existingSuppliers)}`;
@@ -620,7 +625,8 @@ Extract raw items exactly as shown. For quantity and unitCost, ensure they are p
 
       if (existingIngredients.length > 0) {
         prompt += `\n\nHere are the existing ingredients/materials in the database: ${JSON.stringify(existingIngredients)}`;
-        prompt += `\nBased on the item name/description extracted from the invoice, match each item to one of these existing ingredients if there is a semantic match (e.g. 'ALTINKILIC TAZE KASR' matches 'Kaşar Peyniri', 'SÜZME SÜT 1L' matches 'Süt', 'KIRMIZI ET' or 'DANA ET' matches 'Kıyma (Dana)'). If a match is found, populate 'matchedIngredientId' with its ID. Otherwise, return null for 'matchedIngredientId'.`;
+        prompt += `\nBased on the item name/description extracted from the invoice, match each item to one of these existing ingredients if there is a semantic match (e.g. 'ALTINKILIC TAZE KASR' matches 'Kaşar Peyniri', 'SÜZME SÜT 1L' matches 'Süt', 'KIRMIZI ET' or 'DANA ET' matches 'Kıyma (Dana)'). If a match is found, populate 'matchedIngredientId' with its ID. Otherwise, return null for 'matchedIngredientId'.
+CRITICAL CONVERSION RULE: If a match is found, compare the invoice packaging unit with the database ingredient's unit (e.g. 'g', 'ml', 'kg', 'liter', 'unit'). If the database unit is 'g' (grams) or 'ml' (milliliters) but the invoice lists it as packages or pieces (e.g. 1 package of cheese), convert the quantity to the database unit (grams or milliliters) by estimating the package size/weight (e.g. Altınkılıç Taze Kaşar is 600g, so quantity = 600). If you convert the quantity, adjust 'unitCost' accordingly: 'unitCost = totalLineCost / quantity' (e.g. 269.00 / 600 = 0.448333). Ensure that quantity * unitCost equals the actual total cost of the line item on the invoice. Use up to 6 decimal places of precision for 'unitCost' to prevent rounding errors.`;
       }
 
       const payload = {
@@ -712,6 +718,7 @@ Extract raw items exactly as shown. For quantity and unitCost, ensure they are p
                             currentStock: 0,
                             weightedCost: 0,
                             density: 1.0,
+                            lastBrand: item.brand || null,
                             venueId,
                             organizationId: orgId
                           }
@@ -773,6 +780,7 @@ Extract raw items exactly as shown. For quantity and unitCost, ensure they are p
           weightedCost: 0,
           reorderLevel: reorderLevel ? Number(reorderLevel) : null,
           density: density !== undefined ? Number(density) : 1.0,
+          lastBrand: body.lastBrand || null,
           venueId,
         },
       });
@@ -821,6 +829,8 @@ Extract raw items exactly as shown. For quantity and unitCost, ensure they are p
                 vatRate: Number(i.vatRate || 0.01),
                 isVatInclusive: Boolean(i.isVatInclusive || false),
                 totalCost: Number(i.quantity) * Number(i.unitCost),
+                rawName: i.rawName || null,
+                brand: i.brand || null,
               })),
             },
           },
@@ -844,11 +854,14 @@ Extract raw items exactly as shown. For quantity and unitCost, ensure they are p
           id: item.id,
           ingredientId: item.ingredientId,
           ingredientName: item.ingredient?.name || null,
+          ingredientUnit: item.ingredient?.unit || null,
           quantity: Number(item.quantity),
           unitCost: Number(item.unitCost),
           vatRate: Number(item.vatRate || 0.01),
           isVatInclusive: item.isVatInclusive || false,
           totalCost: Number(item.totalCost),
+          brand: item.brand,
+          rawName: item.rawName,
         })),
       }, { status: 201 });
     }
@@ -1110,7 +1123,7 @@ Extract raw items exactly as shown. For quantity and unitCost, ensure they are p
         return NextResponse.json({ items: [], suggestedYieldQuantity: null, suggestedYieldUnit: null });
       }
 
-      const url = `https://generativelanguage.googleapis.com/v1beta/models/gemini-3.5-flash:generateContent?key=${apiKey}`;
+      const url = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${apiKey}`;
 
       const prompt = `Analyze the recipe content (text or image) and extract:
 1. The list of ingredients.
@@ -1215,6 +1228,7 @@ export async function PUT(
           unit,
           reorderLevel: reorderLevel ? Number(reorderLevel) : null,
           density: density !== undefined ? Number(density) : 1.0,
+          ...(body.lastBrand !== undefined ? { lastBrand: body.lastBrand } : {}),
           updatedAt: new Date(),
         },
       });

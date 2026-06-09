@@ -67,6 +67,7 @@ def create_ingredient(ing_in: schemas.IngredientCreate, db: Session = Depends(ge
         reorderLevel=Decimal(str(ing_in.reorderLevel)) if ing_in.reorderLevel is not None else None,
         weightedCost=Decimal("0.0"),
         density=Decimal(str(ing_in.density)),
+        lastBrand=ing_in.lastBrand,
         venueId=ing_in.venueId,
         organizationId=venue.organizationId
     )
@@ -87,6 +88,8 @@ def update_ingredient(id: str, ing_in: schemas.IngredientBase, db: Session = Dep
     db_ing.unit = ing_in.unit
     db_ing.reorderLevel = Decimal(str(ing_in.reorderLevel)) if ing_in.reorderLevel is not None else None
     db_ing.density = Decimal(str(ing_in.density))
+    if ing_in.lastBrand is not None:
+        db_ing.lastBrand = ing_in.lastBrand
     db_ing.updatedAt = datetime.datetime.utcnow()
     
     db.commit()
@@ -169,6 +172,7 @@ def list_invoices(venueId: str, db: Session = Depends(get_db)):
         for item in inv.items:
             if item.ingredient:
                 item.ingredientName = item.ingredient.name
+                item.ingredientUnit = item.ingredient.unit
     return invoices
 
 @router.post("/invoices", response_model=schemas.InvoiceSchema, status_code=status.HTTP_201_CREATED)
@@ -199,7 +203,9 @@ def create_invoice(inv_in: schemas.InvoiceCreate, db: Session = Depends(get_db))
             ingredientId=item.ingredientId,
             quantity=Decimal(str(item.quantity)),
             unitCost=Decimal(str(item.unitCost)),
-            totalCost=Decimal(str(item.quantity)) * Decimal(str(item.unitCost))
+            totalCost=Decimal(str(item.quantity)) * Decimal(str(item.unitCost)),
+            rawName=item.rawName,
+            brand=item.brand
         )
         db.add(db_item)
     
@@ -215,6 +221,7 @@ def create_invoice(inv_in: schemas.InvoiceCreate, db: Session = Depends(get_db))
     for it in processed.items:
         if it.ingredient:
             it.ingredientName = it.ingredient.name
+            it.ingredientUnit = it.ingredient.unit
 
     return processed
 
@@ -231,6 +238,7 @@ def get_invoice(id: str, db: Session = Depends(get_db)):
     for item in inv.items:
         if item.ingredient:
             item.ingredientName = item.ingredient.name
+            item.ingredientUnit = item.ingredient.unit
     return inv
 
 @router.delete("/invoices/{id}", response_model=schemas.InvoiceSchema)
@@ -251,6 +259,7 @@ def void_invoice(id: str, db: Session = Depends(get_db)):
     for item in inv.items:
         if item.ingredient:
             item.ingredientName = item.ingredient.name
+            item.ingredientUnit = item.ingredient.unit
     return inv
 
 @router.post("/invoices/scan")
@@ -332,6 +341,7 @@ async def scan_invoice(
                                 currentStock=Decimal("0.0"),
                                 weightedCost=Decimal("0.0"),
                                 density=Decimal("1.0"),
+                                lastBrand=item.get("brand"),
                                 venueId=venueId,
                                 organizationId=org_id
                             )

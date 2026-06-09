@@ -26,6 +26,7 @@ interface Ingredient {
   weightedCost: string;
   reorderLevel: string | null;
   density: number;
+  lastBrand?: string | null;
 }
 
 interface Supplier {
@@ -391,7 +392,16 @@ export default function AdminInventoryPage() {
 
                     return (
                       <tr key={ing.id} className="hover:bg-[#2A2A3D]/10 transition-colors">
-                        <td className="px-6 py-4 font-semibold text-white">{ing.name}</td>
+                        <td className="px-6 py-4">
+                          <div className="font-semibold text-white">{ing.name}</div>
+                          {ing.lastBrand && (
+                            <div className="text-[10px] mt-0.5 flex items-center">
+                              <span className="bg-[#2A2A3D]/60 border border-gray-850 px-1.5 py-0.5 rounded text-[9px] text-[#C9A84C] font-normal font-sans">
+                                Marka: {ing.lastBrand}
+                              </span>
+                            </div>
+                          )}
+                        </td>
                         <td className="px-6 py-4">
                           <div className="flex items-center space-x-2">
                             <span className={`font-mono font-bold ${isLowStock ? "text-red-400" : "text-gray-300"}`}>
@@ -596,6 +606,18 @@ export default function AdminInventoryPage() {
                   Reçetelerde bardak, kaşık gibi hacim birimlerini ağırlığa çevirmek için kullanılır. (Su = 1.0)
                 </p>
               </div>
+
+              {editingIng && (
+                <div>
+                  <label className="text-xs text-gray-400 block mb-1">Son Satın Alınan Marka</label>
+                  <input
+                    type="text"
+                    value={editingIng.lastBrand || "Bilinmiyor / Girilmemiş"}
+                    disabled
+                    className="w-full bg-[#1C1C28]/40 border border-gray-800/60 rounded-xl px-4 py-2.5 text-xs text-gray-400 cursor-not-allowed select-none focus:outline-none"
+                  />
+                </div>
+              )}
             </div>
 
             <div className="flex justify-end space-x-2 pt-4 border-t border-gray-800/40 flex-shrink-0">

@@ -29,7 +29,7 @@ async def parse_invoice_image(
 
     base64_data = base64.b64encode(file_bytes).decode("utf-8")
     
-    url = f"https://generativelanguage.googleapis.com/v1beta/models/gemini-3.5-flash:generateContent?key={api_key}"
+    url = f"https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key={api_key}"
     
     prompt = (
         "Analyze this invoice image/document and extract the structured information. "
@@ -42,13 +42,16 @@ async def parse_invoice_image(
         "  \"items\": [\n"
         "    {\n"
         "      \"itemName\": \"string\",\n"
+        "      \"brand\": \"string or null\",\n"
         "      \"matchedIngredientId\": \"string or null\",\n"
         "      \"quantity\": number,\n"
         "      \"unitCost\": number\n"
         "    }\n"
         "  ]\n"
         "}\n"
-        "Extract raw items exactly as shown. For quantity and unitCost, ensure they are positive numeric values."
+        "Extract raw items. For quantity and unitCost, ensure they are positive numeric values. "
+        "For 'brand', extract the brand name of the product if clearly visible (e.g. 'Altınkılıç', 'Sütaş', 'Pınar'); "
+        "otherwise return null."
     )
 
     if existing_suppliers:
@@ -65,7 +68,12 @@ async def parse_invoice_image(
             "\nBased on the item name/description extracted from the invoice, match each item to one of these "
             "existing ingredients if there is a semantic match (e.g. 'ALTINKILIC TAZE KASR' matches 'Kaşar Peyniri', "
             "'SÜZME SÜT 1L' matches 'Süt', 'KIRMIZI ET' or 'DANA ET' matches 'Kıyma (Dana)'). "
-            "If a match is found, populate 'matchedIngredientId' with its ID. Otherwise, return null for 'matchedIngredientId'."
+            "If a match is found, populate 'matchedIngredientId' with its ID. Otherwise, return null for 'matchedIngredientId'.\n"
+            "CRITICAL CONVERSION RULE: If a match is found, compare the invoice packaging unit with the database ingredient's unit (e.g. 'g', 'ml', 'kg', 'liter', 'unit'). "
+            "If the database unit is 'g' (grams) or 'ml' (milliliters) but the invoice lists it as packages or pieces (e.g. 1 package of cheese), "
+            "convert the quantity to the database unit (grams or milliliters) by estimating the package size/weight (e.g. Altınkılıç Taze Kaşar is 600g, so quantity = 600). "
+            "If you convert the quantity, adjust 'unitCost' accordingly: 'unitCost = totalLineCost / quantity' (e.g. 269.00 / 600 = 0.448333). "
+            "Ensure that quantity * unitCost equals the actual total cost of the line item on the invoice. Use up to 6 decimal places of precision for 'unitCost' to prevent rounding errors."
         )
 
     payload = {
@@ -87,31 +95,57 @@ async def parse_invoice_image(
         }
     }
 
-    try:
-        async with httpx.AsyncClient(timeout=30.0) as client:
-            response = await client.post(url, json=payload)
-            if response.status_code == 200:
-                data = response.json()
-                text_response = data["candidates"][0]["content"]["parts"][0]["text"]
-                try:
-                    return json.loads(text_response.strip())
-                except Exception as json_err:
-                    print(f"[Invoice OCR] Failed to parse JSON response: {json_err}. Raw text: {text_response}")
+    max_retries = 3
+    retry_delay = 5.0
+
+    for attempt in range(max_retries):
+        try:
+            async with httpx.AsyncClient(timeout=90.0) as client:
+                response = await client.post(url, json=payload)
+                if response.status_code == 200:
+                    data = response.json()
+                    text_response = data["candidates"][0]["content"]["parts"][0]["text"]
+                    try:
+                        return json.loads(text_response.strip())
+                    except Exception as json_err:
+                        print(f"[Invoice OCR] Failed to parse JSON response: {json_err}. Raw text: {text_response}")
+                        mock = get_mock_ocr_result()
+                        mock["_debugError"] = f"JSON parse error: {str(json_err)}"
+                        return mock
+                elif response.status_code in [429, 503]:
+                    if attempt < max_retries - 1:
+                        print(f"[Invoice OCR] Gemini API busy ({response.status_code}). Retrying in {retry_delay}s... (Attempt {attempt+1}/{max_retries})")
+                        import asyncio
+                        await asyncio.sleep(retry_delay)
+                        retry_delay *= 2
+                        continue
+                    else:
+                        err_msg = f"Gemini API error {response.status_code}: {response.text}"
+                        print(f"[Invoice OCR] {err_msg}")
+                        mock = get_mock_ocr_result()
+                        mock["_debugError"] = err_msg
+                        return mock
+                else:
+                    err_msg = f"Gemini API error {response.status_code}: {response.text}"
+                    print(f"[Invoice OCR] {err_msg}")
                     mock = get_mock_ocr_result()
-                    mock["_debugError"] = f"JSON parse error: {str(json_err)}"
+                    mock["_debugError"] = err_msg
                     return mock
+        except Exception as e:
+            if attempt < max_retries - 1:
+                print(f"[Invoice OCR] Connection/timeout exception: {e}. Retrying in {retry_delay}s... (Attempt {attempt+1}/{max_retries})")
+                import asyncio
+                await asyncio.sleep(retry_delay)
+                retry_delay *= 2
+                continue
             else:
-                err_msg = f"Gemini API error {response.status_code}: {response.text}"
+                import traceback
+                traceback.print_exc()
+                err_msg = f"Exception calling Gemini API: {e}"
                 print(f"[Invoice OCR] {err_msg}")
                 mock = get_mock_ocr_result()
                 mock["_debugError"] = err_msg
                 return mock
-    except Exception as e:
-        err_msg = f"Exception calling Gemini API: {e}"
-        print(f"[Invoice OCR] {err_msg}")
-        mock = get_mock_ocr_result()
-        mock["_debugError"] = err_msg
-        return mock
 
 def get_mock_ocr_result() -> Dict[str, Any]:
     """

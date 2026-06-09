@@ -33,6 +33,7 @@ interface InvoiceItem {
   id?: string;
   ingredientId: string;
   ingredientName?: string;
+  ingredientUnit?: string;
   quantity: number;
   unitCost: number;
   vatRate?: number;
@@ -42,6 +43,8 @@ interface InvoiceItem {
   packageCount?: number;
   packageSize?: number;
   packagePrice?: number;
+  brand?: string;
+  rawName?: string;
 }
 
 interface Invoice {
@@ -111,7 +114,9 @@ export default function AdminInvoicesPage() {
         isPackage: false,
         packageCount: 1,
         packageSize: 1,
-        packagePrice: 0
+        packagePrice: 0,
+        brand: "",
+        rawName: ""
       }
     ]);
   };
@@ -214,7 +219,9 @@ export default function AdminInvoicesPage() {
           quantity: item.quantity,
           unitCost: item.unitCost,
           vatRate: item.vatRate ?? 0.01,
-          isVatInclusive: item.isVatInclusive ?? false
+          isVatInclusive: item.isVatInclusive ?? false,
+          brand: item.brand || null,
+          rawName: item.rawName || null
         }))
       };
 
@@ -271,7 +278,19 @@ export default function AdminInvoicesPage() {
 
   const handleScanInvoice = async (e: React.ChangeEvent<HTMLInputElement>) => {
     if (!e.target.files || e.target.files.length === 0) return;
-    const file = e.target.files[0];
+    let file = e.target.files[0];
+    
+    // Client-side image compression
+    if (file.type.startsWith("image/")) {
+      try {
+        console.log(`Original image size: ${(file.size / 1024 / 1024).toFixed(2)} MB`);
+        file = await compressImage(file, 1600, 0.75);
+        console.log(`Compressed image size: ${(file.size / 1024).toFixed(2)} KB`);
+      } catch (err) {
+        console.error("Image compression failed, using original file", err);
+      }
+    }
+
     const formData = new FormData();
     formData.append("file", file);
 
@@ -354,7 +373,9 @@ export default function AdminInvoicesPage() {
               isPackage: false,
               packageCount: 1,
               packageSize: ocrItem.quantity || 1,
-              packagePrice: (ocrItem.quantity || 1) * (ocrItem.unitCost || 0)
+              packagePrice: (ocrItem.quantity || 1) * (ocrItem.unitCost || 0),
+              brand: ocrItem.brand || "",
+              rawName: ocrItem.itemName || ""
             });
           });
         }
@@ -499,12 +520,12 @@ export default function AdminInvoicesPage() {
 
                   return (
                     <div key={index} className="grid grid-cols-1 md:grid-cols-12 gap-3 bg-[#1C1C28]/40 border border-gray-800/35 p-3 rounded-xl items-end">
-                      <div className="md:col-span-3">
+                      <div className="md:col-span-2">
                         <label className="text-[10px] text-gray-400 block mb-1">Malzeme</label>
                         <select
                           value={item.ingredientId}
                           onChange={(e) => handleUpdateLineItem(index, "ingredientId", e.target.value)}
-                          className={`w-full bg-[#1C1C28] border rounded-lg px-3 py-2 text-xs text-white focus:outline-none ${
+                          className={`w-full bg-[#1C1C28] border rounded-lg px-2 py-2 text-xs text-white focus:outline-none ${
                             errors[`item_${index}_ing`] ? "border-red-500" : "border-gray-800"
                           }`}
                         >
@@ -513,6 +534,17 @@ export default function AdminInvoicesPage() {
                             <option key={ing.id} value={ing.id}>{ing.name} ({ing.unit})</option>
                           ))}
                         </select>
+                      </div>
+
+                      <div className="md:col-span-2">
+                        <label className="text-[10px] text-gray-400 block mb-1">Marka / Detay</label>
+                        <input
+                          type="text"
+                          value={item.brand || ""}
+                          onChange={(e) => handleUpdateLineItem(index, "brand", e.target.value)}
+                          className="w-full bg-[#1C1C28] border border-gray-800 rounded-lg px-2 py-2 text-xs text-white focus:outline-none focus:border-[#C9A84C]/50"
+                          placeholder="örn. Altınkılıç"
+                        />
                       </div>
 
                       <div className="md:col-span-1">
@@ -529,7 +561,7 @@ export default function AdminInvoicesPage() {
 
                       {!item.isPackage ? (
                         <>
-                          <div className="md:col-span-3">
+                          <div className="md:col-span-2">
                             <label className="text-[10px] text-gray-400 block mb-1">
                               Miktar {unit ? `(${unit})` : ""}
                             </label>
@@ -538,7 +570,7 @@ export default function AdminInvoicesPage() {
                               step="0.01"
                               value={item.quantity}
                               onChange={(e) => handleUpdateLineItem(index, "quantity", parseFloat(e.target.value) || 0)}
-                              className={`w-full bg-[#1C1C28] border rounded-lg px-3 py-2 text-xs text-white font-mono focus:outline-none ${
+                              className={`w-full bg-[#1C1C28] border rounded-lg px-2 py-2 text-xs text-white font-mono focus:outline-none ${
                                 errors[`item_${index}_qty`] ? "border-red-500" : "border-gray-800"
                               }`}
                               placeholder="örn. 10"
@@ -554,7 +586,7 @@ export default function AdminInvoicesPage() {
                               step="0.01"
                               value={item.unitCost}
                               onChange={(e) => handleUpdateLineItem(index, "unitCost", parseFloat(e.target.value) || 0)}
-                              className={`w-full bg-[#1C1C28] border rounded-lg px-3 py-2 text-xs text-white font-mono focus:outline-none ${
+                              className={`w-full bg-[#1C1C28] border rounded-lg px-2 py-2 text-xs text-white font-mono focus:outline-none ${
                                 errors[`item_${index}_cost`] ? "border-red-500" : "border-gray-800"
                               }`}
                               placeholder="örn. 45"
@@ -569,14 +601,14 @@ export default function AdminInvoicesPage() {
                               type="number"
                               value={item.packageCount ?? 1}
                               onChange={(e) => handleUpdateLineItem(index, "packageCount", parseInt(e.target.value) || 0)}
-                              className={`w-full bg-[#1C1C28] border rounded-lg px-3 py-2 text-xs text-white font-mono focus:outline-none ${
+                              className={`w-full bg-[#1C1C28] border rounded-lg px-2 py-2 text-xs text-white font-mono focus:outline-none ${
                                 errors[`item_${index}_qty`] ? "border-red-500" : "border-gray-800"
                               }`}
                               placeholder="1"
                             />
                           </div>
 
-                          <div className="md:col-span-2">
+                          <div className="md:col-span-1">
                             <label className="text-[10px] text-gray-400 block mb-1">
                               Boyut {unit ? `(${unit})` : ""}
                             </label>
@@ -585,7 +617,7 @@ export default function AdminInvoicesPage() {
                               step="0.01"
                               value={item.packageSize ?? 1}
                               onChange={(e) => handleUpdateLineItem(index, "packageSize", parseFloat(e.target.value) || 0)}
-                              className={`w-full bg-[#1C1C28] border rounded-lg px-3 py-2 text-xs text-white font-mono focus:outline-none ${
+                              className={`w-full bg-[#1C1C28] border rounded-lg px-2 py-2 text-xs text-white font-mono focus:outline-none ${
                                 errors[`item_${index}_qty`] ? "border-red-500" : "border-gray-800"
                               }`}
                               placeholder="örn. 900"
@@ -599,7 +631,7 @@ export default function AdminInvoicesPage() {
                               step="0.01"
                               value={item.packagePrice ?? 0}
                               onChange={(e) => handleUpdateLineItem(index, "packagePrice", parseFloat(e.target.value) || 0)}
-                              className={`w-full bg-[#1C1C28] border rounded-lg px-3 py-2 text-xs text-white font-mono focus:outline-none ${
+                              className={`w-full bg-[#1C1C28] border rounded-lg px-2 py-2 text-xs text-white font-mono focus:outline-none ${
                                 errors[`item_${index}_cost`] ? "border-red-500" : "border-gray-800"
                               }`}
                               placeholder="örn. 209"
@@ -766,9 +798,16 @@ export default function AdminInvoicesPage() {
                                     {inv.items.map((item, idx) => (
                                       <div key={idx} className="bg-[#1C1C28]/60 border border-gray-800/40 p-2.5 rounded-lg flex justify-between items-center">
                                         <div>
-                                          <p className="font-semibold text-white">{item.ingredientName || "Bilinmeyen Malzeme"}</p>
-                                          <p className="text-[10px] text-gray-500 font-mono">
-                                            {item.quantity} x ₺{parseFloat(item.unitCost as any).toFixed(2)}
+                                          <p className="font-semibold text-white">
+                                            {item.ingredientName || "Bilinmeyen Malzeme"}
+                                            {item.brand && (
+                                              <span className="text-[10px] text-[#C9A84C] ml-2 font-normal bg-[#C9A84C]/10 px-1.5 py-0.5 rounded">
+                                                {item.brand}
+                                              </span>
+                                            )}
+                                          </p>
+                                          <p className="text-[10px] text-gray-500 font-mono mt-0.5">
+                                            {item.quantity} {item.ingredientUnit || ""} x ₺{parseFloat(item.unitCost as any) < 1 ? parseFloat(item.unitCost as any).toFixed(4) : parseFloat(item.unitCost as any).toFixed(2)}
                                             <span className="text-[9px] text-gray-400 ml-1">
                                               ({item.isVatInclusive ? "KDV Dahil" : "KDV Hariç"} - %{Number(item.vatRate || 0.01) * 100})
                                             </span>
@@ -802,4 +841,60 @@ export default function AdminInvoicesPage() {
       )}
     </div>
   );
+}
+
+// Browser-side image compression utility
+function compressImage(file: File, maxDimension: number, quality: number): Promise<File> {
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onload = (e) => {
+      const img = new Image();
+      img.onload = () => {
+        const canvas = document.createElement("canvas");
+        let width = img.width;
+        let height = img.height;
+
+        if (width > height) {
+          if (width > maxDimension) {
+            height = Math.round((height * maxDimension) / width);
+            width = maxDimension;
+          }
+        } else {
+          if (height > maxDimension) {
+            width = Math.round((width * maxDimension) / height);
+            height = maxDimension;
+          }
+        }
+
+        canvas.width = width;
+        canvas.height = height;
+        const ctx = canvas.getContext("2d");
+        if (!ctx) {
+          resolve(file);
+          return;
+        }
+
+        ctx.drawImage(img, 0, 0, width, height);
+        canvas.toBlob(
+          (blob) => {
+            if (blob) {
+              const compressedFile = new File([blob], file.name, {
+                type: "image/jpeg",
+                lastModified: Date.now(),
+              });
+              resolve(compressedFile);
+            } else {
+              resolve(file);
+            }
+          },
+          "image/jpeg",
+          quality
+        );
+      };
+      img.onerror = () => reject(new Error("Image load error"));
+      img.src = e.target?.result as string;
+    };
+    reader.onerror = () => reject(new Error("File read error"));
+    reader.readAsDataURL(file);
+  });
 }

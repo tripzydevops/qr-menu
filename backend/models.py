@@ -312,6 +312,7 @@ class Ingredient(Base):
     reorderLevel = Column(Numeric(14, 4), nullable=True)
     weightedCost = Column(Numeric(14, 6), default=0)  # WAC per unit
     density = Column(Numeric(14, 4), default=1.0, nullable=False)
+    lastBrand = Column(String, nullable=True)
     venueId = Column(String, ForeignKey("Venue.id", ondelete="CASCADE"), nullable=False)
     organizationId = Column(String, nullable=True)  # Used when sharedInventory=true
     createdAt = Column(DateTime, default=datetime.datetime.utcnow)
@@ -367,6 +368,8 @@ class InvoiceItem(Base):
     vatRate = Column(Numeric(5, 4), default=0.01)
     isVatInclusive = Column(Boolean, default=False)
     totalCost = Column(Numeric(14, 2), nullable=False)
+    rawName = Column(String, nullable=True)
+    brand = Column(String, nullable=True)
 
     invoice = relationship("Invoice", back_populates="items")
     ingredient = relationship("Ingredient", back_populates="invoiceItems")

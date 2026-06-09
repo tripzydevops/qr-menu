@@ -85,6 +85,8 @@ def process_invoice(db: Session, invoice_id: str) -> models.Invoice:
 
         ingredient.currentStock = new_total_stock
         ingredient.weightedCost = new_wac
+        if item.brand:
+            ingredient.lastBrand = item.brand
         ingredient.updatedAt = datetime.datetime.utcnow()
 
         # Log cost change

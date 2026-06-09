@@ -295,6 +295,7 @@ model Ingredient {
   reorderLevel   Decimal?           // Alert when stock falls below this
   weightedCost   Decimal            @default(0) // Weighted Average Cost per unit
   density        Decimal            @default(1.0) @db.Decimal(14, 4)
+  lastBrand      String?
   venueId        String
   venue          Venue              @relation(fields: [venueId], references: [id], onDelete: Cascade)
   organizationId String?            // Used when sharedInventory=true
@@ -343,6 +344,8 @@ model InvoiceItem {
   vatRate        Decimal    @default(0.01) // e.g. 0.01 (1%), 0.10 (10%), 0.20 (20%)
   isVatInclusive Boolean    @default(false)
   totalCost      Decimal
+  rawName        String?
+  brand          String?
 }
 
 model Recipe {
