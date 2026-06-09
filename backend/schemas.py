@@ -527,11 +527,17 @@ class RecipeCreate(BaseModel):
     menuItemId: str
     targetMargin: Decimal = Decimal("0.70")
     yieldQuantity: Optional[Decimal] = Decimal("1.0")
+    yieldUnit: Optional[str] = "porsiyon"
+    portionSize: Optional[Decimal] = Decimal("1.0")
+    totalYield: Optional[Decimal] = Decimal("1.0")
     ingredients: List[RecipeIngredientCreate]
 
 class RecipeUpdate(BaseModel):
     targetMargin: Optional[Decimal] = None
     yieldQuantity: Optional[Decimal] = None
+    yieldUnit: Optional[str] = None
+    portionSize: Optional[Decimal] = None
+    totalYield: Optional[Decimal] = None
     ingredients: Optional[List[RecipeIngredientCreate]] = None
 
 class RecipeSchema(BaseModel):
@@ -541,6 +547,9 @@ class RecipeSchema(BaseModel):
     menuItemPrice: Optional[Decimal] = None
     targetMargin: Decimal
     yieldQuantity: Decimal
+    yieldUnit: str
+    portionSize: Decimal
+    totalYield: Decimal
     currentCost: Decimal
     currentMargin: Optional[Decimal] = None
     isDeleted: bool = False

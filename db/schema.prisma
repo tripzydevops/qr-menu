@@ -351,6 +351,9 @@ model Recipe {
   menuItem       MenuItem           @relation(fields: [menuItemId], references: [id], onDelete: Cascade)
   targetMargin   Decimal            @default(0.70) // 70%
   yieldQuantity  Decimal            @default(1.0)  // The number of portions this recipe yields
+  yieldUnit      String             @default("porsiyon")
+  portionSize    Decimal            @default(1.0)
+  totalYield     Decimal            @default(1.0)
   currentCost    Decimal            @default(0)    // Portion cost (Total Cost / yieldQuantity)
   isDeleted      Boolean            @default(false)
   ingredients    RecipeIngredient[]

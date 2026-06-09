@@ -391,6 +391,9 @@ Ensure the density is a positive float. Typical examples: Water = 1.0, Yogurt = 
             menuItemPrice: price,
             targetMargin: Number(r.targetMargin),
             yieldQuantity: Number(r.yieldQuantity || 1.0),
+            yieldUnit: r.yieldUnit || "porsiyon",
+            portionSize: Number(r.portionSize || 1.0),
+            totalYield: Number(r.totalYield || 1.0),
             currentCost: cost,
             currentMargin,
             createdAt: r.createdAt.toISOString(),
@@ -852,7 +855,7 @@ Extract raw items exactly as shown. For quantity and unitCost, ensure they are p
 
     // 5. Create Recipe
     if (pathSegments[0] === "recipes") {
-      const { menuItemId, targetMargin, ingredients, yieldQuantity } = body; // ingredients: Array of { ingredientId, amountUsed }
+      const { menuItemId, targetMargin, ingredients, yieldQuantity, yieldUnit, portionSize, totalYield } = body; // ingredients: Array of { ingredientId, amountUsed }
 
       const existing = await prisma.recipe.findUnique({
         where: { menuItemId },
@@ -867,6 +870,9 @@ Extract raw items exactly as shown. For quantity and unitCost, ensure they are p
             menuItemId,
             targetMargin: Number(targetMargin),
             yieldQuantity: yieldQuantity ? Number(yieldQuantity) : 1.0,
+            yieldUnit: yieldUnit || "porsiyon",
+            portionSize: portionSize ? Number(portionSize) : 1.0,
+            totalYield: totalYield ? Number(totalYield) : 1.0,
             currentCost: 0,
             ingredients: {
               create: ingredients.map((i: any) => ({
@@ -913,6 +919,9 @@ Extract raw items exactly as shown. For quantity and unitCost, ensure they are p
         menuItemPrice: price,
         targetMargin: Number(updated.targetMargin),
         yieldQuantity: Number(updated.yieldQuantity || 1.0),
+        yieldUnit: updated.yieldUnit || "porsiyon",
+        portionSize: Number(updated.portionSize || 1.0),
+        totalYield: Number(updated.totalYield || 1.0),
         currentCost: cost,
         currentMargin: price > 0 ? (price - cost) / price : 0,
         ingredients: updated.ingredients.map((ri) => ({
@@ -1098,34 +1107,50 @@ Extract raw items exactly as shown. For quantity and unitCost, ensure they are p
 
       if (!apiKey) {
         console.warn("[OCR] API Key missing, falling back to empty list.");
-        return NextResponse.json([]);
+        return NextResponse.json({ items: [], suggestedYieldQuantity: null, suggestedYieldUnit: null });
       }
 
       const url = `https://generativelanguage.googleapis.com/v1beta/models/gemini-3.5-flash:generateContent?key=${apiKey}`;
 
-      const prompt = `Analyze the recipe content (text or image) and extract the structured list of ingredients.
+      const prompt = `Analyze the recipe content (text or image) and extract:
+1. The list of ingredients.
+2. The suggested yield quantity and yield unit (e.g. if the recipe text indicates 'Serves 4', 'Makes 12 portions', 'Yield: 1.5 kg', or 'Makes 2 liters').
+
+Return a JSON object with this exact structure:
+{
+  "items": [
+    {
+      "ingredientId": "string or null",
+      "name": "string",
+      "amountUsed": number,
+      "unit": "string",
+      "originalText": "string",
+      "confidence": number
+    }
+  ],
+  "suggestedYieldQuantity": number or null,
+  "suggestedYieldUnit": "string or null"
+}
+
+RULES FOR INGREDIENTS:
 ${promptContext}
 
-Match each ingredient in the recipe to the closest database ingredient name.
-For each matched ingredient, return a JSON array containing objects with this exact structure:
-[
-  {
-    "ingredientId": "string",
-    "amountUsed": number
-  }
-]
-Only return matches that correspond to the available ingredients listed. If a recipe ingredient doesn't match any listed database ingredient, omit it.
-The "amountUsed" must be a positive number in the unit specified for that ingredient in the database list.
-IMPORTANT CONVERSION RULE:
-If the recipe specifies a volume-based quantity (e.g., cup, tablespoon, teaspoon, ml, liter) but the database ingredient's unit is weight-based (e.g., g, kg), you MUST convert the volume to weight using the provided Density (in g/mL) for that ingredient.
-Standard conversions to use:
-- 1 cup (Su bardağı) = 240 mL
-- 1 tablespoon (Yemek kaşığı / tbsp) = 15 mL
-- 1 teaspoon (Tatlı kaşığı / tsp) = 5 mL
-For example:
-- If the recipe specifies "2 cups of Yogurt" and Yogurt has "Density: 1.08 g/mL", convert 2 cups to mL (2 * 240 = 480 mL), then to grams using density (480 * 1.08 = 518.4 g). If Yogurt's database unit is "g", return 518.4.
-- If the recipe specifies "3 tablespoons of Flour" and Flour has "Density: 0.52 g/mL", convert 3 tbsp to mL (3 * 15 = 45 mL), then to grams (45 * 0.52 = 23.4 g). If Flour's database unit is "g", return 23.4.
-Perform all conversions carefully before outputting the final "amountUsed" in the database ingredient's unit!`;
+- Match each recipe ingredient to the closest database ingredient name using semantic similarity. The recipe might be in English or Turkish; translate English terms to match Turkish ingredients where appropriate (e.g., 'olive oil' matches 'Zeytinyağı', 'cheese' matches 'Beyaz Peynir' or 'Kaşar Peyniri').
+- If matched to a database ingredient, set 'ingredientId' to its ID, 'name' to the database ingredient's name, 'unit' to the database unit, 'confidence' to a float between 0.0 and 1.0, and 'originalText' to the raw text line from the recipe.
+- If an ingredient cannot be matched to any database ingredient, set 'ingredientId' to null, 'confidence' to 0.0, 'originalText' to the raw text line, 'name' to the translated Turkish name of the ingredient (or raw name if unable to translate), and 'unit' to a standard unit (e.g., 'g', 'ml', 'unit').
+- The 'amountUsed' must be a positive number in the unit specified for that ingredient in the database list.
+- IMPORTANT CONVERSION RULE:
+  If the recipe specifies a volume-based quantity (e.g., cup, tablespoon, teaspoon, ml, liter) but the database ingredient's unit is weight-based (e.g., g, kg), you MUST convert the volume to weight using the provided Density (in g/mL) for that ingredient.
+  Standard conversions:
+  - 1 cup (Su bardağı) = 240 mL
+  - 1 tablespoon (Yemek kaşığı / tbsp) = 15 mL
+  - 1 teaspoon (Tatlı kaşığı / tsp) = 5 mL
+
+RULES FOR YIELD:
+- Look for yield information (e.g., 'Makes 1.5 kg', 'Makes 8 servings', 'Serves 4', 'Yields 2 Liters').
+- If in portions/servings, set 'suggestedYieldQuantity' to the number (e.g. 8) and 'suggestedYieldUnit' to 'porsiyon'.
+- If in weight or volume, set 'suggestedYieldQuantity' to the number (e.g. 1.5) and 'suggestedYieldUnit' to the unit (e.g., 'kg', 'g', 'ml', 'L').
+- If no yield info is found, set both to null.`;
 
       const payload = {
         contents: [
@@ -1157,7 +1182,7 @@ Perform all conversions carefully before outputting the final "amountUsed" in th
       }
 
       console.error("[Recipe OCR] Gemini API failed.");
-      return NextResponse.json([]);
+      return NextResponse.json({ items: [], suggestedYieldQuantity: null, suggestedYieldUnit: null });
     }
 
     return NextResponse.json({ detail: "Endpoint path not found" }, { status: 404 });
@@ -1236,6 +1261,9 @@ export async function PUT(
           data: {
             targetMargin: Number(targetMargin),
             yieldQuantity: yieldQuantity ? Number(yieldQuantity) : 1.0,
+            yieldUnit: body.yieldUnit || "porsiyon",
+            portionSize: body.portionSize ? Number(body.portionSize) : 1.0,
+            totalYield: body.totalYield ? Number(body.totalYield) : 1.0,
             updatedAt: new Date(),
             ingredients: {
               create: ingredients.map((i: any) => ({
@@ -1280,6 +1308,9 @@ export async function PUT(
         menuItemPrice: price,
         targetMargin: Number(finalRecipe.targetMargin),
         yieldQuantity: Number(finalRecipe.yieldQuantity || 1.0),
+        yieldUnit: finalRecipe.yieldUnit || "porsiyon",
+        portionSize: Number(finalRecipe.portionSize || 1.0),
+        totalYield: Number(finalRecipe.totalYield || 1.0),
         currentCost: cost,
         currentMargin: price > 0 ? (price - cost) / price : 0,
         ingredients: finalRecipe.ingredients.map((ri) => ({

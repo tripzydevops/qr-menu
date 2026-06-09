@@ -470,6 +470,10 @@ def create_recipe(recipe_in: schemas.RecipeCreate, db: Session = Depends(get_db)
         id=str(uuid.uuid4()),
         menuItemId=recipe_in.menuItemId,
         targetMargin=Decimal(str(recipe_in.targetMargin)),
+        yieldQuantity=Decimal(str(recipe_in.yieldQuantity or 1.0)),
+        yieldUnit=recipe_in.yieldUnit or "porsiyon",
+        portionSize=Decimal(str(recipe_in.portionSize or 1.0)),
+        totalYield=Decimal(str(recipe_in.totalYield or 1.0)),
         currentCost=Decimal("0.0")
     )
     db.add(db_recipe)
@@ -510,7 +514,7 @@ def create_recipe(recipe_in: schemas.RecipeCreate, db: Session = Depends(get_db)
     return db_recipe
 
 @router.put("/recipes/{id}", response_model=schemas.RecipeSchema)
-def update_recipe(id: str, recipe_in: schemas.RecipeCreate, db: Session = Depends(get_db)):
+def update_recipe(id: str, recipe_in: schemas.RecipeUpdate, db: Session = Depends(get_db)):
     db_recipe = db.query(models.Recipe).filter(models.Recipe.id == id).first()
     if not db_recipe:
         raise HTTPException(status_code=404, detail="Recipe not found")
@@ -519,21 +523,32 @@ def update_recipe(id: str, recipe_in: schemas.RecipeCreate, db: Session = Depend
     category = db.query(models.Category).filter(models.Category.id == menu_item.categoryId).first()
     verify_inventory_gating(category.venueId, db)
 
-    db_recipe.targetMargin = Decimal(str(recipe_in.targetMargin))
+    if recipe_in.targetMargin is not None:
+        db_recipe.targetMargin = Decimal(str(recipe_in.targetMargin))
+    if recipe_in.yieldQuantity is not None:
+        db_recipe.yieldQuantity = Decimal(str(recipe_in.yieldQuantity))
+    if recipe_in.yieldUnit is not None:
+        db_recipe.yieldUnit = recipe_in.yieldUnit
+    if recipe_in.portionSize is not None:
+        db_recipe.portionSize = Decimal(str(recipe_in.portionSize))
+    if recipe_in.totalYield is not None:
+        db_recipe.totalYield = Decimal(str(recipe_in.totalYield))
     db_recipe.updatedAt = datetime.datetime.utcnow()
 
-    # Clear old ingredients
-    db.query(models.RecipeIngredient).filter(models.RecipeIngredient.recipeId == id).delete()
+    # Update ingredients if provided
+    if recipe_in.ingredients is not None:
+        # Clear old ingredients
+        db.query(models.RecipeIngredient).filter(models.RecipeIngredient.recipeId == id).delete()
 
-    # Add new ingredients
-    for item in recipe_in.ingredients:
-        db_ri = models.RecipeIngredient(
-            id=str(uuid.uuid4()),
-            recipeId=id,
-            ingredientId=item.ingredientId,
-            amountUsed=Decimal(str(item.amountUsed))
-        )
-        db.add(db_ri)
+        # Add new ingredients
+        for item in recipe_in.ingredients:
+            db_ri = models.RecipeIngredient(
+                id=str(uuid.uuid4()),
+                recipeId=id,
+                ingredientId=item.ingredientId,
+                amountUsed=Decimal(str(item.amountUsed))
+            )
+            db.add(db_ri)
 
     db.commit()
     db.refresh(db_recipe)

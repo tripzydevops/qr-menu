@@ -31,6 +31,9 @@ interface MenuItem {
     targetMargin: string;
     currentCost: string;
     yieldQuantity?: number;
+    yieldUnit?: string;
+    portionSize?: number;
+    totalYield?: number;
     ingredients: Array<{
       id: string;
       ingredientId: string;
@@ -60,6 +63,8 @@ interface RecipeItemForm {
   amountUsed: number;
   inputAmount: number;
   inputUnit: string;
+  originalText?: string;
+  confidence?: number;
 }
 
 const convertUnit = (amount: number, fromUnit: string, toUnit: string, density: number): number => {
@@ -148,6 +153,14 @@ export default function AdminRecipesPage() {
   const [aiScanOpen, setAiScanOpen] = useState(false);
   const [aiText, setAiText] = useState("");
   const [aiScanning, setAiScanning] = useState(false);
+  const [unmatchedScannedItems, setUnmatchedScannedItems] = useState<any[]>([]);
+
+  // Yield Calculator states
+  const [yieldMode, setYieldMode] = useState<string>("porsiyon");
+  const [yieldUnit, setYieldUnit] = useState<string>("porsiyon");
+  const [portionSize, setPortionSize] = useState<number>(1);
+  const [portionUnit, setPortionUnit] = useState<string>("g");
+  const [totalYield, setTotalYield] = useState<number>(1);
 
   // Form errors
   const [errors, setErrors] = useState<string | null>(null);
@@ -185,6 +198,9 @@ export default function AdminRecipesPage() {
                   targetMargin: matchedRecipe.targetMargin,
                   currentCost: matchedRecipe.currentCost,
                   yieldQuantity: matchedRecipe.yieldQuantity,
+                  yieldUnit: matchedRecipe.yieldUnit,
+                  portionSize: matchedRecipe.portionSize,
+                  totalYield: matchedRecipe.totalYield,
                   ingredients: matchedRecipe.ingredients
                 } : null
               });
@@ -210,9 +226,32 @@ export default function AdminRecipesPage() {
     setSelectedItem(item);
     setIngSearchQuery("");
 
+    setUnmatchedScannedItems([]);
+
     if (item.recipe) {
       setTargetMargin(parseFloat(item.recipe.targetMargin));
-      setYieldQuantity(item.recipe.yieldQuantity ? Number(item.recipe.yieldQuantity) : 1);
+      const yq = item.recipe.yieldQuantity ? Number(item.recipe.yieldQuantity) : 1;
+      const yu = item.recipe.yieldUnit || "porsiyon";
+      const ps = item.recipe.portionSize ? Number(item.recipe.portionSize) : 1;
+      const ty = item.recipe.totalYield ? Number(item.recipe.totalYield) : 1;
+       
+      setYieldQuantity(yq);
+      setYieldUnit(yu);
+      setPortionSize(ps);
+      setTotalYield(ty);
+ 
+      // Determine yield mode and portion unit
+      if (yu === "porsiyon") {
+        setYieldMode("porsiyon");
+        setPortionUnit("porsiyon");
+      } else if (["g", "kg"].includes(yu)) {
+        setYieldMode("weight");
+        setPortionUnit(ps >= 1000 ? "kg" : "g");
+      } else {
+        setYieldMode("volume");
+        setPortionUnit(ps >= 1000 ? "L" : "ml");
+      }
+ 
       const loadedItems = item.recipe.ingredients.map(ri => {
         const ing = ingredients.find(i => i.id === ri.ingredientId);
         const density = ing ? Number(ing.density) : 1.0;
@@ -226,12 +265,19 @@ export default function AdminRecipesPage() {
           amountUsed,
           inputAmount: amountUsed,
           inputUnit: ri.ingredientUnit || ing?.unit || "g",
+          confidence: 1.0,
+          originalText: ri.ingredientName || ing?.name || "Bilinmeyen Malzeme"
         };
       });
       setRecipeItems(loadedItems);
     } else {
       setTargetMargin(0.70);
       setYieldQuantity(1);
+      setYieldUnit("porsiyon");
+      setPortionSize(1);
+      setTotalYield(1);
+      setYieldMode("porsiyon");
+      setPortionUnit("porsiyon");
       setRecipeItems([]);
     }
     setAiScanOpen(false);
@@ -242,6 +288,7 @@ export default function AdminRecipesPage() {
   const handleAiScanRecipe = async (file?: File) => {
     setErrors(null);
     setAiScanning(true);
+    setUnmatchedScannedItems([]);
     try {
       const formData = new FormData();
       let res;
@@ -265,23 +312,53 @@ export default function AdminRecipesPage() {
       }
 
       if (res.ok) {
-        const data = await res.json(); // List of { ingredientId, amountUsed }
-        if (Array.isArray(data) && data.length > 0) {
-          const matchedItems = data.map((item: any) => {
+        const data = await res.json();
+        const items = data.items || [];
+        
+        const matched = items.filter((item: any) => item.ingredientId !== null);
+        const unmatched = items.filter((item: any) => item.ingredientId === null);
+        
+        if (matched.length > 0 || unmatched.length > 0) {
+          const matchedItems = matched.map((item: any) => {
             const ing = ingredients.find(i => i.id === item.ingredientId);
             const defaultAmount = parseFloat(item.amountUsed) || 0;
             return {
               ingredientId: item.ingredientId,
-              name: ing?.name || "Bilinmeyen Malzeme",
-              unit: ing?.unit || "g",
+              name: ing?.name || item.name || "Bilinmeyen Malzeme",
+              unit: ing?.unit || item.unit || "g",
               density: ing?.density || 1.0,
               cost: parseFloat(ing?.weightedCost || "0.0"),
               amountUsed: defaultAmount,
               inputAmount: defaultAmount,
-              inputUnit: ing?.unit || "g",
+              inputUnit: ing?.unit || item.unit || "g",
+              confidence: item.confidence !== undefined ? item.confidence : 1.0,
+              originalText: item.originalText || item.name || ""
             };
           });
           setRecipeItems(matchedItems);
+          setUnmatchedScannedItems(unmatched);
+          
+          if (data.suggestedYieldQuantity) {
+            const qty = Number(data.suggestedYieldQuantity);
+            const unit = data.suggestedYieldUnit || "porsiyon";
+            setTotalYield(qty);
+            setYieldUnit(unit);
+            
+            if (unit === "porsiyon") {
+              setYieldMode("porsiyon");
+              setPortionUnit("porsiyon");
+              setPortionSize(1);
+            } else if (["g", "kg"].includes(unit)) {
+              setYieldMode("weight");
+              setPortionUnit("g");
+              setPortionSize(150); 
+            } else {
+              setYieldMode("volume");
+              setPortionUnit("ml");
+              setPortionSize(150);
+            }
+          }
+          
           setAiText("");
           setAiScanOpen(false);
         } else {
@@ -295,6 +372,49 @@ export default function AdminRecipesPage() {
       alert("AI tarama sırasında bir hata oluştu.");
     } finally {
       setAiScanning(false);
+    }
+  };
+
+  const handleCreateUnmatchedIngredient = async (index: number, name: string, unit: string, density: number) => {
+    try {
+      const res = await fetch(`${apiUrl}/api/admin/inventory/ingredients`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          venueId,
+          name,
+          unit,
+          density: Number(density) || 1.0,
+          currentStock: 0,
+          weightedCost: 0,
+        })
+      });
+      if (res.ok) {
+        const newIng = await res.json();
+        setIngredients(prev => [...prev, newIng]);
+        
+        const matchedItem = {
+          ingredientId: newIng.id,
+          name: newIng.name,
+          unit: newIng.unit,
+          density: Number(newIng.density) || 1.0,
+          cost: 0,
+          amountUsed: unmatchedScannedItems[index].amountUsed,
+          inputAmount: unmatchedScannedItems[index].amountUsed,
+          inputUnit: newIng.unit,
+          originalText: unmatchedScannedItems[index].originalText,
+          confidence: 1.0
+        };
+        
+        setRecipeItems(prev => [...prev, matchedItem]);
+        setUnmatchedScannedItems(prev => prev.filter((_, idx) => idx !== index));
+      } else {
+        const err = await res.json();
+        alert(err.detail || "Malzeme oluşturulamadı.");
+      }
+    } catch (e) {
+      console.error(e);
+      alert("Malzeme oluşturulurken hata oluştu.");
     }
   };
 
@@ -375,7 +495,10 @@ export default function AdminRecipesPage() {
       const payload = {
         menuItemId: selectedItem.id,
         targetMargin: targetMargin,
-        yieldQuantity: yieldQuantity,
+        yieldQuantity: calculatedPortions,
+        yieldUnit: yieldUnit,
+        portionSize: portionSize,
+        totalYield: totalYield,
         ingredients: recipeItems.map(item => ({
           ingredientId: item.ingredientId,
           amountUsed: item.amountUsed
@@ -502,6 +625,20 @@ export default function AdminRecipesPage() {
   const filteredIngSearch = ingredients.filter(ing =>
     ing.name.toLowerCase().includes(ingSearchQuery.toLowerCase())
   );
+
+  const getPortionsCount = (): number => {
+    if (yieldMode === "porsiyon") {
+      return totalYield;
+    }
+    const totalInBase = ["kg", "L"].includes(yieldUnit) ? totalYield * 1000 : totalYield;
+    const portionInBase = ["kg", "L"].includes(portionUnit) ? portionSize * 1000 : portionSize;
+    if (portionInBase > 0) {
+      return totalInBase / portionInBase;
+    }
+    return 1;
+  };
+  
+  const calculatedPortions = getPortionsCount();
 
   return (
     <div className="space-y-6">
@@ -806,6 +943,36 @@ export default function AdminRecipesPage() {
                   </div>
                 )}
                 
+                {/* Unmatched Scanned Items Panel */}
+                {unmatchedScannedItems.length > 0 && (
+                  <div className="mb-4 bg-yellow-950/20 border border-yellow-900/30 rounded-xl p-3.5 space-y-2 flex-shrink-0">
+                    <h5 className="text-[10px] font-bold text-yellow-400 uppercase tracking-wider flex items-center space-x-1.5">
+                      <AlertTriangle className="h-3.5 w-3.5 text-yellow-400" />
+                      <span>Yapay Zekanın Bulduğu Ancak Stokta Olmayan Malzemeler</span>
+                    </h5>
+                    <p className="text-[10px] text-gray-400">
+                      Bu malzemeler veritabanınızda bulunamadı. Reçeteye eklemek için inline olarak stoka ekleyin:
+                    </p>
+                    <div className="max-h-40 overflow-y-auto space-y-2 pr-1">
+                      {unmatchedScannedItems.map((item, idx) => (
+                        <div key={idx} className="flex items-center justify-between gap-3 bg-[#1C1C28]/60 p-2.5 rounded-lg border border-gray-800/40">
+                          <div className="min-w-0">
+                            <p className="text-xs font-semibold text-white truncate">{item.name}</p>
+                            <p className="text-[9px] text-gray-500 font-mono">Parsed: {item.amountUsed} {item.unit}</p>
+                          </div>
+                          <button
+                            onClick={() => handleCreateUnmatchedIngredient(idx, item.name, item.unit, 1.0)}
+                            className="flex items-center justify-center space-x-1 px-3 py-1.5 rounded-lg bg-[#C9A84C] hover:bg-[#C9A84C]/80 text-[#1C1C28] font-bold text-[10px] transition-all flex-shrink-0"
+                          >
+                            <Plus className="h-3.5 w-3.5" />
+                            <span>Stoka Ekle</span>
+                          </button>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                )}
+
                 {/* Ingredients Form List */}
                 <div className="flex-grow overflow-y-auto space-y-2.5 pr-1 no-scrollbar">
                   {recipeItems.length > 0 ? (
@@ -814,7 +981,19 @@ export default function AdminRecipesPage() {
                       return (
                         <div key={item.ingredientId} className="bg-[#1C1C28]/60 border border-gray-800/40 p-3 rounded-xl flex items-center justify-between gap-4">
                           <div className="flex-grow min-w-0">
-                            <p className="font-semibold text-white truncate text-xs">{item.name}</p>
+                            <div className="flex items-center space-x-2">
+                              <p className="font-semibold text-white truncate text-xs">{item.name}</p>
+                              {item.confidence !== undefined && item.confidence < 0.95 && (
+                                <span 
+                                  className={`inline-flex items-center text-[9px] px-1.5 py-0.2 rounded font-semibold ${
+                                    item.confidence === 0 ? "bg-red-950/40 text-red-400 border border-red-900/30" : "bg-yellow-950/40 text-yellow-400 border border-yellow-900/30"
+                                  }`}
+                                  title={item.originalText ? `Orijinal: "${item.originalText}"` : undefined}
+                                >
+                                  {item.confidence === 0 ? "Yeni" : `%${Math.round(item.confidence * 100)} Güven`}
+                                </span>
+                              )}
+                            </div>
                             <div className="flex items-center space-x-2 mt-0.5">
                               <span className="text-[9px] text-gray-500 font-mono">₺{item.cost.toFixed(2)} / {item.unit}</span>
                               {item.inputUnit !== item.unit && (
@@ -876,27 +1055,132 @@ export default function AdminRecipesPage() {
 
                 {/* Live Computations Panel */}
                 <div className="border-t border-gray-800/60 pt-4 mt-4 space-y-3 flex-shrink-0 bg-[#16213E]/50 p-4 rounded-2xl border border-gray-800/40">
-                  <div className="grid grid-cols-2 gap-3 text-xs mb-1">
+                  <div className="grid grid-cols-1 md:grid-cols-3 gap-3 text-xs mb-2 pb-2 border-b border-gray-800/40">
                     <div>
-                      <span className="text-gray-400 block font-semibold">Porsiyon Verimi:</span>
-                      <input
-                        type="number"
-                        min="0.01"
-                        step="0.1"
-                        value={yieldQuantity}
-                        onChange={(e) => setYieldQuantity(Math.max(0.01, parseFloat(e.target.value) || 1))}
-                        className="mt-1 w-full bg-[#1C1C28] border border-gray-800 rounded px-2.5 py-1 font-mono text-xs text-white focus:outline-none focus:border-[#C9A84C]/50"
-                      />
+                      <span className="text-gray-400 block font-semibold">Verim Tipi:</span>
+                      <select
+                        value={yieldMode}
+                        onChange={(e) => {
+                          const val = e.target.value;
+                          setYieldMode(val);
+                          if (val === "porsiyon") {
+                            setYieldUnit("porsiyon");
+                            setPortionUnit("porsiyon");
+                            setPortionSize(1);
+                          } else if (val === "weight") {
+                            setYieldUnit("g");
+                            setPortionUnit("g");
+                            setPortionSize(150);
+                          } else {
+                            setYieldUnit("ml");
+                            setPortionUnit("ml");
+                            setPortionSize(150);
+                          }
+                        }}
+                        className="mt-1 w-full bg-[#1C1C28] border border-gray-800 rounded px-2 py-1 text-xs text-white focus:outline-none focus:border-[#C9A84C]/50"
+                      >
+                        <option value="porsiyon">Porsiyon (Adet)</option>
+                        <option value="weight">Ağırlık (Gram/Kilo)</option>
+                        <option value="volume">Hacim (Mili./Litre)</option>
+                      </select>
                     </div>
-                    <div className="flex flex-col justify-end">
-                      <span className="text-gray-400 block">Reçete Toplam Maliyeti:</span>
-                      <span className="font-mono font-bold text-gray-300 mt-1">₺{calculateTotalCost().toFixed(2)}</span>
-                    </div>
+                    {yieldMode === "porsiyon" ? (
+                      <div className="col-span-2">
+                        <span className="text-gray-400 block font-semibold">Porsiyon Adedi:</span>
+                        <input
+                          type="number"
+                          min="0.01"
+                          step="0.1"
+                          value={totalYield}
+                          onChange={(e) => {
+                            const val = Math.max(0.01, parseFloat(e.target.value) || 1);
+                            setTotalYield(val);
+                            setPortionSize(1);
+                          }}
+                          className="mt-1 w-full bg-[#1C1C28] border border-gray-800 rounded px-2.5 py-1 font-mono text-xs text-white focus:outline-none focus:border-[#C9A84C]/50"
+                        />
+                      </div>
+                    ) : (
+                      <>
+                        <div>
+                          <span className="text-gray-400 block font-semibold">Toplam Elde Edilen:</span>
+                          <div className="flex space-x-1.5 mt-1">
+                            <input
+                              type="number"
+                              min="0.01"
+                              step="0.1"
+                              value={totalYield}
+                              onChange={(e) => setTotalYield(Math.max(0.01, parseFloat(e.target.value) || 1))}
+                              className="w-full bg-[#1C1C28] border border-gray-800 rounded px-2 py-1 font-mono text-xs text-white focus:outline-none focus:border-[#C9A84C]/50"
+                            />
+                            <select
+                              value={yieldUnit}
+                              onChange={(e) => setYieldUnit(e.target.value)}
+                              className="bg-[#1C1C28] border border-gray-800 rounded px-1 text-xs text-white focus:outline-none focus:border-[#C9A84C]/50 w-16"
+                            >
+                              {yieldMode === "weight" ? (
+                                <>
+                                  <option value="g">g</option>
+                                  <option value="kg">kg</option>
+                                </>
+                              ) : (
+                                <>
+                                  <option value="ml">ml</option>
+                                  <option value="L">L</option>
+                                </>
+                              )}
+                            </select>
+                          </div>
+                        </div>
+                        <div>
+                          <span className="text-gray-400 block font-semibold">Porsiyon Boyutu:</span>
+                          <div className="flex space-x-1.5 mt-1">
+                            <input
+                              type="number"
+                              min="0.01"
+                              step="0.1"
+                              value={portionSize}
+                              onChange={(e) => setPortionSize(Math.max(0.01, parseFloat(e.target.value) || 1))}
+                              className="w-full bg-[#1C1C28] border border-gray-800 rounded px-2 py-1 font-mono text-xs text-white focus:outline-none focus:border-[#C9A84C]/50"
+                            />
+                            <select
+                              value={portionUnit}
+                              onChange={(e) => setPortionUnit(e.target.value)}
+                              className="bg-[#1C1C28] border border-gray-800 rounded px-1 text-xs text-white focus:outline-none focus:border-[#C9A84C]/50 w-16"
+                            >
+                              {yieldMode === "weight" ? (
+                                <>
+                                  <option value="g">g</option>
+                                  <option value="kg">kg</option>
+                                </>
+                              ) : (
+                                <>
+                                  <option value="ml">ml</option>
+                                  <option value="L">L</option>
+                                </>
+                              )}
+                            </select>
+                          </div>
+                        </div>
+                      </>
+                    )}
+                  </div>
+
+                  <div className="flex justify-between items-center text-xs mb-1">
+                    <span className="text-gray-400 font-semibold">Reçete Toplam Maliyeti:</span>
+                    <span className="font-mono font-bold text-gray-300">₺{calculateTotalCost().toFixed(2)}</span>
                   </div>
 
                   <div className="flex justify-between items-center text-xs border-t border-gray-850 pt-2.5">
-                    <span className="text-gray-400 font-bold">Porsiyon Başına Maliyet:</span>
-                    <span className="font-mono font-bold text-white text-sm">₺{(calculateTotalCost() / yieldQuantity).toFixed(2)}</span>
+                    <div>
+                      <span className="text-gray-400 font-bold block">Porsiyon Başına Maliyet:</span>
+                      {yieldMode !== "porsiyon" && (
+                        <span className="text-[10px] text-gray-500 font-mono">
+                          (Hesaplanan: {calculatedPortions.toFixed(1)} Porsiyon)
+                        </span>
+                      )}
+                    </div>
+                    <span className="font-mono font-bold text-white text-sm">₺{(calculateTotalCost() / calculatedPortions).toFixed(2)}</span>
                   </div>
 
                   {/* Target Margin Slider */}
@@ -920,17 +1204,17 @@ export default function AdminRecipesPage() {
                     <div>
                       <span className="text-gray-500 block">Önerilen Fiyat:</span>
                       <span className="font-mono font-bold text-emerald-400">
-                        ₺{calculateSuggestedPrice(calculateTotalCost() / yieldQuantity).toFixed(2)}
+                        ₺{calculateSuggestedPrice(calculateTotalCost() / calculatedPortions).toFixed(2)}
                       </span>
                     </div>
                     <div>
                       <span className="text-gray-500 block">Mevcut Marjınız:</span>
                       <span className={`font-mono font-bold ${
-                        ((parseFloat(selectedItem.price) - (calculateTotalCost() / yieldQuantity)) / parseFloat(selectedItem.price)) < targetMargin
+                        ((parseFloat(selectedItem.price) - (calculateTotalCost() / calculatedPortions)) / parseFloat(selectedItem.price)) < targetMargin
                           ? "text-red-400"
                           : "text-emerald-400"
                       }`}>
-                        {(((parseFloat(selectedItem.price) - (calculateTotalCost() / yieldQuantity)) / parseFloat(selectedItem.price)) * 100).toFixed(1)}%
+                        {(((parseFloat(selectedItem.price) - (calculateTotalCost() / calculatedPortions)) / parseFloat(selectedItem.price)) * 100).toFixed(1)}%
                       </span>
                     </div>
                   </div>

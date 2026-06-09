@@ -33,14 +33,17 @@ except ImportError:
 # Create database tables if they do not exist
 Base.metadata.create_all(bind=engine)
 
-# Add showOnMenu column dynamically if it doesn't exist
+# Add new columns dynamically if they don't exist
 try:
     from sqlalchemy import text
     with engine.connect() as conn:
         conn.execute(text('ALTER TABLE "MenuItem" ADD COLUMN IF NOT EXISTS "showOnMenu" BOOLEAN DEFAULT TRUE;'))
+        conn.execute(text('ALTER TABLE "Recipe" ADD COLUMN IF NOT EXISTS "yieldUnit" VARCHAR DEFAULT \'porsiyon\';'))
+        conn.execute(text('ALTER TABLE "Recipe" ADD COLUMN IF NOT EXISTS "portionSize" NUMERIC(10, 4) DEFAULT 1.0;'))
+        conn.execute(text('ALTER TABLE "Recipe" ADD COLUMN IF NOT EXISTS "totalYield" NUMERIC(10, 4) DEFAULT 1.0;'))
         conn.commit()
 except Exception as e:
-    print(f"[Startup Migration] Failed to add showOnMenu column: {e}")
+    print(f"[Startup Migration] Failed to run database startup migrations: {e}")
 
 app = FastAPI(
     title="Tripzy QR Menu SaaS API",

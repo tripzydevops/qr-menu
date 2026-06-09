@@ -379,6 +379,9 @@ class Recipe(Base):
     menuItemId = Column(String, ForeignKey("MenuItem.id", ondelete="CASCADE"), unique=True, nullable=False)
     targetMargin = Column(Numeric(5, 4), default=0.70)  # 70%
     yieldQuantity = Column(Numeric(10, 4), default=1.0)
+    yieldUnit = Column(String, default="porsiyon", nullable=False)
+    portionSize = Column(Numeric(10, 4), default=1.0, nullable=False)
+    totalYield = Column(Numeric(10, 4), default=1.0, nullable=False)
     currentCost = Column(Numeric(14, 4), default=0)
     isDeleted = Column(Boolean, default=False, nullable=False)
     createdAt = Column(DateTime, default=datetime.datetime.utcnow)
