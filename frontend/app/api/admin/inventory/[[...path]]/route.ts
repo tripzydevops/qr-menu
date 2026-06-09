@@ -577,7 +577,7 @@ export async function POST(
       const base64Data = Buffer.from(bytes).toString("base64");
       const mimeType = file.type;
 
-      const url = `https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${apiKey}`;
+      const url = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${apiKey}`;
 
       let existingSuppliers: any[] = [];
       let existingIngredients: any[] = [];
@@ -648,22 +648,46 @@ CRITICAL CONVERSION RULE: If a match is found, compare the invoice packaging uni
         },
       };
 
-      const res = await fetch(url, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(payload),
-      });
+      let res: Response | null = null;
+      let lastErrText = "";
+      let retryDelay = 5000;
+      const maxRetries = 3;
 
-      if (res.ok) {
+      for (let attempt = 0; attempt < maxRetries; attempt++) {
+        try {
+          res = await fetch(url, {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify(payload),
+          });
+
+          if (res.ok) {
+            break;
+          } else if (res.status === 429 || res.status === 503) {
+            lastErrText = await res.text();
+            console.warn(`[OCR] Gemini API busy (${res.status}). Retrying in ${retryDelay}ms... (Attempt ${attempt + 1}/${maxRetries})`);
+            await new Promise(resolve => setTimeout(resolve, retryDelay));
+            retryDelay *= 2;
+          } else {
+            lastErrText = await res.text();
+            break;
+          }
+        } catch (fetchErr: any) {
+          lastErrText = fetchErr.message || String(fetchErr);
+          console.warn(`[OCR] Gemini fetch exception: ${lastErrText}. Retrying in ${retryDelay}ms... (Attempt ${attempt + 1}/${maxRetries})`);
+          await new Promise(resolve => setTimeout(resolve, retryDelay));
+          retryDelay *= 2;
+        }
+      }
+
+      if (res && res.ok) {
         const data = await res.json();
         const textResponse = data.candidates?.[0]?.content?.parts?.[0]?.text;
         if (textResponse) {
           try {
             const parsed = JSON.parse(textResponse.trim());
 
-            // Auto-creation logic if venueId is provided
             if (venueId && typeof parsed === "object" && parsed !== null) {
-              // 1. Resolve or Create Supplier
               const supplierName = parsed.supplierName;
               const matchedSupId = parsed.matchedSupplierId;
 
@@ -687,7 +711,6 @@ CRITICAL CONVERSION RULE: If a match is found, compare the invoice packaging uni
                 }
               }
 
-              // 2. Resolve or Create Ingredients
               const items = parsed.items;
               if (Array.isArray(items)) {
                 const venue = await prisma.venue.findUnique({
@@ -741,11 +764,10 @@ CRITICAL CONVERSION RULE: If a match is found, compare the invoice packaging uni
           }
         }
       } else {
-        const errText = await res.text();
-        console.error(`[OCR] Gemini API call failed with status ${res.status}: ${errText}`);
+        console.error(`[OCR] Gemini API call failed with status ${res ? res.status : "Unknown"}: ${lastErrText}`);
         return NextResponse.json({
           ...getMockOcrResult(),
-          _debugError: `Gemini API returned status ${res.status}: ${errText}`
+          _debugError: `Gemini API returned status ${res ? res.status : "Unknown"}: ${lastErrText}`
         });
       }
 
