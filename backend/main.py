@@ -969,6 +969,66 @@ def list_orders(venueId: str, status: Optional[str] = None, includeArchived: boo
                 order.tableName = table.name
     return orders
 
+@app.post("/api/admin/orders", response_model=schemas.OrderSchema, status_code=status.HTTP_201_CREATED)
+def create_admin_order(order_in: schemas.AdminOrderCreate, db: Session = Depends(get_db)):
+    # 1. Verify Venue
+    venue = db.query(models.Venue).filter(models.Venue.id == order_in.venueId).first()
+    if not venue:
+        raise HTTPException(status_code=404, detail="Venue not found")
+
+    # 2. Verify Table if provided
+    table = None
+    if order_in.tableId:
+        table = db.query(models.Table).filter(models.Table.id == order_in.tableId).first()
+        if not table:
+            raise HTTPException(status_code=404, detail="Table not found")
+        if table.venueId != order_in.venueId:
+            raise HTTPException(status_code=400, detail="Table does not belong to this venue")
+
+    # 3. Calculate totals and verify items
+    total_amount = Decimal("0.00")
+    order_items = []
+    
+    for item_in in order_in.items:
+        menu_item = db.query(models.MenuItem).filter(models.MenuItem.id == item_in.menuItemId).first()
+        if not menu_item:
+            raise HTTPException(status_code=404, detail=f"Menu item {item_in.menuItemId} not found")
+            
+        item_total = Decimal(str(menu_item.price)) * item_in.quantity
+        total_amount += item_total
+        
+        db_order_item = models.OrderItem(
+            id=str(uuid.uuid4()),
+            menuItemId=item_in.menuItemId,
+            quantity=item_in.quantity,
+            price=menu_item.price,
+            notes=item_in.notes
+        )
+        order_items.append(db_order_item)
+        
+    # 4. Create Order
+    db_order = models.Order(
+        id=str(uuid.uuid4()),
+        venueId=order_in.venueId,
+        tableId=order_in.tableId,
+        status="pending",
+        totalAmount=total_amount
+    )
+    db.add(db_order)
+    
+    # Associate items
+    for item in order_items:
+        item.orderId = db_order.id
+        db.add(item)
+        
+    db.commit()
+    db.refresh(db_order)
+    
+    # Attach table name for serialization if table exists
+    if table:
+        db_order.tableName = table.name
+    return db_order
+
 @app.put("/api/admin/orders/{id}/status", response_model=schemas.OrderSchema)
 def update_order_status(id: str, status_data: Dict[str, str], db: Session = Depends(get_db)):
     order = db.query(models.Order).filter(models.Order.id == id).first()

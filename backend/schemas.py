@@ -357,6 +357,11 @@ class OrderBase(BaseModel):
 class OrderCreate(BaseModel):
     items: List[OrderItemCreate]
 
+class AdminOrderCreate(BaseModel):
+    venueId: str
+    tableId: Optional[str] = None
+    items: List[OrderItemCreate]
+
 class OrderSchema(OrderBase):
     id: str
     venueId: str
