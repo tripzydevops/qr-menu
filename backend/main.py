@@ -1909,7 +1909,7 @@ async def import_menu_ai(file: UploadFile = File(...)):
                 }
             }
         }
-        url = f"https://generativelanguage.googleapis.com/v1beta/models/gemini-3.5-flash:generateContent?key={api_key}"
+        url = f"https://generativelanguage.googleapis.com/v1beta/models/gemini-3.1-flash-lite:generateContent?key={api_key}"
         max_retries = 4
         retry_delay = 4.0
 

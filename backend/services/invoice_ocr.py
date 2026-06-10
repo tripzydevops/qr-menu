@@ -28,7 +28,7 @@ async def parse_invoice_image(
 
     base64_data = base64.b64encode(file_bytes).decode("utf-8")
     
-    url = f"https://generativelanguage.googleapis.com/v1beta/models/gemini-3.5-flash:generateContent?key={api_key}"
+    url = f"https://generativelanguage.googleapis.com/v1beta/models/gemini-3.1-flash-lite:generateContent?key={api_key}"
     
     prompt = (
         "Analyze this invoice image/document and extract the structured information. "

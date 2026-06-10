@@ -42,7 +42,7 @@ export async function POST(request: NextRequest) {
       }
     };
 
-    const url = `https://generativelanguage.googleapis.com/v1beta/models/gemini-3.5-flash:generateContent?key=${apiKey}`;
+    const url = `https://generativelanguage.googleapis.com/v1beta/models/gemini-3.1-flash-lite:generateContent?key=${apiKey}`;
     let response: Response | null = null;
     let lastErrText = "";
     let retryDelay = 2000;

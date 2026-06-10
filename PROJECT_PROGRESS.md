@@ -44,7 +44,7 @@ The platform is designed as a next-generation, recommendation-driven digital QR 
     *   **Inventory Router (`api/inventory.py`):** Prefix `/api/admin/inventory`. Exposes CRUD endpoints for ingredients, suppliers, invoices, recipes, rules, alerts, and syncs.
 *   **Costing, OCR & Density Services:**
     *   **`services/costing.py`**: Computes WAC average costings, triggers cascade-recalculations for recipes, and processes automatic stock deductions upon completion of orders.
-    *   **`services/invoice_ocr.py`**: Integrates Gemini 3.5 Flash multimodal API to parse unstructured receipt photos/PDFs into structured invoice item objects.
+    *   **`services/invoice_ocr.py`**: Integrates Gemini 3.1 Flash-Lite multimodal API to parse unstructured receipt photos/PDFs into structured invoice item objects.
     *   **`services/signal_bridge.py`**: Enrichment logger mapping transaction sizes, price brackets, and dietary profiles to `UserSignal` events for the Tripzy recommendation engine.
     *   **AI Density Suggestion (`/ingredients/suggest-density`):** Connects to Gemini API to intelligently query and guess specific gravity/densities (g/mL) of standard Turkish/cafe cooking ingredients for auto-fill functionality.
 
@@ -101,4 +101,4 @@ This warning is entirely harmless, does not affect runtime execution, and can be
 
 ## 6. LLM Model Usage Guidelines
 
-This project strictly utilizes the **`gemini-3.5-flash`** model. For full details on the approved model list, deprecated models, and error handling policies, refer to [MODEL_GUIDELINES.md](file:///c:/Users/elif/.gemini/antigravity/scratch/qr-menu-saas/MODEL_GUIDELINES.md). Do not revert to deprecated models like `gemini-1.5-flash` or use unsupported newer models like `gemini-2.5-flash` during future enhancements.
+This project strictly utilizes the **`gemini-3.1-flash-lite`** model. For full details on the approved model list, deprecated models, and error handling policies, refer to [MODEL_GUIDELINES.md](file:///c:/Users/elif/.gemini/antigravity/scratch/qr-menu-saas/MODEL_GUIDELINES.md). Do not revert to deprecated models like `gemini-1.5-flash` or use unsupported/over-capacity models like `gemini-3.5-flash` and `gemini-2.5-flash` during future enhancements.

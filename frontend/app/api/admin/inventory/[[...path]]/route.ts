@@ -253,7 +253,7 @@ export async function GET(
         return NextResponse.json({ density: 1.0 });
       }
 
-      const url = `https://generativelanguage.googleapis.com/v1beta/models/gemini-3.5-flash:generateContent?key=${apiKey}`;
+      const url = `https://generativelanguage.googleapis.com/v1beta/models/gemini-3.1-flash-lite:generateContent?key=${apiKey}`;
       const prompt = `You are a culinary science assistant. Estimate the density (specific gravity) in g/mL of the ingredient named: "${name}".
 Return a JSON object with this exact structure:
 {
@@ -577,7 +577,7 @@ export async function POST(
       const base64Data = Buffer.from(bytes).toString("base64");
       const mimeType = file.type;
 
-      const url = `https://generativelanguage.googleapis.com/v1beta/models/gemini-3.5-flash:generateContent?key=${apiKey}`;
+      const url = `https://generativelanguage.googleapis.com/v1beta/models/gemini-3.1-flash-lite:generateContent?key=${apiKey}`;
 
       let existingSuppliers: any[] = [];
       let existingIngredients: any[] = [];
@@ -1151,7 +1151,7 @@ CRITICAL CONVERSION RULE: If a match is found, compare the invoice packaging uni
         return NextResponse.json({ detail: "Gemini API Key is not configured." }, { status: 500 });
       }
 
-      const url = `https://generativelanguage.googleapis.com/v1beta/models/gemini-3.5-flash:generateContent?key=${apiKey}`;
+      const url = `https://generativelanguage.googleapis.com/v1beta/models/gemini-3.1-flash-lite:generateContent?key=${apiKey}`;
 
       const prompt = `Analyze the recipe content (text or image) and extract:
 1. The list of ingredients.

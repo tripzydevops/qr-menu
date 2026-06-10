@@ -36,7 +36,7 @@ def parse_recipe(
     if not api_key:
         raise Exception("GEMINI_API_KEY not found in environment variables.")
 
-    url = f"https://generativelanguage.googleapis.com/v1beta/models/gemini-3.5-flash:generateContent?key={api_key}"
+    url = f"https://generativelanguage.googleapis.com/v1beta/models/gemini-3.1-flash-lite:generateContent?key={api_key}"
 
     # Build prompt context with existing ingredients
     prompt_context = "Available ingredients in database:\n"
