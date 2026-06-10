@@ -457,11 +457,18 @@ export default function AdminInvoicesPage() {
         setLineItems(mappedItems);
         setIsCreating(true);
       } else {
-        alert("Fatura tarama başarısız oldu. Manuel girişe devam edebilirsiniz.");
+        let errMsg = "Fatura tarama başarısız oldu. Manuel girişe devam edebilirsiniz.";
+        try {
+          const errData = await res.json();
+          if (errData.detail) {
+            errMsg = `Fatura tarama başarısız oldu:\n${errData.detail}`;
+          }
+        } catch (_) {}
+        alert(errMsg);
       }
-    } catch (err) {
+    } catch (err: any) {
       console.error(err);
-      alert("Fatura tarama sırasında bir hata oluştu.");
+      alert(`Fatura tarama sırasında bir hata oluştu: ${err.message || err}`);
     } finally {
       setIsScanning(false);
     }

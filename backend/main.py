@@ -1909,17 +1909,39 @@ async def import_menu_ai(file: UploadFile = File(...)):
                 }
             }
         }
-        
-        url = f"https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key={api_key}"
-        async with httpx.AsyncClient(timeout=30.0) as client:
-            response = await client.post(url, json=payload)
-            if response.status_code != 200:
-                raise Exception(f"Gemini API returned status code {response.status_code}: {response.text}")
-                
-            res_json = response.json()
-            text_response = res_json["candidates"][0]["content"]["parts"][0]["text"]
-            parsed_data = json.loads(text_response)
-            return parsed_data
+        url = f"https://generativelanguage.googleapis.com/v1beta/models/gemini-3.5-flash:generateContent?key={api_key}"
+        max_retries = 4
+        retry_delay = 4.0
+
+        for attempt in range(max_retries):
+            try:
+                async with httpx.AsyncClient(timeout=30.0) as client:
+                    response = await client.post(url, json=payload)
+                    if response.status_code == 200:
+                        res_json = response.json()
+                        text_response = res_json["candidates"][0]["content"]["parts"][0]["text"]
+                        parsed_data = json.loads(text_response)
+                        return parsed_data
+                    elif response.status_code in [429, 503]:
+                        if attempt < max_retries - 1:
+                            print(f"[Menu AI Import] Gemini API busy ({response.status_code}). Retrying in {retry_delay}s... (Attempt {attempt+1}/{max_retries})")
+                            import asyncio
+                            await asyncio.sleep(retry_delay)
+                            retry_delay *= 2
+                            continue
+                        else:
+                            raise Exception(f"Gemini API returned status code {response.status_code}: {response.text}")
+                    else:
+                        raise Exception(f"Gemini API returned status code {response.status_code}: {response.text}")
+            except Exception as e:
+                if attempt < max_retries - 1:
+                    print(f"[Menu AI Import] Connection/timeout exception: {e}. Retrying in {retry_delay}s... (Attempt {attempt+1}/{max_retries})")
+                    import asyncio
+                    await asyncio.sleep(retry_delay)
+                    retry_delay *= 2
+                    continue
+                else:
+                    raise e
             
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"AI parsing failed: {str(e)}")

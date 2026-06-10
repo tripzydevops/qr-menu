@@ -1,60 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
 
-function getMockAiParsedMenu() {
-  return {
-    isDemo: true,
-    categories: [
-      {
-        nameTr: "AI Taranan Başlangıçlar",
-        nameEn: "AI Scanned Starters",
-        items: [
-          {
-            nameTr: "Humus",
-            nameEn: "Hummus",
-            price: 140.0,
-            descriptionTr: "Tahin, limon ve sarımsaklı süzme nohut ezmesi.",
-            descriptionEn: "Mashed chickpeas with tahini, lemon, and garlic.",
-            allergens: ["sesame"],
-            calories: 250
-          },
-          {
-            nameTr: "Haydari",
-            nameEn: "Haydari Meze",
-            price: 110.0,
-            descriptionTr: "Süzme yoğurt, nane ve dereotu.",
-            descriptionEn: "Strained yogurt with mint and dill.",
-            allergens: ["dairy"],
-            calories: 150
-          }
-        ]
-      },
-      {
-        nameTr: "AI Taranan Ana Yemekler",
-        nameEn: "AI Scanned Main Dishes",
-        items: [
-          {
-            nameTr: "Kuzu Şiş Izgara",
-            nameEn: "Grilled Lamb Shish",
-            price: 450.0,
-            descriptionTr: "Közlenmiş domates, biber, pilav ve lavaş ile servis edilir.",
-            descriptionEn: "Served with grilled tomatoes, peppers, rice, and lavash.",
-            allergens: ["gluten"],
-            calories: 520
-          },
-          {
-            nameTr: "Fırın Kebap",
-            nameEn: "Oven Baked Kebab",
-            price: 490.0,
-            descriptionTr: "Konya usulü fırında pişmiş yumuşak kuzu eti.",
-            descriptionEn: "Oven slow-cooked tender lamb meat, Konya style.",
-            allergens: [],
-            calories: 610
-          }
-        ]
-      }
-    ]
-  };
-}
 
 export async function POST(request: NextRequest) {
   try {
@@ -66,7 +11,7 @@ export async function POST(request: NextRequest) {
 
     const apiKey = process.env.GEMINI_API_KEY;
     if (!apiKey) {
-      return NextResponse.json(getMockAiParsedMenu());
+      return NextResponse.json({ detail: "Gemini API anahtarı yapılandırılmamış." }, { status: 500 });
     }
 
     const bytes = await file.arrayBuffer();
@@ -97,15 +42,41 @@ export async function POST(request: NextRequest) {
       }
     };
 
-    const url = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${apiKey}`;
-    const response = await fetch(url, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify(payload)
-    });
+    const url = `https://generativelanguage.googleapis.com/v1beta/models/gemini-3.5-flash:generateContent?key=${apiKey}`;
+    let response: Response | null = null;
+    let lastErrText = "";
+    let retryDelay = 5000;
+    const maxRetries = 3;
 
-    if (!response.ok) {
-      throw new Error(`Gemini API returned status ${response.status}`);
+    for (let attempt = 0; attempt < maxRetries; attempt++) {
+      try {
+        response = await fetch(url, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify(payload)
+        });
+
+        if (response.ok) {
+          break;
+        } else if (response.status === 429 || response.status === 503) {
+          lastErrText = await response.text();
+          console.warn(`[Menu Import AI] Gemini API busy (${response.status}). Retrying in ${retryDelay}ms... (Attempt ${attempt + 1}/${maxRetries})`);
+          await new Promise(resolve => setTimeout(resolve, retryDelay));
+          retryDelay *= 2;
+        } else {
+          lastErrText = await response.text();
+          break;
+        }
+      } catch (fetchErr: any) {
+        lastErrText = fetchErr.message || String(fetchErr);
+        console.warn(`[Menu Import AI] Gemini fetch exception: ${lastErrText}. Retrying in ${retryDelay}ms... (Attempt ${attempt + 1}/${maxRetries})`);
+        await new Promise(resolve => setTimeout(resolve, retryDelay));
+        retryDelay *= 2;
+      }
+    }
+
+    if (!response || !response.ok) {
+      throw new Error(`Gemini API returned status ${response ? response.status : "Unknown"}: ${lastErrText}`);
     }
 
     const resJson = await response.json();
@@ -114,6 +85,6 @@ export async function POST(request: NextRequest) {
     return NextResponse.json(parsedData);
   } catch (error: any) {
     console.error("AI Import failed:", error);
-    return NextResponse.json(getMockAiParsedMenu()); // Robust fallback
+    return NextResponse.json({ detail: error.message || "Menü ayrıştırma başarısız oldu." }, { status: 500 });
   }
 }

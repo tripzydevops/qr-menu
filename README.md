@@ -15,10 +15,13 @@ This is a next-generation SaaS QR Code Menu system designed for restaurants, caf
 3. **Inventory Costing & Recipe Engine (Gated by Organization Flag)**:
     - **WAC calculations**: Automatically computes Weighted Average Cost on supplier invoice receipts.
     - **Recipe builder**: LIVE portion-based food cost calculation with target margin slide controllers and price recommendations.
-    - **Yapay Zeka (AI) OCR Scan**: Automatically extracts invoice line-items from uploaded bills using Gemini 1.5 Flash.
+    - **Yapay Zeka (AI) OCR Scan**: Automatically extracts invoice line-items from uploaded bills using Gemini 3.5 Flash.
     - **One-click Price Sync**: Seamlessly syncs suggested costs and margins directly into the guest menu.
     - **Stock Deduction**: Deducts ingredient stocks automatically upon guest checkout, alerting on reorder levels.
 4. **Tripzy Signal Bridge**: Intercepts order completion events to map transaction histories and dietary preferences to Tripzy lifestyle vector signals.
+
+## LLM Model Guidelines
+This codebase strictly requires **`gemini-3.5-flash`** for all AI-enabled processes. Do not use deprecated models like `gemini-1.5-flash` or newer unsupported models like `gemini-2.5-flash`. For detailed guidelines, see [MODEL_GUIDELINES.md](file:///c:/Users/elif/.gemini/antigravity/scratch/qr-menu-saas/MODEL_GUIDELINES.md).
 
 ## Running Locally
 

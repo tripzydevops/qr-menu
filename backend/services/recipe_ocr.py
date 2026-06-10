@@ -34,10 +34,9 @@ def parse_recipe(
 
     api_key = os.environ.get("GEMINI_API_KEY")
     if not api_key:
-        print("[Recipe OCR] GEMINI_API_KEY not found. Returning mock/fallback results.")
-        return fallback_parse_recipe(text_content, existing_ingredients)
+        raise Exception("GEMINI_API_KEY not found in environment variables.")
 
-    url = f"https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key={api_key}"
+    url = f"https://generativelanguage.googleapis.com/v1beta/models/gemini-3.5-flash:generateContent?key={api_key}"
 
     # Build prompt context with existing ingredients
     prompt_context = "Available ingredients in database:\n"
@@ -112,23 +111,40 @@ def parse_recipe(
         }
     }
 
-    try:
-        with httpx.Client(timeout=90.0) as client:
-            response = client.post(url, json=payload)
-            if response.status_code == 200:
-                data = response.json()
-                text_response = data["candidates"][0]["content"]["parts"][0]["text"]
-                try:
-                    return json.loads(text_response.strip())
-                except Exception as json_err:
-                    print(f"[Recipe OCR] Failed to parse JSON response: {json_err}. Raw text: {text_response}")
-                    return fallback_parse_recipe(text_content, existing_ingredients)
+    max_retries = 4
+    retry_delay = 4.0
+
+    for attempt in range(max_retries):
+        try:
+            with httpx.Client(timeout=90.0) as client:
+                response = client.post(url, json=payload)
+                if response.status_code == 200:
+                    data = response.json()
+                    text_response = data["candidates"][0]["content"]["parts"][0]["text"]
+                    try:
+                        return json.loads(text_response.strip())
+                    except Exception as json_err:
+                        raise Exception(f"Failed to parse JSON response: {json_err}. Raw text: {text_response}")
+                elif response.status_code in [429, 503]:
+                    if attempt < max_retries - 1:
+                        print(f"[Recipe OCR] Gemini API busy ({response.status_code}). Retrying in {retry_delay}s... (Attempt {attempt+1}/{max_retries})")
+                        import time
+                        time.sleep(retry_delay)
+                        retry_delay *= 2
+                        continue
+                    else:
+                        raise Exception(f"Gemini API error status {response.status_code}: {response.text}")
+                else:
+                    raise Exception(f"Gemini API error status {response.status_code}: {response.text}")
+        except Exception as e:
+            if attempt < max_retries - 1:
+                print(f"[Recipe OCR] Connection/timeout exception: {e}. Retrying in {retry_delay}s... (Attempt {attempt+1}/{max_retries})")
+                import time
+                time.sleep(retry_delay)
+                retry_delay *= 2
+                continue
             else:
-                print(f"[Recipe OCR] Gemini API error {response.status_code}: {response.text}")
-                return fallback_parse_recipe(text_content, existing_ingredients)
-    except Exception as e:
-        print(f"[Recipe OCR] Exception calling Gemini API: {e}")
-        return fallback_parse_recipe(text_content, existing_ingredients)
+                raise Exception(f"Exception calling Gemini API: {e}")
 
 def fallback_parse_recipe(text_content: Optional[str], existing_ingredients: List[Dict[str, Any]]) -> Dict[str, Any]:
     """

@@ -253,7 +253,7 @@ export async function GET(
         return NextResponse.json({ density: 1.0 });
       }
 
-      const url = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${apiKey}`;
+      const url = `https://generativelanguage.googleapis.com/v1beta/models/gemini-3.5-flash:generateContent?key=${apiKey}`;
       const prompt = `You are a culinary science assistant. Estimate the density (specific gravity) in g/mL of the ingredient named: "${name}".
 Return a JSON object with this exact structure:
 {
@@ -569,15 +569,15 @@ export async function POST(
 
       const apiKey = process.env.GEMINI_API_KEY || process.env.GOOGLE_API_KEY;
       if (!apiKey) {
-        console.warn("[OCR] API Key missing, falling back to mock OCR scan.");
-        return NextResponse.json(getMockOcrResult());
+        console.error("[OCR] API Key missing.");
+        return NextResponse.json({ detail: "Gemini API Key is not configured." }, { status: 500 });
       }
 
       const bytes = await file.arrayBuffer();
       const base64Data = Buffer.from(bytes).toString("base64");
       const mimeType = file.type;
 
-      const url = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${apiKey}`;
+      const url = `https://generativelanguage.googleapis.com/v1beta/models/gemini-3.5-flash:generateContent?key=${apiKey}`;
 
       let existingSuppliers: any[] = [];
       let existingIngredients: any[] = [];
@@ -757,22 +757,22 @@ CRITICAL CONVERSION RULE: If a match is found, compare the invoice packaging uni
             return NextResponse.json(parsed);
           } catch (jsonErr: any) {
             console.error("[OCR] Failed to parse JSON response from Gemini:", jsonErr);
-            return NextResponse.json({
-              ...getMockOcrResult(),
-              _debugError: `Failed to parse Gemini JSON: ${jsonErr.message}. Raw text: ${textResponse}`
-            });
+            return NextResponse.json(
+              { detail: `Failed to parse Gemini JSON: ${jsonErr.message}. Raw text: ${textResponse}` },
+              { status: 500 }
+            );
           }
         }
       } else {
         console.error(`[OCR] Gemini API call failed with status ${res ? res.status : "Unknown"}: ${lastErrText}`);
-        return NextResponse.json({
-          ...getMockOcrResult(),
-          _debugError: `Gemini API returned status ${res ? res.status : "Unknown"}: ${lastErrText}`
-        });
+        return NextResponse.json(
+          { detail: `Gemini API returned status ${res ? res.status : "Unknown"}: ${lastErrText}` },
+          { status: res ? res.status : 500 }
+        );
       }
 
-      console.error("[OCR] Gemini API failed. Returning fallback mock.");
-      return NextResponse.json(getMockOcrResult());
+      console.error("[OCR] Gemini API failed.");
+      return NextResponse.json({ detail: "Gemini API failed to return a valid response." }, { status: 500 });
     }
 
     const body = await request.json();
@@ -1141,11 +1141,11 @@ CRITICAL CONVERSION RULE: If a match is found, compare the invoice packaging uni
       }
 
       if (!apiKey) {
-        console.warn("[OCR] API Key missing, falling back to empty list.");
-        return NextResponse.json({ items: [], suggestedYieldQuantity: null, suggestedYieldUnit: null });
+        console.error("[OCR] API Key missing.");
+        return NextResponse.json({ detail: "Gemini API Key is not configured." }, { status: 500 });
       }
 
-      const url = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${apiKey}`;
+      const url = `https://generativelanguage.googleapis.com/v1beta/models/gemini-3.5-flash:generateContent?key=${apiKey}`;
 
       const prompt = `Analyze the recipe content (text or image) and extract:
 1. The list of ingredients.
@@ -1201,13 +1201,39 @@ RULES FOR YIELD:
         },
       };
 
-      const res = await fetch(url, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(payload),
-      });
+      let res: Response | null = null;
+      let lastErrText = "";
+      let retryDelay = 5000;
+      const maxRetries = 3;
 
-      if (res.ok) {
+      for (let attempt = 0; attempt < maxRetries; attempt++) {
+        try {
+          res = await fetch(url, {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify(payload),
+          });
+
+          if (res.ok) {
+            break;
+          } else if (res.status === 429 || res.status === 503) {
+            lastErrText = await res.text();
+            console.warn(`[Recipe OCR] Gemini API busy (${res.status}). Retrying in ${retryDelay}ms... (Attempt ${attempt + 1}/${maxRetries})`);
+            await new Promise(resolve => setTimeout(resolve, retryDelay));
+            retryDelay *= 2;
+          } else {
+            lastErrText = await res.text();
+            break;
+          }
+        } catch (fetchErr: any) {
+          lastErrText = fetchErr.message || String(fetchErr);
+          console.warn(`[Recipe OCR] Gemini fetch exception: ${lastErrText}. Retrying in ${retryDelay}ms... (Attempt ${attempt + 1}/${maxRetries})`);
+          await new Promise(resolve => setTimeout(resolve, retryDelay));
+          retryDelay *= 2;
+        }
+      }
+
+      if (res && res.ok) {
         const data = await res.json();
         const textResponse = data.candidates?.[0]?.content?.parts?.[0]?.text;
         if (textResponse) {
@@ -1217,7 +1243,10 @@ RULES FOR YIELD:
       }
 
       console.error("[Recipe OCR] Gemini API failed.");
-      return NextResponse.json({ items: [], suggestedYieldQuantity: null, suggestedYieldUnit: null });
+      return NextResponse.json(
+        { detail: `Gemini API failed with status ${res ? res.status : "Unknown"}: ${lastErrText}` },
+        { status: res ? res.status : 500 }
+      );
     }
 
     return NextResponse.json({ detail: "Endpoint path not found" }, { status: 404 });

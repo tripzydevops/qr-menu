@@ -306,7 +306,7 @@ async def scan_invoice(
             ings = db.query(models.Ingredient).filter(models.Ingredient.venueId == venueId).all()
             existing_ingredients = [{"id": i.id, "name": i.name, "unit": i.unit} for i in ings]
             
-        extracted = invoice_ocr.parse_invoice_image(
+        extracted = await invoice_ocr.parse_invoice_image(
             content, 
             file.content_type,
             existing_suppliers=existing_suppliers,

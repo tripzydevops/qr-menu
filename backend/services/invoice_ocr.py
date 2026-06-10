@@ -24,12 +24,11 @@ async def parse_invoice_image(
     """
     api_key = os.environ.get("GEMINI_API_KEY")
     if not api_key:
-        print("[Invoice OCR] GEMINI_API_KEY not found. Returning mock OCR results.")
-        return get_mock_ocr_result()
+        raise Exception("GEMINI_API_KEY is not configured in the environment.")
 
     base64_data = base64.b64encode(file_bytes).decode("utf-8")
     
-    url = f"https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key={api_key}"
+    url = f"https://generativelanguage.googleapis.com/v1beta/models/gemini-3.5-flash:generateContent?key={api_key}"
     
     prompt = (
         "Analyze this invoice image/document and extract the structured information. "
@@ -95,8 +94,8 @@ async def parse_invoice_image(
         }
     }
 
-    max_retries = 3
-    retry_delay = 5.0
+    max_retries = 4
+    retry_delay = 4.0
 
     for attempt in range(max_retries):
         try:
@@ -108,10 +107,7 @@ async def parse_invoice_image(
                     try:
                         return json.loads(text_response.strip())
                     except Exception as json_err:
-                        print(f"[Invoice OCR] Failed to parse JSON response: {json_err}. Raw text: {text_response}")
-                        mock = get_mock_ocr_result()
-                        mock["_debugError"] = f"JSON parse error: {str(json_err)}"
-                        return mock
+                        raise Exception(f"Failed to parse JSON response from Gemini: {json_err}. Raw response: {text_response}")
                 elif response.status_code in [429, 503]:
                     if attempt < max_retries - 1:
                         print(f"[Invoice OCR] Gemini API busy ({response.status_code}). Retrying in {retry_delay}s... (Attempt {attempt+1}/{max_retries})")
@@ -120,17 +116,9 @@ async def parse_invoice_image(
                         retry_delay *= 2
                         continue
                     else:
-                        err_msg = f"Gemini API error {response.status_code}: {response.text}"
-                        print(f"[Invoice OCR] {err_msg}")
-                        mock = get_mock_ocr_result()
-                        mock["_debugError"] = err_msg
-                        return mock
+                        raise Exception(f"Gemini API returned status {response.status_code}: {response.text}")
                 else:
-                    err_msg = f"Gemini API error {response.status_code}: {response.text}"
-                    print(f"[Invoice OCR] {err_msg}")
-                    mock = get_mock_ocr_result()
-                    mock["_debugError"] = err_msg
-                    return mock
+                    raise Exception(f"Gemini API returned status {response.status_code}: {response.text}")
         except Exception as e:
             if attempt < max_retries - 1:
                 print(f"[Invoice OCR] Connection/timeout exception: {e}. Retrying in {retry_delay}s... (Attempt {attempt+1}/{max_retries})")
@@ -139,25 +127,4 @@ async def parse_invoice_image(
                 retry_delay *= 2
                 continue
             else:
-                import traceback
-                traceback.print_exc()
-                err_msg = f"Exception calling Gemini API: {e}"
-                print(f"[Invoice OCR] {err_msg}")
-                mock = get_mock_ocr_result()
-                mock["_debugError"] = err_msg
-                return mock
-
-def get_mock_ocr_result() -> Dict[str, Any]:
-    """
-    Deterministic mock data for demonstration/fallback when API keys are not configured.
-    """
-    return {
-        "supplierName": "Metro Toptancı Market",
-        "invoiceNumber": "MTR-2026-00891",
-        "invoiceDate": "2026-06-07",
-        "items": [
-            {"itemName": "Whole Milk (Süt)", "quantity": 10.0, "unitCost": 45.50},
-            {"itemName": "Espresso Beans (Kahve Çekirdeği)", "quantity": 5.0, "unitCost": 320.00},
-            {"itemName": "Sugar (Toz Şeker)", "quantity": 2.0, "unitCost": 35.00}
-        ]
-    }
+                raise Exception(f"Exception calling Gemini API: {e}")

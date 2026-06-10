@@ -44,7 +44,7 @@ The platform is designed as a next-generation, recommendation-driven digital QR 
     *   **Inventory Router (`api/inventory.py`):** Prefix `/api/admin/inventory`. Exposes CRUD endpoints for ingredients, suppliers, invoices, recipes, rules, alerts, and syncs.
 *   **Costing, OCR & Density Services:**
     *   **`services/costing.py`**: Computes WAC average costings, triggers cascade-recalculations for recipes, and processes automatic stock deductions upon completion of orders.
-    *   **`services/invoice_ocr.py`**: Integrates Gemini 1.5 Flash multimodal API to parse unstructured receipt photos/PDFs into structured invoice item objects.
+    *   **`services/invoice_ocr.py`**: Integrates Gemini 3.5 Flash multimodal API to parse unstructured receipt photos/PDFs into structured invoice item objects.
     *   **`services/signal_bridge.py`**: Enrichment logger mapping transaction sizes, price brackets, and dietary profiles to `UserSignal` events for the Tripzy recommendation engine.
     *   **AI Density Suggestion (`/ingredients/suggest-density`):** Connects to Gemini API to intelligently query and guess specific gravity/densities (g/mL) of standard Turkish/cafe cooking ingredients for auto-fill functionality.
 
@@ -96,3 +96,9 @@ Prisma connects to the PostgreSQL instance and detects all available tables acro
 
 ### Conclusion
 This warning is entirely harmless, does not affect runtime execution, and can be safely ignored. We intentionally exclude internal system tables from our schema to prevent code clutter and avoid unnecessary client generation.
+
+---
+
+## 6. LLM Model Usage Guidelines
+
+This project strictly utilizes the **`gemini-3.5-flash`** model. For full details on the approved model list, deprecated models, and error handling policies, refer to [MODEL_GUIDELINES.md](file:///c:/Users/elif/.gemini/antigravity/scratch/qr-menu-saas/MODEL_GUIDELINES.md). Do not revert to deprecated models like `gemini-1.5-flash` or use unsupported newer models like `gemini-2.5-flash` during future enhancements.
