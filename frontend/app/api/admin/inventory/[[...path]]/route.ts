@@ -650,16 +650,21 @@ CRITICAL CONVERSION RULE: If a match is found, compare the invoice packaging uni
 
       let res: Response | null = null;
       let lastErrText = "";
-      let retryDelay = 5000;
+      let retryDelay = 2000;
       const maxRetries = 3;
 
       for (let attempt = 0; attempt < maxRetries; attempt++) {
+        const controller = new AbortController();
+        const timeoutId = setTimeout(() => controller.abort(), 25000); // 25s timeout per attempt
+
         try {
           res = await fetch(url, {
             method: "POST",
             headers: { "Content-Type": "application/json" },
             body: JSON.stringify(payload),
+            signal: controller.signal,
           });
+          clearTimeout(timeoutId);
 
           if (res.ok) {
             break;
@@ -673,7 +678,8 @@ CRITICAL CONVERSION RULE: If a match is found, compare the invoice packaging uni
             break;
           }
         } catch (fetchErr: any) {
-          lastErrText = fetchErr.message || String(fetchErr);
+          clearTimeout(timeoutId);
+          lastErrText = fetchErr.name === "AbortError" ? "Request timed out after 25 seconds" : (fetchErr.message || String(fetchErr));
           console.warn(`[OCR] Gemini fetch exception: ${lastErrText}. Retrying in ${retryDelay}ms... (Attempt ${attempt + 1}/${maxRetries})`);
           await new Promise(resolve => setTimeout(resolve, retryDelay));
           retryDelay *= 2;

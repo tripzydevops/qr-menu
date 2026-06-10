@@ -45,16 +45,21 @@ export async function POST(request: NextRequest) {
     const url = `https://generativelanguage.googleapis.com/v1beta/models/gemini-3.5-flash:generateContent?key=${apiKey}`;
     let response: Response | null = null;
     let lastErrText = "";
-    let retryDelay = 5000;
+    let retryDelay = 2000;
     const maxRetries = 3;
 
     for (let attempt = 0; attempt < maxRetries; attempt++) {
+      const controller = new AbortController();
+      const timeoutId = setTimeout(() => controller.abort(), 25000); // 25s timeout per attempt
+
       try {
         response = await fetch(url, {
           method: "POST",
           headers: { "Content-Type": "application/json" },
-          body: JSON.stringify(payload)
+          body: JSON.stringify(payload),
+          signal: controller.signal,
         });
+        clearTimeout(timeoutId);
 
         if (response.ok) {
           break;
@@ -68,7 +73,8 @@ export async function POST(request: NextRequest) {
           break;
         }
       } catch (fetchErr: any) {
-        lastErrText = fetchErr.message || String(fetchErr);
+        clearTimeout(timeoutId);
+        lastErrText = fetchErr.name === "AbortError" ? "Request timed out after 25 seconds" : (fetchErr.message || String(fetchErr));
         console.warn(`[Menu Import AI] Gemini fetch exception: ${lastErrText}. Retrying in ${retryDelay}ms... (Attempt ${attempt + 1}/${maxRetries})`);
         await new Promise(resolve => setTimeout(resolve, retryDelay));
         retryDelay *= 2;
