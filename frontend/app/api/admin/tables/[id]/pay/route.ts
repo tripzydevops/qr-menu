@@ -10,16 +10,16 @@ export async function POST(
   try {
     const tableId = params.id;
     const body = await request.json();
-    const { paymentMethod } = body;
+    const { paymentMethod, loyaltyPhone } = body;
 
     if (!paymentMethod || !["cash", "card", "online"].includes(paymentMethod)) {
       return NextResponse.json(
-        { detail: "Invalid or missing payment method" },
+        { detail: "Geçersiz veya eksik ödeme yöntemi." },
         { status: 400 }
       );
     }
 
-    // Use a transaction to update orders and waiter requests safely
+    // Use a transaction to update orders, waiter requests, loyalty points, and create payment safely
     const updatedOrders = await prisma.$transaction(async (tx) => {
       // 1. Get all active orders for this table
       const activeOrders = await tx.order.findMany({
@@ -30,6 +30,10 @@ export async function POST(
           },
         },
       });
+
+      if (activeOrders.length === 0) {
+        throw new Error("Bu masa için aktif sipariş bulunamadı.");
+      }
 
       const now = new Date();
 
@@ -60,7 +64,94 @@ export async function POST(
         },
       });
 
-      // 4. Fetch the fully updated orders to return
+      // 4. Calculate net total paid and discount amounts
+      const totalPaidAmount = activeOrders.reduce((sum, order) => {
+        const net = Number(order.netAmount);
+        return sum + (net > 0 ? net : Number(order.totalAmount));
+      }, 0);
+      
+      const discountAmount = activeOrders.reduce(
+        (sum, order) => sum + Number(order.discountAmount),
+        0
+      );
+
+      // 5. Check if loyalty discount was applied
+      let loyaltyRef: string | null = null;
+      for (const order of activeOrders) {
+        if (order.discountType === "LOYALTY" && order.discountRef) {
+          loyaltyRef = order.discountRef;
+          break;
+        }
+      }
+
+      // 6. Process Loyalty points earn and burn logic
+      const targetLoyaltyPhone = loyaltyPhone || loyaltyRef;
+      if (targetLoyaltyPhone) {
+        const loyalty = await tx.loyaltyAccount.findFirst({
+          where: {
+            phone: targetLoyaltyPhone.trim(),
+          },
+        });
+
+        if (loyalty) {
+          // A. Deduct points if points were redeemed
+          if (loyaltyRef) {
+            const pointsToDeduct = Math.round(discountAmount * 10);
+            const newPoints = Math.max(0, loyalty.points - pointsToDeduct);
+            
+            await tx.loyaltyAccount.update({
+              where: { id: loyalty.id },
+              data: { points: newPoints },
+            });
+
+            await tx.loyaltyHistory.create({
+              data: {
+                loyaltyAccountId: loyalty.id,
+                points: -pointsToDeduct,
+                reason: `Ödeme sırasında sadakat puanı kullanıldı. Masa: ${tableId}`,
+              },
+            });
+          }
+
+          // B. Earn points based on net total (1 point per 10 TL)
+          const pointsEarned = Math.floor(totalPaidAmount / 10);
+          if (pointsEarned > 0) {
+            await tx.loyaltyAccount.update({
+              where: { id: loyalty.id },
+              data: {
+                points: {
+                  increment: pointsEarned,
+                },
+              },
+            });
+
+            await tx.loyaltyHistory.create({
+              data: {
+                loyaltyAccountId: loyalty.id,
+                points: pointsEarned,
+                reason: `Sipariş ödemesinden kazanıldı. Masa: ${tableId}`,
+              },
+            });
+          }
+        }
+      }
+
+      // 7. Create Payment record
+      if (activeOrders.length > 0) {
+        await tx.payment.create({
+          data: {
+            venueId: activeOrders[0].venueId,
+            tableId,
+            amount: totalPaidAmount,
+            paymentMethod,
+            splitMode: "full",
+            orderIds,
+            orderItemIds: [],
+          },
+        });
+      }
+
+      // 8. Fetch the fully updated orders to return
       const completedOrders = await tx.order.findMany({
         where: {
           id: { in: orderIds },
@@ -96,6 +187,10 @@ export async function POST(
       tableName: order.table?.name || null,
       status: order.status,
       totalAmount: Number(order.totalAmount),
+      discountAmount: Number(order.discountAmount),
+      discountType: order.discountType,
+      discountRef: order.discountRef,
+      netAmount: Number(order.netAmount),
       paymentMethod: order.paymentMethod,
       paidAt: order.paidAt ? order.paidAt.toISOString() : null,
       createdAt: order.createdAt.toISOString(),
@@ -114,7 +209,7 @@ export async function POST(
   } catch (error: any) {
     console.error("Error processing table payment: ", error);
     return NextResponse.json(
-      { detail: "Internal Server Error", error: error.message },
+      { detail: error.message || "Internal Server Error" },
       { status: 500 }
     );
   }

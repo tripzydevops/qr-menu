@@ -53,18 +53,33 @@ export async function GET(request: NextRequest) {
     );
     const orderCount = completedOrders.length;
 
-    // Treat null paymentMethod as cash fallback
-    const cashRevenue = completedOrders
-      .filter((o) => o.paymentMethod === "cash" || !o.paymentMethod)
-      .reduce((sum, order) => sum + Number(order.totalAmount), 0);
+    // Query payments today for method breakdown (both full and split payments)
+    const paymentsToday = await prisma.payment.findMany({
+      where: {
+        venueId,
+        createdAt: {
+          gte: todayStart,
+        },
+      },
+    });
 
-    const cardRevenue = completedOrders
-      .filter((o) => o.paymentMethod === "card")
-      .reduce((sum, order) => sum + Number(order.totalAmount), 0);
+    const cashRevenue = paymentsToday
+      .filter((p) => p.paymentMethod === "cash")
+      .reduce((sum, p) => sum + Number(p.amount), 0);
 
-    const onlineRevenue = completedOrders
-      .filter((o) => o.paymentMethod === "online")
-      .reduce((sum, order) => sum + Number(order.totalAmount), 0);
+    const cardRevenue = paymentsToday
+      .filter((p) => p.paymentMethod === "card")
+      .reduce((sum, p) => sum + Number(p.amount), 0);
+
+    const onlineRevenue = paymentsToday
+      .filter((p) => p.paymentMethod === "online")
+      .reduce((sum, p) => sum + Number(p.amount), 0);
+
+    const splitRevenue = completedOrders
+      .filter((o) => o.paymentMethod === "split")
+      .reduce((sum, o) => sum + Number(o.totalAmount), 0);
+
+    const splitOrderCount = completedOrders.filter((o) => o.paymentMethod === "split").length;
 
     // Active orders count (pending, preparing, ready, served)
     const activeOrdersCount = await prisma.order.count({
@@ -111,6 +126,8 @@ export async function GET(request: NextRequest) {
       cashRevenue,
       cardRevenue,
       onlineRevenue,
+      splitRevenue,
+      splitOrderCount,
       activeOrdersCount,
       topItems,
     });
