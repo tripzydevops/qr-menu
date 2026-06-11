@@ -665,7 +665,7 @@ export default function AdminRecipesPage() {
   };
 
   const handleCreateInternalRecipe = async () => {
-    if (!newRecipeNameTr.trim() || !newRecipeNameEn.trim() || !newRecipeCategoryId) {
+    if (!newRecipeNameTr.trim() || !newRecipeCategoryId) {
       alert("Lütfen tüm zorunlu alanları doldurun.");
       return;
     }
@@ -674,7 +674,7 @@ export default function AdminRecipesPage() {
       const payload = {
         categoryId: newRecipeCategoryId,
         nameTr: newRecipeNameTr,
-        nameEn: newRecipeNameEn,
+        nameEn: newRecipeNameEn.trim() || newRecipeNameTr,
         price: parseFloat(newRecipePrice) || 0,
         showOnMenu: false, // Hidden from menu!
         isAvailable: true
@@ -1390,13 +1390,13 @@ export default function AdminRecipesPage() {
               </div>
               
               <div>
-                <label className="text-xs text-gray-400 block mb-1">Reçete Adı (EN)</label>
+                <label className="text-xs text-gray-400 block mb-1">Reçete Adı (EN - Opsiyonel)</label>
                 <input 
                   type="text" 
                   value={newRecipeNameEn}
                   onChange={(e) => setNewRecipeNameEn(e.target.value)}
                   className="w-full bg-[#1C1C28] border border-gray-850 rounded-xl px-4 py-2 text-xs text-white focus:outline-none focus:border-[#C9A84C]/50"
-                  placeholder="örn. Pizza Dough"
+                  placeholder="örn. Pizza Dough (Opsiyonel)"
                 />
               </div>
 

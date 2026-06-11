@@ -265,9 +265,6 @@ export default function AdminMenuPage() {
     if (!catNameTr.trim()) {
       errors.nameTr = "Kategori adı (Türkçe) zorunludur.";
     }
-    if (!catNameEn.trim()) {
-      errors.nameEn = "Kategori adı (İngilizce) zorunludur.";
-    }
 
     if (Object.keys(errors).length > 0) {
       setCatErrors(errors);
@@ -285,7 +282,7 @@ export default function AdminMenuPage() {
       const payload = {
         venueId,
         nameTr: catNameTr,
-        nameEn: catNameEn,
+        nameEn: catNameEn.trim() || catNameTr,
         iconName: editingCategory?.iconName || "Utensils",
         sortOrder: editingCategory?.sortOrder || categories.length,
         menuId: editingCategory?.menuId || null
@@ -329,9 +326,6 @@ export default function AdminMenuPage() {
     if (!itemNameTr.trim()) {
       errors.nameTr = "Ürün adı (Türkçe) zorunludur.";
     }
-    if (!itemNameEn.trim()) {
-      errors.nameEn = "Ürün adı (İngilizce) zorunludur.";
-    }
     if (!itemPrice.trim()) {
       errors.price = "Fiyat alanı zorunludur.";
     } else {
@@ -366,7 +360,7 @@ export default function AdminMenuPage() {
       const payload = {
         categoryId: itemCategoryId,
         nameTr: itemNameTr,
-        nameEn: itemNameEn,
+        nameEn: itemNameEn.trim() || itemNameTr,
         descriptionTr: itemDescTr || null,
         descriptionEn: itemDescEn || null,
         price: parseFloat(itemPrice),
@@ -700,17 +694,14 @@ export default function AdminMenuPage() {
               </div>
               
               <div>
-                <label className="text-xs text-gray-400 block mb-1">Kategori Adı (EN)</label>
+                <label className="text-xs text-gray-400 block mb-1">Kategori Adı (EN - Opsiyonel)</label>
                 <input 
                   type="text" 
                   value={catNameEn}
                   onChange={(e) => setCatNameEn(e.target.value)}
-                  className={`w-full bg-[#1C1C28] border rounded-xl px-4 py-2.5 text-sm text-white focus:outline-none ${
-                    catErrors.nameEn ? "border-red-500 focus:border-red-500" : "border-gray-800 focus:border-[#C9A84C]/50"
-                  }`}
-                  placeholder="örn. Starters"
+                  className="w-full bg-[#1C1C28] border border-gray-800 rounded-xl px-4 py-2.5 text-sm text-white focus:outline-none focus:border-[#C9A84C]/50"
+                  placeholder="örn. Starters (Opsiyonel)"
                 />
-                {catErrors.nameEn && <p className="text-red-500 text-[11px] mt-1">{catErrors.nameEn}</p>}
               </div>
             </div>
 
@@ -756,16 +747,14 @@ export default function AdminMenuPage() {
                   {itemErrors.nameTr && <p className="text-red-500 text-[11px] mt-1">{itemErrors.nameTr}</p>}
                 </div>
                 <div>
-                  <label className="text-xs text-gray-400 block mb-1">Ürün Adı (EN)</label>
+                  <label className="text-xs text-gray-400 block mb-1">Ürün Adı (EN - Opsiyonel)</label>
                   <input 
                     type="text" 
                     value={itemNameEn}
                     onChange={(e) => setItemNameEn(e.target.value)}
-                    className={`w-full bg-[#1C1C28] border rounded-xl px-4 py-2 text-sm text-white focus:outline-none ${
-                      itemErrors.nameEn ? "border-red-500 focus:border-red-500" : "border-gray-800 focus:border-[#C9A84C]/50"
-                    }`}
+                    className="w-full bg-[#1C1C28] border border-gray-800 rounded-xl px-4 py-2 text-sm text-white focus:outline-none focus:border-[#C9A84C]/50"
+                    placeholder="Opsiyonel"
                   />
-                  {itemErrors.nameEn && <p className="text-red-500 text-[11px] mt-1">{itemErrors.nameEn}</p>}
                 </div>
               </div>
 
