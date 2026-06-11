@@ -368,6 +368,10 @@ class OrderSchema(OrderBase):
     tableId: Optional[str] = None
     tableName: Optional[str] = None
     totalAmount: Decimal
+    discountAmount: Decimal
+    discountType: Optional[str] = None
+    discountRef: Optional[str] = None
+    netAmount: Decimal
     paymentMethod: Optional[str] = None
     paidAt: Optional[datetime] = None
     items: List[OrderItemSchema] = []
@@ -400,11 +404,16 @@ class WaiterRequestSchema(WaiterRequestBase):
 
 # --- SPLIT PAYMENT SCHEMAS ---
 
+class SplitItemQuantity(BaseModel):
+    orderItemId: str
+    quantity: int
+
 class SplitPaymentItem(BaseModel):
     amount: Decimal
     paymentMethod: str  # "cash" | "card"
     label: Optional[str] = None
     orderItemIds: List[str] = []
+    items: Optional[List[SplitItemQuantity]] = None
 
 class SplitPaymentCreate(BaseModel):
     splitMode: str  # "equal" | "by_item" | "by_amount"
@@ -668,3 +677,73 @@ class PriceSyncResult(BaseModel):
     oldPrice: Decimal
     newPrice: Decimal
     newMargin: Decimal
+
+
+# --- COUPON & LOYALTY SCHEMAS ---
+
+class CouponBase(BaseModel):
+    code: str
+    type: str  # "PERCENTAGE" or "FIXED"
+    value: Decimal
+    maxDiscountAmount: Optional[Decimal] = None
+    minSubtotal: Decimal = Decimal("0.00")
+    isActive: bool = True
+    usageLimit: Optional[int] = None
+    startsAt: Optional[datetime] = None
+    expiresAt: Optional[datetime] = None
+
+class CouponCreate(CouponBase):
+    venueId: str
+
+class CouponSchema(CouponBase):
+    id: str
+    venueId: str
+    usageCount: int
+    createdAt: datetime
+    updatedAt: datetime
+
+    class Config:
+        from_attributes = True
+
+class LoyaltyHistorySchema(BaseModel):
+    id: str
+    loyaltyAccountId: str
+    points: int
+    reason: str
+    createdAt: datetime
+
+    class Config:
+        from_attributes = True
+
+class LoyaltyAccountBase(BaseModel):
+    phone: str
+    name: Optional[str] = None
+    externalUserId: Optional[str] = None
+
+class LoyaltyAccountCreate(LoyaltyAccountBase):
+    venueId: str
+
+class LoyaltyAccountSchema(LoyaltyAccountBase):
+    id: str
+    venueId: str
+    points: int
+    createdAt: datetime
+    updatedAt: datetime
+
+    class Config:
+        from_attributes = True
+
+class ApplyDiscountRequest(BaseModel):
+    couponCode: Optional[str] = None
+    loyaltyPhone: Optional[str] = None
+    manualDiscountAmount: Optional[Decimal] = None
+    manualDiscountPercentage: Optional[Decimal] = None
+    manualReason: Optional[str] = None
+
+class ApplyDiscountResponse(BaseModel):
+    subtotal: Decimal
+    discountAmount: Decimal
+    netAmount: Decimal
+    message: str
+    discountType: Optional[str] = None
+    discountRef: Optional[str] = None

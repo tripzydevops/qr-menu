@@ -65,6 +65,8 @@ class Venue(Base):
     pricingAlerts = relationship("PricingAlert", back_populates="venue", cascade="all, delete-orphan")
     pricingAlertRule = relationship("PricingAlertRule", back_populates="venue", uselist=False, cascade="all, delete-orphan")
     payments = relationship("Payment", back_populates="venue", cascade="all, delete-orphan")
+    coupons = relationship("Coupon", back_populates="venue", cascade="all, delete-orphan")
+    loyaltyAccounts = relationship("LoyaltyAccount", back_populates="venue", cascade="all, delete-orphan")
 
 
 class Table(Base):
@@ -250,6 +252,10 @@ class Order(Base):
     tableId = Column(String, ForeignKey("Table.id", ondelete="SET NULL"), nullable=True)
     status = Column(String, default="pending")  # "pending", "preparing", "completed", "cancelled"
     totalAmount = Column(Numeric(10, 2), nullable=False)
+    discountAmount = Column(Numeric(10, 2), default=0.00, nullable=False)
+    discountType = Column(String, nullable=True)  # "COUPON", "LOYALTY", "MANUAL"
+    discountRef = Column(String, nullable=True)  # coupon code, loyalty phone, or staff ID
+    netAmount = Column(Numeric(10, 2), default=0.00, nullable=False)
     paymentMethod = Column(String, nullable=True)
     paidAt = Column(DateTime, nullable=True)
     isArchived = Column(Boolean, default=False, nullable=False, index=True)
@@ -486,5 +492,51 @@ class Review(Base):
     createdAt = Column(DateTime, default=datetime.datetime.utcnow)
 
     menuItem = relationship("MenuItem", back_populates="reviews")
+
+class Coupon(Base):
+    __tablename__ = "Coupon"
+
+    id = Column(String, primary_key=True, index=True)
+    code = Column(String, unique=True, index=True, nullable=False)
+    type = Column(String, nullable=False)  # "PERCENTAGE" or "FIXED"
+    value = Column(Numeric(10, 2), nullable=False)
+    maxDiscountAmount = Column(Numeric(10, 2), nullable=True)
+    minSubtotal = Column(Numeric(10, 2), default=0.00, nullable=False)
+    isActive = Column(Boolean, default=True, nullable=False)
+    usageLimit = Column(Integer, nullable=True)
+    usageCount = Column(Integer, default=0, nullable=False)
+    startsAt = Column(DateTime, nullable=True)
+    expiresAt = Column(DateTime, nullable=True)
+    venueId = Column(String, ForeignKey("Venue.id", ondelete="CASCADE"), nullable=False)
+    createdAt = Column(DateTime, default=datetime.datetime.utcnow)
+    updatedAt = Column(DateTime, default=datetime.datetime.utcnow, onupdate=datetime.datetime.utcnow)
+
+    venue = relationship("Venue", back_populates="coupons")
+
+class LoyaltyAccount(Base):
+    __tablename__ = "LoyaltyAccount"
+
+    id = Column(String, primary_key=True, index=True)
+    phone = Column(String, unique=True, index=True, nullable=False)
+    name = Column(String, nullable=True)
+    points = Column(Integer, default=0, nullable=False)
+    externalUserId = Column(String, nullable=True)  # For linking to tripzy.travel account
+    venueId = Column(String, ForeignKey("Venue.id", ondelete="CASCADE"), nullable=False)
+    createdAt = Column(DateTime, default=datetime.datetime.utcnow)
+    updatedAt = Column(DateTime, default=datetime.datetime.utcnow, onupdate=datetime.datetime.utcnow)
+
+    venue = relationship("Venue", back_populates="loyaltyAccounts")
+    histories = relationship("LoyaltyHistory", back_populates="loyaltyAccount", cascade="all, delete-orphan")
+
+class LoyaltyHistory(Base):
+    __tablename__ = "LoyaltyHistory"
+
+    id = Column(String, primary_key=True, index=True)
+    loyaltyAccountId = Column(String, ForeignKey("LoyaltyAccount.id", ondelete="CASCADE"), nullable=False)
+    points = Column(Integer, nullable=False)  # Positive for earned, negative for redeemed
+    reason = Column(String, nullable=False)  # e.g., "Earned from Order {id}"
+    createdAt = Column(DateTime, default=datetime.datetime.utcnow)
+
+    loyaltyAccount = relationship("LoyaltyAccount", back_populates="histories")
 
 

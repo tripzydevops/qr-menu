@@ -1166,8 +1166,209 @@ def receive_order_payment(id: str, payment_data: Dict[str, str], db: Session = D
     return order
 
 
+# --- ADMIN COUPON & LOYALTY ENDPOINTS ---
+
+@app.get("/api/admin/venues/{venue_id}/coupons", response_model=List[schemas.CouponSchema])
+def list_venue_coupons(venue_id: str, db: Session = Depends(get_db)):
+    return db.query(models.Coupon).filter(models.Coupon.venueId == venue_id).all()
+
+@app.post("/api/admin/venues/{venue_id}/coupons", response_model=schemas.CouponSchema, status_code=status.HTTP_201_CREATED)
+def create_venue_coupon(venue_id: str, coupon_in: schemas.CouponCreate, db: Session = Depends(get_db)):
+    db_coupon = models.Coupon(
+        id=str(uuid.uuid4()),
+        code=coupon_in.code.upper().strip(),
+        type=coupon_in.type,
+        value=coupon_in.value,
+        maxDiscountAmount=coupon_in.maxDiscountAmount,
+        minSubtotal=coupon_in.minSubtotal,
+        isActive=coupon_in.isActive,
+        usageLimit=coupon_in.usageLimit,
+        startsAt=coupon_in.startsAt,
+        expiresAt=coupon_in.expiresAt,
+        venueId=venue_id
+    )
+    db.add(db_coupon)
+    db.commit()
+    db.refresh(db_coupon)
+    return db_coupon
+
+@app.get("/api/admin/venues/{venue_id}/loyalty/{phone}", response_model=schemas.LoyaltyAccountSchema)
+def get_loyalty_account(venue_id: str, phone: str, db: Session = Depends(get_db)):
+    loyalty = db.query(models.LoyaltyAccount).filter(
+        models.LoyaltyAccount.venueId == venue_id,
+        models.LoyaltyAccount.phone == phone.strip()
+    ).first()
+    if not loyalty:
+        raise HTTPException(status_code=404, detail="Loyalty account not found")
+    return loyalty
+
+@app.post("/api/admin/venues/{venue_id}/loyalty", response_model=schemas.LoyaltyAccountSchema, status_code=status.HTTP_201_CREATED)
+def create_loyalty_account(venue_id: str, loyalty_in: schemas.LoyaltyAccountCreate, db: Session = Depends(get_db)):
+    # Check if phone already exists
+    existing = db.query(models.LoyaltyAccount).filter(
+        models.LoyaltyAccount.venueId == venue_id,
+        models.LoyaltyAccount.phone == loyalty_in.phone.strip()
+    ).first()
+    if existing:
+        raise HTTPException(status_code=400, detail="Loyalty account with this phone already exists")
+        
+    db_loyalty = models.LoyaltyAccount(
+        id=str(uuid.uuid4()),
+        phone=loyalty_in.phone.strip(),
+        name=loyalty_in.name,
+        points=0,
+        externalUserId=loyalty_in.externalUserId,
+        venueId=venue_id
+    )
+    db.add(db_loyalty)
+    db.commit()
+    db.refresh(db_loyalty)
+    return db_loyalty
+
+
+# --- DISCOUNT VALIDATE & APPLY ENDPOINTS ---
+
+@app.post("/api/admin/tables/{table_id}/validate-discount", response_model=schemas.ApplyDiscountResponse)
+def validate_table_discount(table_id: str, req: schemas.ApplyDiscountRequest, db: Session = Depends(get_db)):
+    # Fetch active orders
+    active_orders = db.query(models.Order).filter(
+        models.Order.tableId == table_id,
+        models.Order.status.in_(["pending", "preparing", "ready", "served"])
+    ).all()
+    
+    if not active_orders:
+        raise HTTPException(status_code=404, detail="No active orders found for this table")
+        
+    subtotal = sum(Decimal(str(order.totalAmount)) for order in active_orders)
+    discount_amount = Decimal("0.00")
+    discount_type = None
+    discount_ref = None
+    message = "Geçerli indirim bulunamadı."
+    
+    now = datetime.datetime.utcnow()
+    
+    # 1. Coupon code validation
+    if req.couponCode:
+        coupon = db.query(models.Coupon).filter(
+            sqlalchemy.func.lower(models.Coupon.code) == req.couponCode.lower().strip()
+        ).first()
+        
+        if not coupon:
+            raise HTTPException(status_code=404, detail="Kupon kodu bulunamadı.")
+        if not coupon.isActive:
+            raise HTTPException(status_code=400, detail="Bu kupon artık aktif değil.")
+        if coupon.startsAt and coupon.startsAt > now:
+            raise HTTPException(status_code=400, detail="Kupon kullanım süresi henüz başlamadı.")
+        if coupon.expiresAt and coupon.expiresAt < now:
+            raise HTTPException(status_code=400, detail="Kuponun son kullanma tarihi geçmiş.")
+        if coupon.usageLimit is not None and coupon.usageCount >= coupon.usageLimit:
+            raise HTTPException(status_code=400, detail="Bu kuponun kullanım sınırı aşılmış.")
+        if subtotal < Decimal(str(coupon.minSubtotal)):
+            raise HTTPException(
+                status_code=400, 
+                detail=f"Kuponu uygulamak için minimum sepet tutarı {coupon.minSubtotal} ₺ olmalıdır."
+            )
+            
+        discount_type = "COUPON"
+        discount_ref = coupon.code
+        if coupon.type == "PERCENTAGE":
+            pct_discount = subtotal * (Decimal(str(coupon.value)) / Decimal("100.00"))
+            if coupon.maxDiscountAmount:
+                pct_discount = min(pct_discount, Decimal(str(coupon.maxDiscountAmount)))
+            discount_amount = pct_discount
+        else:  # FIXED
+            discount_amount = min(Decimal(str(coupon.value)), subtotal)
+        message = f"Kupon uygulandı: %{coupon.value}" if coupon.type == "PERCENTAGE" else f"Kupon uygulandı: -{coupon.value} ₺"
+        
+    # 2. Loyalty account lookup
+    elif req.loyaltyPhone:
+        loyalty = db.query(models.LoyaltyAccount).filter(
+            models.LoyaltyAccount.phone == req.loyaltyPhone.strip()
+        ).first()
+        
+        if not loyalty:
+            raise HTTPException(status_code=404, detail="Sadakat programı hesabı bulunamadı.")
+            
+        discount_type = "LOYALTY"
+        discount_ref = loyalty.phone
+        # 10 points = 1 ₺
+        max_discount_from_points = Decimal(loyalty.points) / Decimal("10.00")
+        discount_amount = min(max_discount_from_points, subtotal)
+        message = f"Sadakat puanları uygulandı: -{discount_amount.quantize(Decimal('0.01'))} ₺ ({int(discount_amount * 10)} Puan)"
+        
+    # 3. Manual discount validation
+    elif req.manualDiscountAmount is not None or req.manualDiscountPercentage is not None:
+        discount_type = "MANUAL"
+        discount_ref = req.manualReason or "Kasiyer İndirimi"
+        if req.manualDiscountPercentage is not None:
+            discount_amount = subtotal * (Decimal(str(req.manualDiscountPercentage)) / Decimal("100.00"))
+        elif req.manualDiscountAmount is not None:
+            discount_amount = min(Decimal(str(req.manualDiscountAmount)), subtotal)
+        message = f"Manuel indirim uygulandı: -{discount_amount.quantize(Decimal('0.01'))} ₺"
+        
+    net_amount = max(Decimal("0.00"), subtotal - discount_amount)
+    
+    return schemas.ApplyDiscountResponse(
+        subtotal=subtotal,
+        discountAmount=discount_amount.quantize(Decimal("0.01")),
+        netAmount=net_amount.quantize(Decimal("0.01")),
+        message=message,
+        discountType=discount_type,
+        discountRef=discount_ref
+    )
+
+@app.post("/api/admin/tables/{table_id}/apply-discount", response_model=List[schemas.OrderSchema])
+def apply_table_discount(table_id: str, req: schemas.ApplyDiscountRequest, db: Session = Depends(get_db)):
+    res = validate_table_discount(table_id, req, db)
+    
+    active_orders = db.query(models.Order).filter(
+        models.Order.tableId == table_id,
+        models.Order.status.in_(["pending", "preparing", "ready", "served"])
+    ).all()
+    
+    if not active_orders:
+        raise HTTPException(status_code=404, detail="No active orders found for this table")
+        
+    subtotal = res.subtotal
+    discount_amount = res.discountAmount
+    
+    # Distribute discount proportionally across all orders
+    remaining_discount = discount_amount
+    for i, order in enumerate(active_orders):
+        if i == len(active_orders) - 1:
+            order_discount = remaining_discount
+        else:
+            order_amount = Decimal(str(order.totalAmount))
+            order_discount = (discount_amount * (order_amount / subtotal)).quantize(Decimal("0.01"))
+            remaining_discount -= order_discount
+            
+        order.discountAmount = order_discount
+        order.discountType = res.discountType
+        order.discountRef = res.discountRef
+        order.netAmount = max(Decimal("0.00"), Decimal(str(order.totalAmount)) - order_discount)
+        
+    # Increment usage count if it's a Coupon
+    if res.discountType == "COUPON":
+        coupon = db.query(models.Coupon).filter(
+            sqlalchemy.func.lower(models.Coupon.code) == res.discountRef.lower().strip()
+        ).first()
+        if coupon:
+            coupon.usageCount += 1
+            
+    db.commit()
+    
+    # Populate tableName for serialization
+    for order in active_orders:
+        db.refresh(order)
+        table = db.query(models.Table).filter(models.Table.id == order.tableId).first()
+        if table:
+            order.tableName = table.name
+            
+    return active_orders
+
+
 @app.post("/api/admin/tables/{table_id}/pay", response_model=List[schemas.OrderSchema])
-def pay_all_table_orders(table_id: str, payment_data: Dict[str, str], db: Session = Depends(get_db)):
+def pay_all_table_orders(table_id: str, payment_data: Dict[str, Any], db: Session = Depends(get_db)):
     payment_method = payment_data.get("paymentMethod")
     if payment_method not in ["cash", "card", "online"]:
         raise HTTPException(status_code=400, detail="Invalid payment method")
@@ -1195,8 +1396,48 @@ def pay_all_table_orders(table_id: str, payment_data: Dict[str, str], db: Sessio
         
     db.commit()
 
-    # Create a single Payment record for full table payment
-    total_amount = sum(Decimal(str(order.totalAmount)) for order in active_orders)
+    # Calculate net total amount (after discount)
+    total_amount = sum(
+        Decimal(str(order.netAmount)) if Decimal(str(order.netAmount)) > 0 else Decimal(str(order.totalAmount))
+        for order in active_orders
+    )
+    discount_amount = sum(Decimal(str(order.discountAmount)) for order in active_orders)
+    
+    # Process Loyalty points earn and burn logic
+    loyalty_ref = None
+    for order in active_orders:
+        if order.discountType == "LOYALTY" and order.discountRef:
+            loyalty_ref = order.discountRef
+            break
+            
+    loyalty_phone = payment_data.get("loyaltyPhone") or loyalty_ref
+    if loyalty_phone:
+        loyalty = db.query(models.LoyaltyAccount).filter(
+            models.LoyaltyAccount.phone == loyalty_phone.strip()
+        ).first()
+        if loyalty:
+            # 1. Deduct points if points were redeemed
+            if loyalty_ref:
+                points_to_deduct = int(discount_amount * 10)
+                loyalty.points = max(0, loyalty.points - points_to_deduct)
+                db.add(models.LoyaltyHistory(
+                    id=str(uuid.uuid4()),
+                    loyaltyAccountId=loyalty.id,
+                    points=-points_to_deduct,
+                    reason=f"Ödeme sırasında sadakat puanı kullanıldı. Masa: {table_id}"
+                ))
+            # 2. Earn points based on net total (1 point per 10 TL)
+            points_earned = int(total_amount / Decimal("10.00"))
+            if points_earned > 0:
+                loyalty.points += points_earned
+                db.add(models.LoyaltyHistory(
+                    id=str(uuid.uuid4()),
+                    loyaltyAccountId=loyalty.id,
+                    points=points_earned,
+                    reason=f"Sipariş ödemesinden kazanıldı. Masa: {table_id}"
+                ))
+            db.commit()
+
     order_ids = [order.id for order in active_orders]
     if active_orders:
         db_payment = models.Payment(
@@ -1245,67 +1486,214 @@ def split_pay_table_orders(table_id: str, split_in: schemas.SplitPaymentCreate, 
     if not active_orders:
         raise HTTPException(status_code=404, detail="No active orders found for this table")
     
-    # 2. Calculate total bill
-    total_bill = sum(Decimal(str(order.totalAmount)) for order in active_orders)
+    # 2. Calculate total bill (after discounts if applied)
+    total_bill = sum(
+        Decimal(str(order.netAmount)) if Decimal(str(order.netAmount)) > 0 else Decimal(str(order.totalAmount))
+        for order in active_orders
+    )
     
-    # 3. Validate sum of payments equals total bill (allow ±0.01 for rounding)
+    # 3. Validate sum of payments
     payment_sum = sum(Decimal(str(p.amount)) for p in split_in.payments)
-    if abs(payment_sum - total_bill) > Decimal("0.01"):
-        raise HTTPException(
-            status_code=400,
-            detail=f"Payment total ({payment_sum}) does not match bill total ({total_bill})"
-        )
     
-    # 4. Create Payment records
+    is_partial = False
+    if abs(payment_sum - total_bill) > Decimal("0.01"):
+        if split_in.splitMode == "by_item" and payment_sum < total_bill:
+            is_partial = True
+        else:
+            raise HTTPException(
+                status_code=400,
+                detail=f"Payment total ({payment_sum}) does not match bill total ({total_bill})"
+            )
+            
     venue_id = active_orders[0].venueId
-    order_ids = [order.id for order in active_orders]
+    now = datetime.datetime.utcnow()
     created_payments = []
     
-    for p in split_in.payments:
-        db_payment = models.Payment(
-            id=str(uuid.uuid4()),
-            venueId=venue_id,
-            tableId=table_id,
-            amount=p.amount,
-            paymentMethod=p.paymentMethod,
-            splitMode=split_in.splitMode,
-            label=p.label,
-            orderIds=order_ids,
-            orderItemIds=p.orderItemIds or []
-        )
-        db.add(db_payment)
-        created_payments.append(db_payment)
-    
-    # 5. Mark all active orders as completed with split payment
-    now = datetime.datetime.utcnow()
-    for order in active_orders:
-        order.status = "completed"
-        order.paymentMethod = "split"
-        order.paidAt = now
-    
-    # 6. Resolve pending bill waiter requests
-    pending_requests = db.query(models.WaiterRequest).filter(
-        models.WaiterRequest.tableId == table_id,
-        models.WaiterRequest.type == "bill",
-        models.WaiterRequest.status == "pending"
-    ).all()
-    for req in pending_requests:
-        req.status = "completed"
-    
-    db.commit()
-    
-    # 7. Deduct stock and emit signals for each order
-    for order in active_orders:
-        try:
-            deduct_stock_from_order(db, order.id)
-        except Exception as e:
-            print(f"Failed to deduct stock from order: {e}")
-        try:
-            emit_order_signals(db, order.id)
-        except Exception as e:
-            print(f"Failed to emit order signals: {e}")
-    
-    return created_payments
+    if is_partial:
+        # Partial payment logic: we only complete the items paid for
+        for p in split_in.payments:
+            if not p.items:
+                raise HTTPException(status_code=400, detail="Partial payment requires specifying item quantities.")
+                
+            # Create a completed order to hold the paid items
+            db_order = models.Order(
+                id=str(uuid.uuid4()),
+                venueId=venue_id,
+                tableId=table_id,
+                status="completed",
+                paymentMethod="split",
+                paidAt=now,
+                totalAmount=p.amount,
+                netAmount=p.amount,
+                createdAt=now,
+                updatedAt=now
+            )
+            db.add(db_order)
+            db.flush()
+            
+            order_item_ids_recorded = []
+            for item_spec in p.items:
+                active_item = db.query(models.OrderItem).filter(models.OrderItem.id == item_spec.orderItemId).first()
+                if not active_item:
+                    raise HTTPException(status_code=404, detail=f"Order item {item_spec.orderItemId} not found")
+                    
+                # Verify active_item belongs to one of the active orders
+                parent_order = db.query(models.Order).filter(models.Order.id == active_item.orderId).first()
+                if not parent_order or parent_order.tableId != table_id or parent_order.status not in ["pending", "preparing", "ready", "served"]:
+                    raise HTTPException(status_code=400, detail="Item does not belong to active table session")
+                    
+                if active_item.quantity < item_spec.quantity:
+                    raise HTTPException(
+                        status_code=400, 
+                        detail=f"Cannot pay for {item_spec.quantity} of {active_item.id}; only {active_item.quantity} remaining"
+                    )
+                
+                # Create completed OrderItem
+                completed_item = models.OrderItem(
+                    id=str(uuid.uuid4()),
+                    orderId=db_order.id,
+                    menuItemId=active_item.menuItemId,
+                    quantity=item_spec.quantity,
+                    price=active_item.price,
+                    notes=active_item.notes
+                )
+                db.add(completed_item)
+                order_item_ids_recorded.append(completed_item.id)
+                
+                # Deduct from active item
+                active_item.quantity -= item_spec.quantity
+                
+                # Update parent order amount
+                parent_order.totalAmount = Decimal(str(parent_order.totalAmount)) - (active_item.price * item_spec.quantity)
+                parent_order.netAmount = max(Decimal("0.00"), Decimal(str(parent_order.netAmount)) - (active_item.price * item_spec.quantity))
+                
+                if active_item.quantity == 0:
+                    db.delete(active_item)
+                    
+            # Create the Payment record associated with the completed order
+            db_payment = models.Payment(
+                id=str(uuid.uuid4()),
+                venueId=venue_id,
+                tableId=table_id,
+                amount=p.amount,
+                paymentMethod=p.paymentMethod,
+                splitMode=split_in.splitMode,
+                label=p.label,
+                orderIds=[db_order.id],
+                orderItemIds=order_item_ids_recorded
+            )
+            db.add(db_payment)
+            created_payments.append(db_payment)
+            
+            # Deduct stock and emit signals for this new completed order
+            db.commit()
+            try:
+                deduct_stock_from_order(db, db_order.id)
+            except Exception as e:
+                print(f"Failed to deduct stock from order: {e}")
+            try:
+                emit_order_signals(db, db_order.id)
+            except Exception as e:
+                print(f"Failed to emit order signals: {e}")
+
+        # Delete any active orders that have become empty
+        for order in active_orders:
+            db.refresh(order)
+            remaining_items_count = db.query(models.OrderItem).filter(models.OrderItem.orderId == order.id).count()
+            if remaining_items_count == 0:
+                db.delete(order)
+                
+        # Resolve pending bill requests
+        pending_requests = db.query(models.WaiterRequest).filter(
+            models.WaiterRequest.tableId == table_id,
+            models.WaiterRequest.type == "bill",
+            models.WaiterRequest.status == "pending"
+        ).all()
+        for req in pending_requests:
+            req.status = "completed"
+            
+        db.commit()
+        return created_payments
+
+    else:
+        # Full settle logic (sum of payments matches bill)
+        order_ids = [order.id for order in active_orders]
+        for p in split_in.payments:
+            db_payment = models.Payment(
+                id=str(uuid.uuid4()),
+                venueId=venue_id,
+                tableId=table_id,
+                amount=p.amount,
+                paymentMethod=p.paymentMethod,
+                splitMode=split_in.splitMode,
+                label=p.label,
+                orderIds=order_ids,
+                orderItemIds=p.orderItemIds or []
+            )
+            db.add(db_payment)
+            created_payments.append(db_payment)
+        
+        # Mark all active orders as completed
+        for order in active_orders:
+            order.status = "completed"
+            order.paymentMethod = "split"
+            order.paidAt = now
+        
+        # Resolve pending bill waiter requests
+        pending_requests = db.query(models.WaiterRequest).filter(
+            models.WaiterRequest.tableId == table_id,
+            models.WaiterRequest.type == "bill",
+            models.WaiterRequest.status == "pending"
+        ).all()
+        for req in pending_requests:
+            req.status = "completed"
+        
+        db.commit()
+
+        # Process Loyalty points earn and burn logic
+        loyalty_ref = None
+        discount_amount = sum(Decimal(str(order.discountAmount)) for order in active_orders)
+        for order in active_orders:
+            if order.discountType == "LOYALTY" and order.discountRef:
+                loyalty_ref = order.discountRef
+                break
+                
+        if loyalty_ref:
+            loyalty = db.query(models.LoyaltyAccount).filter(
+                models.LoyaltyAccount.phone == loyalty_ref.strip()
+            ).first()
+            if loyalty:
+                points_to_deduct = int(discount_amount * 10)
+                loyalty.points = max(0, loyalty.points - points_to_deduct)
+                db.add(models.LoyaltyHistory(
+                    id=str(uuid.uuid4()),
+                    loyaltyAccountId=loyalty.id,
+                    points=-points_to_deduct,
+                    reason=f"Ödeme sırasında sadakat puanı kullanıldı (Bölünmüş Ödeme). Masa: {table_id}"
+                ))
+                points_earned = int(total_bill / Decimal("10.00"))
+                if points_earned > 0:
+                    loyalty.points += points_earned
+                    db.add(models.LoyaltyHistory(
+                        id=str(uuid.uuid4()),
+                        loyaltyAccountId=loyalty.id,
+                        points=points_earned,
+                        reason=f"Sipariş ödemesinden kazanıldı (Bölünmüş Ödeme). Masa: {table_id}"
+                    ))
+                db.commit()
+        
+        # Deduct stock and emit signals for each order
+        for order in active_orders:
+            try:
+                deduct_stock_from_order(db, order.id)
+            except Exception as e:
+                print(f"Failed to deduct stock from order: {e}")
+            try:
+                emit_order_signals(db, order.id)
+            except Exception as e:
+                print(f"Failed to emit order signals: {e}")
+        
+        return created_payments
 
 
 @app.get("/api/admin/tables/{table_id}/payments", response_model=List[schemas.PaymentSchema])

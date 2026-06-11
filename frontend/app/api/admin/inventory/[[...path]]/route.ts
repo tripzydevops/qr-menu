@@ -907,18 +907,15 @@ CRITICAL CONVERSION RULE: If a match is found, compare the invoice packaging uni
       return NextResponse.json({ detail: "Gemini API failed to return a valid response." }, { status: 500 });
     }
 
-    const body = await request.json();
-    const { venueId } = body;
-
-    if (!venueId) {
-      return NextResponse.json({ detail: "venueId is required" }, { status: 400 });
-    }
-
-    await verifyInventoryGating(venueId);
-
     // 2. Add Ingredient
     if (pathSegments[0] === "ingredients") {
-      const { name, unit, reorderLevel, density } = body;
+      const body = await request.json();
+      const { venueId, name, unit, reorderLevel, density } = body;
+      if (!venueId) {
+        return NextResponse.json({ detail: "venueId is required" }, { status: 400 });
+      }
+      await verifyInventoryGating(venueId);
+      const { name: _name, unit: _unit, reorderLevel: _reorderLevel, density: _density } = body;
       const existing = await prisma.ingredient.findFirst({
         where: { venueId, name },
       });
@@ -950,7 +947,12 @@ CRITICAL CONVERSION RULE: If a match is found, compare the invoice packaging uni
 
     // 3. Add Supplier
     if (pathSegments[0] === "suppliers") {
-      const { name, contactEmail, contactPhone } = body;
+      const body = await request.json();
+      const { venueId, name, contactEmail, contactPhone } = body;
+      if (!venueId) {
+        return NextResponse.json({ detail: "venueId is required" }, { status: 400 });
+      }
+      await verifyInventoryGating(venueId);
       const sup = await prisma.supplier.create({
         data: { name, contactEmail, contactPhone, venueId },
       });
@@ -959,7 +961,12 @@ CRITICAL CONVERSION RULE: If a match is found, compare the invoice packaging uni
 
     // 4. Create Invoice
     if (pathSegments[0] === "invoices") {
-      const { invoiceNumber, supplierId, invoiceDate, items } = body; // items: Array of { ingredientId, quantity, unitCost }
+      const body = await request.json();
+      const { venueId, invoiceNumber, supplierId, invoiceDate, items } = body; // items: Array of { ingredientId, quantity, unitCost }
+      if (!venueId) {
+        return NextResponse.json({ detail: "venueId is required" }, { status: 400 });
+      }
+      await verifyInventoryGating(venueId);
 
       let totalAmount = 0;
       for (const item of items) {
@@ -1021,8 +1028,18 @@ CRITICAL CONVERSION RULE: If a match is found, compare the invoice packaging uni
     }
 
     // 5. Create Recipe
-    if (pathSegments[0] === "recipes") {
+    if (pathSegments[0] === "recipes" && !pathSegments[1]) {
+      const body = await request.json();
       const { menuItemId, targetMargin, ingredients, yieldQuantity, yieldUnit, portionSize, totalYield } = body; // ingredients: Array of { ingredientId, amountUsed }
+      const menuItem = await prisma.menuItem.findUnique({
+        where: { id: menuItemId },
+        include: { category: true }
+      });
+      if (!menuItem) {
+        return NextResponse.json({ detail: "Menu Item not found" }, { status: 404 });
+      }
+      const venueId = menuItem.category.venueId;
+      await verifyInventoryGating(venueId);
 
       const existing = await prisma.recipe.findUnique({
         where: { menuItemId },
@@ -1107,6 +1124,13 @@ CRITICAL CONVERSION RULE: If a match is found, compare the invoice packaging uni
     // 6. Recalculate Specific Recipe
     if (pathSegments[0] === "recipes" && pathSegments[2] === "recalculate") {
       const recipeId = pathSegments[1];
+      const recipeData = await prisma.recipe.findUnique({
+        where: { id: recipeId },
+        include: { menuItem: { include: { category: true } } }
+      });
+      if (recipeData?.menuItem?.category?.venueId) {
+        await verifyInventoryGating(recipeData.menuItem.category.venueId);
+      }
       const cost = await recalculateRecipeCost(recipeId);
       await checkMarginAlert(recipeId);
 
@@ -1152,6 +1176,10 @@ CRITICAL CONVERSION RULE: If a match is found, compare the invoice packaging uni
     // 7. Resolve Alert
     if (pathSegments[0] === "alerts" && pathSegments[2] === "resolve") {
       const alertId = pathSegments[1];
+      const alertData = await prisma.pricingAlert.findUnique({ where: { id: alertId } });
+      if (alertData?.venueId) {
+        await verifyInventoryGating(alertData.venueId);
+      }
       const alert = await prisma.pricingAlert.update({
         where: { id: alertId },
         data: { isResolved: true },
@@ -1168,7 +1196,12 @@ CRITICAL CONVERSION RULE: If a match is found, compare the invoice packaging uni
 
     // 8. Sync Prices
     if (pathSegments[0] === "sync-prices") {
-      const { menuItemIds, syncType, customPrices } = body; // menuItemIds: Array, customPrices: Map
+      const body = await request.json();
+      const { venueId, menuItemIds, syncType, customPrices } = body; // menuItemIds: Array, customPrices: Map
+      if (!venueId) {
+        return NextResponse.json({ detail: "venueId is required" }, { status: 400 });
+      }
+      await verifyInventoryGating(venueId);
 
       const results = [];
       for (const miId of menuItemIds) {
@@ -1234,6 +1267,7 @@ CRITICAL CONVERSION RULE: If a match is found, compare the invoice packaging uni
       if (!venueId) {
         return NextResponse.json({ detail: "venueId is required" }, { status: 400 });
       }
+      await verifyInventoryGating(venueId);
 
       const allIngredients = await prisma.ingredient.findMany({
         where: { venueId },
@@ -1408,6 +1442,7 @@ RULES FOR YIELD:
       if (!venueId || !menuItemId) {
         return NextResponse.json({ detail: "venueId and menuItemId are required" }, { status: 400 });
       }
+      await verifyInventoryGating(venueId);
 
       // Load menu item
       const menuItem = await prisma.menuItem.findUnique({
@@ -1485,7 +1520,7 @@ RULES FOR YIELD:
         ],
         tools: [
           {
-            google_search: {}
+            googleSearch: {}
           }
         ],
         generationConfig: {
@@ -1509,7 +1544,7 @@ RULES FOR YIELD:
           if (res.ok) {
             break;
           } else if ((res.status === 400 || res.status === 429) && payload.tools) {
-            console.warn(`[Recipe Suggestion] ${res.status} error with google_search. Retrying without search tool.`);
+            console.warn(`[Recipe Suggestion] ${res.status} error with googleSearch. Retrying without search tool.`);
             delete payload.tools;
             continue;
           } else if (res.status === 429 || res.status === 503) {

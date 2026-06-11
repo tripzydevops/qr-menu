@@ -20,9 +20,11 @@ import {
   UserCheck,
   Calendar,
   X,
-  Split
+  Split,
+  Tag
 } from "lucide-react";
 import SplitPaymentModal from "./SplitPaymentModal";
+import DiscountModal from "./DiscountModal";
 
 interface OrderItem {
   id: string;
@@ -49,6 +51,10 @@ interface Order {
   tableId?: string;
   tableName?: string;
   totalAmount: string;
+  discountAmount?: string;
+  discountType?: string;
+  discountRef?: string;
+  netAmount?: string;
   paymentMethod?: string;
   paidAt?: string;
   createdAt: string;
@@ -75,6 +81,8 @@ interface TableOrders {
   tableId: string;
   tableName: string;
   orders: Order[];
+  subtotal: number;
+  discountAmount: number;
   totalBill: number;
   itemCount: number;
   status: string; // highest status e.g., "served" or "ready"
@@ -88,6 +96,7 @@ export default function CashierConsolePage() {
   const [loading, setLoading] = useState(true);
   const [submitting, setSubmitting] = useState(false);
   const [selectedTable, setSelectedTable] = useState<TableOrders | null>(null);
+  const [showDiscountModal, setShowDiscountModal] = useState(false);
   const [activePrintTable, setActivePrintTable] = useState<TableOrders | null>(null);
   const [activePrintOrder, setActivePrintOrder] = useState<Order | null>(null);
   const [activePrintSplitPayments, setActivePrintSplitPayments] = useState<SplitPaymentRecord[] | null>(null);
@@ -159,7 +168,13 @@ export default function CashierConsolePage() {
         // Convert grouped tables into structured list
         const processedTables: TableOrders[] = Object.keys(activeGrouped).map(tableId => {
           const group = activeGrouped[tableId];
-          const totalBill = group.orders.reduce((sum, order) => sum + parseFloat(order.totalAmount), 0);
+          const subtotal = group.orders.reduce((sum, order) => sum + parseFloat(order.totalAmount), 0);
+          const discountAmount = group.orders.reduce((sum, order) => sum + parseFloat(order.discountAmount || "0"), 0);
+          const totalBill = group.orders.reduce((sum, order) => {
+            const net = parseFloat(order.netAmount || "0");
+            const tot = parseFloat(order.totalAmount);
+            return sum + (net > 0 || parseFloat(order.discountAmount || "0") > 0 ? net : tot);
+          }, 0);
           const itemCount = group.orders.reduce((sum, order) => 
             sum + order.items.reduce((itemSum, item) => itemSum + item.quantity, 0)
           , 0);
@@ -175,6 +190,8 @@ export default function CashierConsolePage() {
             tableId,
             tableName: group.tableName,
             orders: group.orders,
+            subtotal,
+            discountAmount,
             totalBill,
             itemCount,
             status
@@ -214,10 +231,13 @@ export default function CashierConsolePage() {
     setSubmitting(true);
     setPaymentSuccessMsg(null);
     try {
+      const loyaltyOrder = selectedTable?.orders.find(o => o.discountType === "LOYALTY");
+      const loyaltyPhone = loyaltyOrder?.discountRef || null;
+
       const res = await fetch(`${apiUrl}/api/admin/tables/${tableId}/pay`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ paymentMethod })
+        body: JSON.stringify({ paymentMethod, loyaltyPhone })
       });
 
       if (!res.ok) throw new Error("Payment failed to process");
@@ -404,9 +424,17 @@ export default function CashierConsolePage() {
                 </div>
               ))}
             </div>
-            <div className="text-right font-bold text-sm mb-4">
-              TOPLAM: {activePrintTable.totalBill.toFixed(2)} ₺
-            </div>
+            {activePrintTable.discountAmount > 0 ? (
+              <div className="text-right text-xs mb-4 space-y-0.5">
+                <div>Ara Toplam: {activePrintTable.subtotal.toFixed(2)} ₺</div>
+                <div className="text-green-800">İndirim ({activePrintTable.orders.find(o => o.discountRef)?.discountRef || "İndirim"}): -{activePrintTable.discountAmount.toFixed(2)} ₺</div>
+                <div className="font-bold text-sm pt-1 border-t border-dashed border-gray-400">GENEL TOPLAM: {activePrintTable.totalBill.toFixed(2)} ₺</div>
+              </div>
+            ) : (
+              <div className="text-right font-bold text-sm mb-4">
+                TOPLAM: {activePrintTable.totalBill.toFixed(2)} ₺
+              </div>
+            )}
           </>
         ) : activePrintOrder ? (
           <>
@@ -429,9 +457,17 @@ export default function CashierConsolePage() {
                 </div>
               ))}
             </div>
-            <div className="text-right font-bold text-sm mb-4">
-              TOPLAM: {parseFloat(activePrintOrder.totalAmount).toFixed(2)} ₺
-            </div>
+            {parseFloat(activePrintOrder.discountAmount || "0") > 0 ? (
+              <div className="text-right text-xs mb-4 space-y-0.5">
+                <div>Ara Toplam: {parseFloat(activePrintOrder.totalAmount).toFixed(2)} ₺</div>
+                <div className="text-green-800">İndirim ({activePrintOrder.discountRef || "İndirim"}): -{parseFloat(activePrintOrder.discountAmount || "0").toFixed(2)} ₺</div>
+                <div className="font-bold text-sm pt-1 border-t border-dashed border-gray-400">GENEL TOPLAM: {parseFloat(activePrintOrder.netAmount || "0").toFixed(2)} ₺</div>
+              </div>
+            ) : (
+              <div className="text-right font-bold text-sm mb-4">
+                TOPLAM: {parseFloat(activePrintOrder.totalAmount).toFixed(2)} ₺
+              </div>
+            )}
           </>
         ) : null}
 
@@ -643,13 +679,37 @@ export default function CashierConsolePage() {
                   ))}
                 </div>
 
-                <div className="border-t border-gray-800/50 pt-4 mt-4 space-y-4">
-                  <div className="flex justify-between items-center">
+                <div className="border-t border-gray-800/50 pt-4 mt-4 space-y-3">
+                  {selectedTable.discountAmount > 0 && (
+                    <>
+                      <div className="flex justify-between items-center text-xs">
+                        <span className="text-gray-400">Ara Toplam</span>
+                        <span className="font-mono text-gray-300">{selectedTable.subtotal.toFixed(2)} ₺</span>
+                      </div>
+                      <div className="flex justify-between items-center text-xs text-green-400">
+                        <span className="flex items-center">
+                          <Tag className="h-3.5 w-3.5 mr-1" />
+                          İndirim ({selectedTable.orders.find(o => o.discountRef)?.discountRef || "İndirim"})
+                        </span>
+                        <span className="font-mono">-{selectedTable.discountAmount.toFixed(2)} ₺</span>
+                      </div>
+                    </>
+                  )}
+                  <div className="flex justify-between items-center pt-1 border-t border-gray-800/20">
                     <span className="text-sm font-semibold text-gray-300">Ödenecek Tutar</span>
                     <span className="text-2xl font-extrabold text-[#C9A84C] font-mono">
                       {selectedTable.totalBill.toFixed(2)} ₺
                     </span>
                   </div>
+
+                  {/* Discount / Coupon Trigger */}
+                  <button
+                    onClick={() => setShowDiscountModal(true)}
+                    className="w-full flex items-center justify-center space-x-2 py-2 px-4 rounded-xl border border-dashed border-[#C9A84C]/40 text-xs font-semibold text-[#C9A84C] hover:bg-[#C9A84C]/5 transition-colors"
+                  >
+                    <Tag className="h-4 w-4" />
+                    <span>İndirim / Kupon / Puan Uygula</span>
+                  </button>
 
                   {/* Print bill trigger before payment */}
                   <button
@@ -817,6 +877,22 @@ export default function CashierConsolePage() {
           items={getAggregatedItems(selectedTable)}
           apiUrl={apiUrl}
           onPaymentSuccess={handleSplitPaymentSuccess}
+        />
+      )}
+
+      {/* Discount Modal */}
+      {selectedTable && (
+        <DiscountModal
+          isOpen={showDiscountModal}
+          onClose={() => setShowDiscountModal(false)}
+          tableId={selectedTable.tableId}
+          tableName={selectedTable.tableName}
+          totalBill={selectedTable.totalBill}
+          apiUrl={apiUrl}
+          onDiscountApplied={(discountAmount, discountType, discountRef, message) => {
+            setPaymentSuccessMsg(message);
+            setRefreshKey(prev => prev + 1);
+          }}
         />
       )}
     </div>

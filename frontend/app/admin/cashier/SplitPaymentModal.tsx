@@ -118,6 +118,39 @@ export default function SplitPaymentModal({
   };
 
   // === By Item Logic ===
+  const discountRatio = useMemo(() => {
+    const sub = items.reduce((sum, item) => sum + item.price * item.quantity, 0);
+    return sub > 0 ? totalBill / sub : 1;
+  }, [items, totalBill]);
+
+  // Flat items: list each unit of an item as a separate checkable item
+  const flatItems = useMemo(() => {
+    const list: {
+      id: string;
+      originalIdx: number;
+      nameTr: string;
+      nameEn: string;
+      price: number;
+      orderItemId: string;
+      unitIndex: number;
+    }[] = [];
+    items.forEach((item, itemIdx) => {
+      for (let q = 0; q < item.quantity; q++) {
+        const orderItemId = item.orderItemIds[q] || item.orderItemIds[0];
+        list.push({
+          id: `${itemIdx}-${q}`,
+          originalIdx: itemIdx,
+          nameTr: `${item.nameTr} (${q + 1}/${item.quantity})`,
+          nameEn: `${item.nameEn} (${q + 1}/${item.quantity})`,
+          price: item.price,
+          orderItemId,
+          unitIndex: q
+        });
+      }
+    });
+    return list;
+  }, [items]);
+
   const toggleItemForPerson = (itemIdx: number) => {
     setItemPersons((prev) => {
       const updated = [...prev];
@@ -133,7 +166,7 @@ export default function SplitPaymentModal({
             (idx) => idx !== itemIdx
           );
           otherPerson.amount = otherPerson.selectedItemIndices.reduce(
-            (sum, idx) => sum + items[idx].price * items[idx].quantity,
+            (sum, idx) => sum + flatItems[idx].price * discountRatio,
             0
           );
           updated[i] = otherPerson;
@@ -148,7 +181,7 @@ export default function SplitPaymentModal({
 
       person.selectedItemIndices = Array.from(selectedSet);
       person.amount = person.selectedItemIndices.reduce(
-        (sum, idx) => sum + items[idx].price * items[idx].quantity,
+        (sum, idx) => sum + flatItems[idx].price * discountRatio,
         0
       );
       updated[activePersonIdx] = person;
@@ -195,7 +228,7 @@ export default function SplitPaymentModal({
     return assigned;
   }, [itemPersons]);
 
-  const allItemsAssigned = assignedItemIndices.size === items.length;
+  const allItemsAssigned = assignedItemIndices.size === flatItems.length;
   const itemAssignedTotal = useMemo(
     () => itemPersons.reduce((sum, p) => sum + p.amount, 0),
     [itemPersons]
@@ -270,6 +303,7 @@ export default function SplitPaymentModal({
         orderItemIds: string[];
       }[] = [];
 
+      let successMessage = "";
       if (activeTab === "equal") {
         payments = Array.from({ length: personCount }, (_, i) => ({
           amount: i === personCount - 1 ? lastPersonAmount : perPersonAmount,
@@ -277,22 +311,35 @@ export default function SplitPaymentModal({
           label: `Kişi ${i + 1}`,
           orderItemIds: [],
         }));
+        successMessage = `${tableName} hesabı ${payments.length} kişiye bölünerek kapatıldı!`;
       } else if (activeTab === "by_item") {
-        if (!allItemsAssigned) {
-          setError("Tüm ürünler bir kişiye atanmalıdır.");
+        if (assignedItemIndices.size === 0) {
+          setError("Lütfen en az bir ürünü bir kişiye atayın.");
           setSubmitting(false);
           return;
         }
         payments = itemPersons
           .filter((p) => p.selectedItemIndices.length > 0)
-          .map((p) => ({
-            amount: Math.round(p.amount * 100) / 100,
-            paymentMethod: p.paymentMethod,
-            label: p.label,
-            orderItemIds: p.selectedItemIndices.flatMap(
-              (idx) => items[idx].orderItemIds
-            ),
-          }));
+          .map((p) => {
+            const itemQuantities: Record<string, number> = {};
+            p.selectedItemIndices.forEach((idx) => {
+              const itemId = flatItems[idx].orderItemId;
+              itemQuantities[itemId] = (itemQuantities[itemId] || 0) + 1;
+            });
+            return {
+              amount: Math.round(p.amount * 100) / 100,
+              paymentMethod: p.paymentMethod,
+              label: p.label,
+              orderItemIds: Object.keys(itemQuantities),
+              items: Object.entries(itemQuantities).map(([orderItemId, qty]) => ({
+                orderItemId,
+                quantity: qty
+              }))
+            };
+          });
+        successMessage = allItemsAssigned
+          ? `${tableName} hesabı ${payments.length} kişiye bölünerek kapatıldı!`
+          : `${tableName} masasından kısmi ödeme alındı. Kalan ürünler masada aktif durumdadır.`;
       } else if (activeTab === "by_amount") {
         const validRows = amountRows.filter(
           (r) => r.amount && parseFloat(r.amount) > 0
@@ -315,6 +362,7 @@ export default function SplitPaymentModal({
           label: `Ödeme ${i + 1}`,
           orderItemIds: [],
         }));
+        successMessage = `${tableName} hesabı ${payments.length} kişiye bölünerek kapatıldı!`;
       }
 
       const res = await fetch(
@@ -336,9 +384,7 @@ export default function SplitPaymentModal({
         );
       }
 
-      onPaymentSuccess(
-        `${tableName} hesabı ${payments.length} kişiye bölünerek kapatıldı!`
-      );
+      onPaymentSuccess(successMessage);
       onClose();
     } catch (err: any) {
       setError(err.message || "Bir hata oluştu.");
@@ -523,7 +569,7 @@ export default function SplitPaymentModal({
 
               {/* Items list with checkboxes */}
               <div className="space-y-2 max-h-[200px] overflow-y-auto pr-1">
-                {items.map((item, idx) => {
+                {flatItems.map((flatItem, idx) => {
                   const isAssignedToCurrent =
                     itemPersons[activePersonIdx]?.selectedItemIndices.includes(
                       idx
@@ -540,7 +586,7 @@ export default function SplitPaymentModal({
 
                   return (
                     <button
-                      key={idx}
+                      key={flatItem.id}
                       onClick={() => toggleItemForPerson(idx)}
                       className={`w-full flex items-center justify-between p-2.5 rounded-xl text-xs transition-all border ${
                         isAssignedToCurrent
@@ -563,11 +609,8 @@ export default function SplitPaymentModal({
                           )}
                         </div>
                         <div className="text-left">
-                          <div className="font-semibold">
-                            {item.nameTr}{" "}
-                            <span className="text-gray-500">
-                              x{item.quantity}
-                            </span>
+                          <div className="font-semibold text-white">
+                            {flatItem.nameTr}
                           </div>
                           {assignedToOtherLabel && !isAssignedToCurrent && (
                             <div className="text-[10px] text-amber-400/70 font-mono">
@@ -576,8 +619,8 @@ export default function SplitPaymentModal({
                           )}
                         </div>
                       </div>
-                      <span className="font-mono font-semibold">
-                        {(item.price * item.quantity).toFixed(2)} ₺
+                      <span className="font-mono font-semibold text-gray-300">
+                        {(flatItem.price * discountRatio).toFixed(2)} ₺
                       </span>
                     </button>
                   );
@@ -637,8 +680,8 @@ export default function SplitPaymentModal({
                 <div className="flex items-center space-x-2 text-xs text-amber-400/80 bg-amber-500/5 p-2.5 rounded-xl border border-amber-500/20">
                   <AlertCircle className="h-4 w-4 shrink-0" />
                   <span>
-                    Henüz atanmamış {items.length - assignedItemIndices.size}{" "}
-                    ürün var. Tüm ürünleri bir kişiye atayın.
+                    Henüz atanmamış {flatItems.length - assignedItemIndices.size}{" "}
+                    ürün var. Bu işlem kısmi ödeme (Partial Payment) olarak kaydedilecek ve masa açık kalacaktır.
                   </span>
                 </div>
               )}
@@ -775,7 +818,7 @@ export default function SplitPaymentModal({
           <button
             disabled={
               submitting ||
-              (activeTab === "by_item" && !allItemsAssigned) ||
+              (activeTab === "by_item" && assignedItemIndices.size === 0) ||
               (activeTab === "by_amount" && Math.abs(amountRemaining) > 0.02)
             }
             onClick={handleSubmit}

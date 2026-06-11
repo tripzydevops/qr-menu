@@ -242,21 +242,81 @@ def test_split_payment():
         # We expect 7 payments now (1 from A + 2 from B + 2 from C + 2 from E)
         payments = db.query(models.Payment).filter(models.Payment.tableId == table_id).all()
         assert len(payments) == 7
+
+        # Scenario F: Test Partial Settle by Item (Lakerda x2, pay for 1)
+        order_f = models.Order(
+            id=f"order-f-{uuid.uuid4()}",
+            venueId=venue_id,
+            tableId=table_id,
+            status="served",
+            totalAmount=Decimal("580.00"),
+            createdAt=datetime.datetime.utcnow()
+        )
+        db.add(order_f)
+        db.flush()
+        
+        item_ref_f = models.OrderItem(
+            id=f"order-item-f-{uuid.uuid4()}",
+            orderId=order_f.id,
+            menuItemId=item1.id,
+            quantity=2,
+            price=Decimal("290.00")
+        )
+        db.add(item_ref_f)
+        db.commit()
+        created_order_ids.append(order_f.id)
+        
+        # Partially pay for 1 Lakerda (290 cash)
+        partial_payload = {
+            "splitMode": "by_item",
+            "payments": [
+                {
+                    "amount": 290.00,
+                    "paymentMethod": "cash",
+                    "label": "Kişi 1",
+                    "items": [{"orderItemId": item_ref_f.id, "quantity": 1}]
+                }
+            ]
+        }
+        res_partial = client.post(f"/api/admin/tables/{table_id}/split-pay", json=partial_payload)
+        assert res_partial.status_code == 200, f"Partial split payment failed: {res_partial.text}"
+        
+        # Check active order remains open with updated amount
+        db.refresh(order_f)
+        assert order_f.status == "served"
+        assert float(order_f.totalAmount) == 290.00
+        
+        # Check order item quantity reduced to 1
+        db.refresh(item_ref_f)
+        assert item_ref_f.quantity == 1
+        
+        # We expect a completed order to be created containing the paid 1 Lakerda
+        completed_order_f = db.query(models.Order).filter(
+            models.Order.tableId == table_id,
+            models.Order.status == "completed"
+        ).order_by(models.Order.createdAt.desc()).first()
+        assert completed_order_f is not None
+        assert float(completed_order_f.totalAmount) == 290.00
+        created_order_ids.append(completed_order_f.id)
+
+        # We expect 8 payments now (7 previous + 1 from Scenario F)
+        payments = db.query(models.Payment).filter(models.Payment.tableId == table_id).all()
+        assert len(payments) == 8
         
         # Scenario D: Test Cashier Summary daily aggregation
         summary_res = client.get(f"/api/admin/cashier/summary?venueId={venue_id}")
         assert summary_res.status_code == 200
         summary = summary_res.json()
         
-        # Total revenue should be 450 (A) + 450 (B) + 450 (C) + 450 (E) = 1800
-        assert float(summary["totalRevenue"]) == 1800.00
-        assert summary["orderCount"] == 5
-        # We expect cashRevenue: 450 (A) + 225 (B) + 100 (C) + 400 (E) = 1175
-        # We expect cardRevenue: 0 (A) + 225 (B) + 350 (C) + 50 (E) = 625
-        assert float(summary["cashRevenue"]) == 1175.00
+        # Total revenue should be 450 (A) + 450 (B) + 450 (C) + 450 (E) + 290 (F) = 2090
+        assert float(summary["totalRevenue"]) == 2090.00
+        assert summary["orderCount"] == 6
+        # We expect cashRevenue: 450 (A) + 225 (B) + 100 (C) + 400 (E) + 290 (F) = 1465
+        # We expect cardRevenue: 0 (A) + 225 (B) + 350 (C) + 50 (E) + 0 (F) = 625
+        assert float(summary["cashRevenue"]) == 1465.00
         assert float(summary["cardRevenue"]) == 625.00
-        assert float(summary["splitRevenue"]) == 1350.00
-        assert summary["splitOrderCount"] == 4
+        assert float(summary["splitRevenue"]) == 1640.00
+        assert summary["splitOrderCount"] == 5
         print(f"Summary data: {summary}")
         
     finally:

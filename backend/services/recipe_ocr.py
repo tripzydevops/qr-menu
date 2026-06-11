@@ -353,7 +353,7 @@ def suggest_recipe_from_name(
         ],
         "tools": [
             {
-                "google_search": {}
+                "googleSearch": {}
             }
         ],
         "generationConfig": {
@@ -376,7 +376,7 @@ def suggest_recipe_from_name(
                     except Exception as json_err:
                         raise Exception(f"Failed to parse JSON response: {json_err}. Raw text: {text_response}")
                 elif response.status_code in [400, 429] and "tools" in payload:
-                    print(f"[Recipe OCR] {response.status_code} error with google_search. Retrying without search grounding.")
+                    print(f"[Recipe OCR] {response.status_code} error with googleSearch. Retrying without search grounding.")
                     del payload["tools"]
                     continue
                 elif response.status_code in [429, 503]:
