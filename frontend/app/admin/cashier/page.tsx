@@ -19,8 +19,10 @@ import {
   Receipt,
   UserCheck,
   Calendar,
-  X
+  X,
+  Split
 } from "lucide-react";
+import SplitPaymentModal from "./SplitPaymentModal";
 
 interface OrderItem {
   id: string;
@@ -30,6 +32,15 @@ interface OrderItem {
   notes?: string;
   menuItemNameTr?: string;
   menuItemNameEn?: string;
+}
+
+interface SplitPaymentRecord {
+  id: string;
+  amount: string;
+  paymentMethod: string;
+  splitMode: string;
+  label?: string;
+  createdAt: string;
 }
 
 interface Order {
@@ -79,7 +90,10 @@ export default function CashierConsolePage() {
   const [selectedTable, setSelectedTable] = useState<TableOrders | null>(null);
   const [activePrintTable, setActivePrintTable] = useState<TableOrders | null>(null);
   const [activePrintOrder, setActivePrintOrder] = useState<Order | null>(null);
+  const [activePrintSplitPayments, setActivePrintSplitPayments] = useState<SplitPaymentRecord[] | null>(null);
   const [paymentSuccessMsg, setPaymentSuccessMsg] = useState<string | null>(null);
+  const [showSplitModal, setShowSplitModal] = useState(false);
+  const [splitPaymentsCache, setSplitPaymentsCache] = useState<Record<string, SplitPaymentRecord[]>>({});
 
   // Settings
   const [printingEnabled, setPrintingEnabled] = useState(false);
@@ -244,12 +258,13 @@ export default function CashierConsolePage() {
 
   // Helper: Aggregate items for a table with multiple orders
   const getAggregatedItems = (table: TableOrders) => {
-    const itemsMap: Record<string, { nameTr: string; nameEn: string; quantity: number; price: number; notes: string[] }> = {};
+    const itemsMap: Record<string, { nameTr: string; nameEn: string; quantity: number; price: number; notes: string[]; orderItemIds: string[] }> = {};
     table.orders.forEach(order => {
       order.items.forEach(item => {
         const key = item.menuItemId + (item.notes ? `-${item.notes}` : "");
         if (itemsMap[key]) {
           itemsMap[key].quantity += item.quantity;
+          itemsMap[key].orderItemIds.push(item.id);
           if (item.notes && !itemsMap[key].notes.includes(item.notes)) {
             itemsMap[key].notes.push(item.notes);
           }
@@ -259,12 +274,49 @@ export default function CashierConsolePage() {
             nameEn: item.menuItemNameEn || "Item",
             quantity: item.quantity,
             price: parseFloat(item.price),
-            notes: item.notes ? [item.notes] : []
+            notes: item.notes ? [item.notes] : [],
+            orderItemIds: [item.id]
           };
         }
       });
     });
     return Object.values(itemsMap);
+  };
+
+  // Fetch split payments for a completed order
+  const fetchSplitPayments = async (tableId: string): Promise<SplitPaymentRecord[]> => {
+    try {
+      const res = await fetch(`${apiUrl}/api/admin/tables/${tableId}/payments`);
+      if (res.ok) {
+        return await res.json();
+      }
+    } catch (err) {
+      console.error("Failed to fetch split payments", err);
+    }
+    return [];
+  };
+
+  // Handle split payment receipt print (per person)
+  const handlePrintSplitReceipt = async (table: TableOrders) => {
+    const payments = await fetchSplitPayments(table.tableId);
+    if (payments.length > 0) {
+      setActivePrintOrder(null);
+      setActivePrintTable(table);
+      setActivePrintSplitPayments(payments);
+      setTimeout(() => {
+        window.print();
+      }, 100);
+    }
+  };
+
+  // Handle split payment success
+  const handleSplitPaymentSuccess = (message: string) => {
+    if (printingEnabled && selectedTable) {
+      handlePrintSplitReceipt(selectedTable);
+    }
+    setPaymentSuccessMsg(message);
+    setSelectedTable(null);
+    setRefreshKey(prev => prev + 1);
   };
 
   const statusColors: Record<string, string> = {
@@ -291,7 +343,46 @@ export default function CashierConsolePage() {
           Tarih: {new Date().toLocaleString("tr-TR")}
         </div>
         
-        {activePrintTable ? (
+        {activePrintTable && activePrintSplitPayments && activePrintSplitPayments.length > 0 ? (
+          /* Split payment receipts — one section per person */
+          <>
+            <div className="font-bold mb-2">Masa: {activePrintTable.tableName}</div>
+            <div className="border-b border-dashed border-black pb-1 mb-2">
+              <div className="grid grid-cols-12 font-bold mb-1">
+                <div className="col-span-6">Ürün</div>
+                <div className="col-span-2 text-right">Adet</div>
+                <div className="col-span-4 text-right">Tutar</div>
+              </div>
+              {getAggregatedItems(activePrintTable).map((item, idx) => (
+                <div key={idx} className="mb-1">
+                  <div className="grid grid-cols-12">
+                    <div className="col-span-6 truncate">{item.nameTr}</div>
+                    <div className="col-span-2 text-right">x{item.quantity}</div>
+                    <div className="col-span-4 text-right">{(item.price * item.quantity).toFixed(2)} ₺</div>
+                  </div>
+                  {item.notes.map((n, nIdx) => (
+                    <div key={nIdx} className="text-[10px] text-gray-700 pl-2">*{n}</div>
+                  ))}
+                </div>
+              ))}
+            </div>
+            <div className="text-right font-bold text-sm mb-2">
+              TOPLAM: {activePrintTable.totalBill.toFixed(2)} ₺
+            </div>
+            <div className="border-t border-dashed border-black pt-2 mb-2">
+              <div className="font-bold mb-1">HESAP BÖLÜŞTÜRME</div>
+              {activePrintSplitPayments.map((p, idx) => (
+                <div key={idx} className="flex justify-between mb-0.5">
+                  <span>{p.label || `Ödeme ${idx + 1}`}</span>
+                  <span>
+                    {parseFloat(p.amount).toFixed(2)} ₺{" "}
+                    ({p.paymentMethod === "cash" ? "Nakit" : "Kart"})
+                  </span>
+                </div>
+              ))}
+            </div>
+          </>
+        ) : activePrintTable ? (
           <>
             <div className="font-bold mb-2">Masa: {activePrintTable.tableName}</div>
             <div className="border-b border-dashed border-black pb-1 mb-2">
@@ -320,7 +411,7 @@ export default function CashierConsolePage() {
         ) : activePrintOrder ? (
           <>
             <div className="font-bold mb-1">Masa: {activePrintOrder.tableName || "Masasız"}</div>
-            <div className="mb-2">Ödeme Türü: {activePrintOrder.paymentMethod === "cash" ? "NAKİT" : "KREDİ KARTI"}</div>
+            <div className="mb-2">Ödeme Türü: {activePrintOrder.paymentMethod === "cash" ? "NAKİT" : activePrintOrder.paymentMethod === "card" ? "KREDİ KARTI" : "BÖLÜNMÜŞ"}</div>
             <div className="border-b border-dashed border-black pb-1 mb-2">
               <div className="grid grid-cols-12 font-bold mb-1">
                 <div className="col-span-6">Ürün</div>
@@ -600,6 +691,16 @@ export default function CashierConsolePage() {
                       )}
                     </button>
                   </div>
+
+                  {/* Split Payment Button */}
+                  <button
+                    disabled={submitting}
+                    onClick={() => setShowSplitModal(true)}
+                    className="w-full flex items-center justify-center space-x-2 py-3 px-4 rounded-xl bg-gradient-to-r from-[#C9A84C]/20 to-[#722F37]/20 border border-[#C9A84C]/30 text-[#C9A84C] hover:from-[#C9A84C]/30 hover:to-[#722F37]/30 hover:border-[#C9A84C]/50 font-bold text-sm active:scale-95 transition-all"
+                  >
+                    <Split className="h-4 w-4" />
+                    <span>HESABI BÖL</span>
+                  </button>
                 </div>
               </div>
             ) : (
@@ -665,13 +766,20 @@ export default function CashierConsolePage() {
                       <div>
                         <div className="font-bold text-white flex items-center space-x-2">
                           <span>{order.tableName || "Masasız"}</span>
-                          <span className={`text-[9px] px-1.5 py-0.5 rounded font-mono ${
-                            order.paymentMethod === "cash" 
-                              ? "bg-amber-500/10 text-amber-400 border border-amber-500/20" 
-                              : "bg-blue-500/10 text-blue-400 border border-blue-500/20"
-                          }`}>
-                            {order.paymentMethod === "cash" ? "Nakit" : "Kart"}
-                          </span>
+                          {order.paymentMethod === "split" ? (
+                            <span className="text-[9px] px-1.5 py-0.5 rounded font-mono bg-[#C9A84C]/10 text-[#C9A84C] border border-[#C9A84C]/20 flex items-center space-x-1">
+                              <Split className="h-2.5 w-2.5" />
+                              <span>Bölündü</span>
+                            </span>
+                          ) : (
+                            <span className={`text-[9px] px-1.5 py-0.5 rounded font-mono ${
+                              order.paymentMethod === "cash" 
+                                ? "bg-amber-500/10 text-amber-400 border border-amber-500/20" 
+                                : "bg-blue-500/10 text-blue-400 border border-blue-500/20"
+                            }`}>
+                              {order.paymentMethod === "cash" ? "Nakit" : "Kart"}
+                            </span>
+                          )}
                         </div>
                         <span className="text-[10px] text-gray-500 block mt-1">
                           {new Date(order.paidAt || order.createdAt).toLocaleTimeString("tr-TR", { hour: '2-digit', minute: '2-digit' })}
@@ -696,6 +804,20 @@ export default function CashierConsolePage() {
             </div>
           </div>
         </div>
+      )}
+
+      {/* Split Payment Modal */}
+      {selectedTable && (
+        <SplitPaymentModal
+          isOpen={showSplitModal}
+          onClose={() => setShowSplitModal(false)}
+          totalBill={selectedTable.totalBill}
+          tableName={selectedTable.tableName}
+          tableId={selectedTable.tableId}
+          items={getAggregatedItems(selectedTable)}
+          apiUrl={apiUrl}
+          onPaymentSuccess={handleSplitPaymentSuccess}
+        />
       )}
     </div>
   );

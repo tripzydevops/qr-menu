@@ -108,6 +108,16 @@ def test_recipe_scan_endpoints():
         assert data["suggestedYieldQuantity"] == 1.5
         assert data["suggestedYieldUnit"] == "kg"
         
+        # Test Case B1: Recipe suggestion endpoint
+        response_suggest = client.post(
+            "/api/admin/inventory/recipes/suggest?venueId=test-recipe-venue-1&menuItemId=test-recipe-item-1"
+        )
+        assert response_suggest.status_code == 200, f"Failed: {response_suggest.text}"
+        data_suggest = response_suggest.json()
+        assert isinstance(data_suggest, dict)
+        assert "items" in data_suggest
+        assert len(data_suggest["items"]) > 0
+        
         # Test Case B: Scan via multipart/form-data upload
         file_data = {"file": ("recipe.txt", b"Need 1 cup of Flour and 2 cups of Milk.", "text/plain")}
         response_file = client.post(

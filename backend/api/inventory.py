@@ -447,6 +447,52 @@ async def scan_recipe(
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Recipe scan failed: {str(e)}")
 
+@router.post("/recipes/suggest")
+async def suggest_recipe(
+    venueId: str,
+    menuItemId: str,
+    db: Session = Depends(get_db)
+):
+    try:
+        # 1. Verify feature flag gating for inventory
+        venue = verify_inventory_gating(venueId, db)
+        org = db.query(models.Organization).filter(models.Organization.id == venue.organizationId).first()
+        
+        # 2. Get the menu item details
+        menu_item = db.query(models.MenuItem).filter(models.MenuItem.id == menuItemId).first()
+        if not menu_item:
+            raise HTTPException(status_code=404, detail="Menu Item not found")
+
+        # 3. Get existing ingredients for the context
+        if org and org.sharedInventory:
+            ings = db.query(models.Ingredient).filter(models.Ingredient.organizationId == org.id).all()
+        else:
+            ings = db.query(models.Ingredient).filter(models.Ingredient.venueId == venueId).all()
+
+        existing_ingredients = [
+            {
+                "id": i.id, 
+                "name": i.name, 
+                "unit": i.unit, 
+                "density": float(i.density) if i.density is not None else 1.0
+            } 
+            for i in ings
+        ]
+
+        # 4. Call recipe_ocr service to generate suggestions
+        suggested = recipe_ocr.suggest_recipe_from_name(
+            menu_item_name_tr=menu_item.nameTr,
+            menu_item_name_en=menu_item.nameEn,
+            description_tr=menu_item.descriptionTr,
+            description_en=menu_item.descriptionEn,
+            existing_ingredients=existing_ingredients
+        )
+        return suggested
+    except HTTPException as he:
+        raise he
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Recipe suggestion failed: {str(e)}")
+
 # ---------------------------------------------------------------------------
 # 4. Recipes Endpoints
 # ---------------------------------------------------------------------------

@@ -230,6 +230,83 @@ function getMockOcrResult() {
   };
 }
 
+// 6. Mock Recipe Suggestion helper
+function getMockRecipeSuggestion(menuItemName: string, allIngredients: any[]) {
+  const items = [];
+  const nameLower = menuItemName.toLowerCase();
+  let matchesFound = 0;
+
+  for (const ing of allIngredients) {
+    const ingName = ing.name.toLowerCase();
+    let isMatch = false;
+    
+    if (nameLower.includes("ezme") && ["peynir", "yoğurt", "ceviz", "sarımsak", "zeytinyağı", "nane"].some(k => ingName.includes(k))) {
+      isMatch = true;
+    } else if (nameLower.includes("mücver") && ["kabak", "un", "yumurta", "dereotu", "tuz", "yağ"].some(k => ingName.includes(k))) {
+      isMatch = true;
+    } else if (nameLower.includes("çorba") && ["su", "tuz", "un", "teryağı", "salça"].some(k => ingName.includes(k))) {
+      isMatch = true;
+    }
+
+    if (isMatch || (matchesFound < 2 && ["tuz", "un", "süt", "su"].some(k => ingName.includes(k)))) {
+      const unit = ing.unit || "g";
+      const amount = ["g", "ml"].includes(unit) ? 150.0 : 2.0;
+      items.push({
+        ingredientId: ing.id,
+        name: ing.name,
+        amountUsed: amount,
+        unit: unit,
+        originalText: `AI Suggested ${ing.name}`,
+        confidence: 0.85,
+      });
+      matchesFound++;
+    }
+  }
+
+  // If no matches, suggest first 2
+  if (items.length === 0 && allIngredients.length > 0) {
+    for (const ing of allIngredients.slice(0, 2)) {
+      const unit = ing.unit || "g";
+      const amount = ["g", "ml"].includes(unit) ? 100.0 : 1.0;
+      items.push({
+        ingredientId: ing.id,
+        name: ing.name,
+        amountUsed: amount,
+        unit: unit,
+        originalText: `AI Suggested ${ing.name}`,
+        confidence: 0.8,
+      });
+    }
+  }
+
+  // Add an unmatched ingredient as demonstration
+  if (nameLower.includes("ezme")) {
+    items.push({
+      ingredientId: null,
+      name: "Ceviz İçi",
+      amountUsed: 30.0,
+      unit: "g",
+      originalText: "Found unmatched ingredient: Ceviz İçi",
+      confidence: 0.0,
+    });
+  } else if (nameLower.includes("mücver")) {
+    items.push({
+      ingredientId: null,
+      name: "Dereotu",
+      amountUsed: 15.0,
+      unit: "g",
+      originalText: "Found unmatched ingredient: Dereotu",
+      confidence: 0.0,
+    });
+  }
+
+  return {
+    items,
+    suggestedYieldQuantity: 1.0,
+    suggestedYieldUnit: "porsiyon",
+  };
+}
+
 // ---------------------------------------------------------------------------
 // GET Handlers
 // ---------------------------------------------------------------------------
@@ -1253,6 +1330,139 @@ RULES FOR YIELD:
         { detail: `Gemini API failed with status ${res ? res.status : "Unknown"}: ${lastErrText}` },
         { status: res ? res.status : 500 }
       );
+    }
+
+    // 9.5. Suggest Recipe (Gemini AI Generator)
+    if (pathSegments[0] === "recipes" && pathSegments[1] === "suggest") {
+      const { searchParams } = new URL(request.url);
+      const venueId = searchParams.get("venueId");
+      const menuItemId = searchParams.get("menuItemId");
+      if (!venueId || !menuItemId) {
+        return NextResponse.json({ detail: "venueId and menuItemId are required" }, { status: 400 });
+      }
+
+      // Load menu item
+      const menuItem = await prisma.menuItem.findUnique({
+        where: { id: menuItemId }
+      });
+      if (!menuItem) {
+        return NextResponse.json({ detail: "Menu Item not found" }, { status: 404 });
+      }
+
+      // Load all ingredients in venue
+      const allIngredients = await prisma.ingredient.findMany({
+        where: { venueId },
+        select: { id: true, name: true, unit: true, weightedCost: true, density: true },
+      });
+
+      let promptContext = "Available ingredients in database:\n" + 
+        allIngredients.map(ing => `- ID: "${ing.id}", Name: "${ing.name}", Unit: "${ing.unit}", Density: "${Number(ing.density)} g/mL"`).join("\n");
+
+      const apiKey = process.env.GEMINI_API_KEY || process.env.GOOGLE_API_KEY;
+      if (!apiKey) {
+        // Fallback for tests/offline
+        const fallback = getMockRecipeSuggestion(menuItem.nameTr, allIngredients);
+        return NextResponse.json(fallback);
+      }
+
+      const url = `https://generativelanguage.googleapis.com/v1beta/models/gemini-3.1-flash-lite:generateContent?key=${apiKey}`;
+
+      const prompt = `Generate a professional kitchen recipe for the menu item: "${menuItem.nameTr}" (English: "${menuItem.nameEn}").
+Description: "${menuItem.descriptionTr || ""}" (English: "${menuItem.descriptionEn || ""}").
+
+Analyze this menu item and estimate:
+1. The typical ingredients needed to prepare it.
+2. The suggested yield quantity and yield unit (e.g. 1 portion/porsiyon, 1.5 kg, etc. whichever is appropriate).
+
+Return a JSON object with this exact structure:
+{
+  "items": [
+    {
+      "ingredientId": "string or null",
+      "name": "string",
+      "amountUsed": number,
+      "unit": "string",
+      "originalText": "string",
+      "confidence": number
+    }
+  ],
+  "suggestedYieldQuantity": number or null,
+  "suggestedYieldUnit": "string or null"
+}
+
+RULES FOR INGREDIENTS:
+${promptContext}
+
+- Prioritize matching the recipe ingredients to the provided database ingredients list. Translate terms where appropriate (e.g. Zucchini matches 'Kabak', flour matches 'Un', egg matches 'Yumurta').
+- If matched to a database ingredient, set 'ingredientId' to its ID, 'name' to the database ingredient's name, 'unit' to the database unit, 'confidence' to a float between 0.8 and 1.0, and 'originalText' to a description of how it's used in the recipe (e.g., '150g Un').
+- If an ingredient is required but cannot be matched to any database ingredient, set 'ingredientId' to null, 'confidence' to 0.0, 'originalText' to the raw text description (e.g. '50g Kaju'), 'name' to the translated Turkish name of the ingredient, and 'unit' to a standard unit (e.g., 'g', 'ml', 'unit').
+- The 'amountUsed' must be a positive number in the unit specified for that ingredient in the database list.
+- IMPORTANT CONVERSION RULE:
+  If the database unit is weight-based (e.g., g, kg) but you are using volume-based amounts (e.g., ml, cup, tbsp), you MUST convert it to the database unit using the provided Density (in g/mL) for that ingredient.
+  - 1 cup = 240 mL
+  - 1 tbsp = 15 mL
+  - 1 tsp = 5 mL
+
+RULES FOR YIELD:
+- Recommend a typical yield (e.g., 1 portion/porsiyon, 10 portions, etc.). Set suggestedYieldQuantity and suggestedYieldUnit accordingly.`;
+
+      const payload = {
+        contents: [
+          {
+            parts: [
+              { text: prompt }
+            ],
+          },
+        ],
+        generationConfig: {
+          responseMimeType: "application/json",
+        },
+      };
+
+      let res: Response | null = null;
+      let lastErrText = "";
+      let retryDelay = 5000;
+      const maxRetries = 3;
+
+      for (let attempt = 0; attempt < maxRetries; attempt++) {
+        try {
+          res = await fetch(url, {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify(payload),
+          });
+
+          if (res.ok) {
+            break;
+          } else if (res.status === 429 || res.status === 503) {
+            lastErrText = await res.text();
+            console.warn(`[Recipe Suggestion] Gemini API busy (${res.status}). Retrying in ${retryDelay}ms... (Attempt ${attempt + 1}/${maxRetries})`);
+            await new Promise(resolve => setTimeout(resolve, retryDelay));
+            retryDelay *= 2;
+          } else {
+            lastErrText = await res.text();
+            break;
+          }
+        } catch (fetchErr: any) {
+          lastErrText = fetchErr.message || String(fetchErr);
+          console.warn(`[Recipe Suggestion] Gemini fetch exception: ${lastErrText}. Retrying in ${retryDelay}ms... (Attempt ${attempt + 1}/${maxRetries})`);
+          await new Promise(resolve => setTimeout(resolve, retryDelay));
+          retryDelay *= 2;
+        }
+      }
+
+      if (res && res.ok) {
+        const data = await res.json();
+        const textResponse = data.candidates?.[0]?.content?.parts?.[0]?.text;
+        if (textResponse) {
+          const parsed = JSON.parse(textResponse.trim());
+          return NextResponse.json(parsed);
+        }
+      }
+
+      // Fallback if Gemini fails
+      const fallback = getMockRecipeSuggestion(menuItem.nameTr, allIngredients);
+      return NextResponse.json(fallback);
     }
 
     return NextResponse.json({ detail: "Endpoint path not found" }, { status: 404 });

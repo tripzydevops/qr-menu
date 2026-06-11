@@ -398,6 +398,34 @@ class WaiterRequestSchema(WaiterRequestBase):
         from_attributes = True
 
 
+# --- SPLIT PAYMENT SCHEMAS ---
+
+class SplitPaymentItem(BaseModel):
+    amount: Decimal
+    paymentMethod: str  # "cash" | "card"
+    label: Optional[str] = None
+    orderItemIds: List[str] = []
+
+class SplitPaymentCreate(BaseModel):
+    splitMode: str  # "equal" | "by_item" | "by_amount"
+    payments: List[SplitPaymentItem]
+
+class PaymentSchema(BaseModel):
+    id: str
+    venueId: str
+    tableId: str
+    amount: Decimal
+    paymentMethod: str
+    splitMode: str
+    label: Optional[str] = None
+    orderIds: List[str] = []
+    orderItemIds: List[str] = []
+    createdAt: datetime
+
+    class Config:
+        from_attributes = True
+
+
 # --- IMPORT SCHEMAS ---
 
 class BulkImportMenuItem(BaseModel):

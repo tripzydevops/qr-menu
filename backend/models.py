@@ -64,6 +64,7 @@ class Venue(Base):
     invoices = relationship("Invoice", back_populates="venue", cascade="all, delete-orphan")
     pricingAlerts = relationship("PricingAlert", back_populates="venue", cascade="all, delete-orphan")
     pricingAlertRule = relationship("PricingAlertRule", back_populates="venue", uselist=False, cascade="all, delete-orphan")
+    payments = relationship("Payment", back_populates="venue", cascade="all, delete-orphan")
 
 
 class Table(Base):
@@ -80,6 +81,7 @@ class Table(Base):
     venue = relationship("Venue", back_populates="tables")
     orders = relationship("Order", back_populates="table")
     waiterRequests = relationship("WaiterRequest", back_populates="table", cascade="all, delete-orphan")
+    payments = relationship("Payment", back_populates="table", cascade="all, delete-orphan")
 
 
 class Category(Base):
@@ -286,6 +288,24 @@ class WaiterRequest(Base):
 
     venue = relationship("Venue", back_populates="waiterRequests")
     table = relationship("Table", back_populates="waiterRequests")
+
+
+class Payment(Base):
+    __tablename__ = "Payment"
+
+    id = Column(String, primary_key=True, index=True)
+    venueId = Column(String, ForeignKey("Venue.id", ondelete="CASCADE"), nullable=False)
+    tableId = Column(String, ForeignKey("Table.id", ondelete="SET NULL"), nullable=False)
+    amount = Column(Numeric(10, 2), nullable=False)
+    paymentMethod = Column(String, nullable=False)  # "cash", "card"
+    splitMode = Column(String, default="full")  # "full", "equal", "by_item", "by_amount"
+    label = Column(String, nullable=True)
+    orderIds = Column(ARRAY(String), nullable=False)
+    orderItemIds = Column(ARRAY(String), default=[])
+    createdAt = Column(DateTime, default=datetime.datetime.utcnow)
+
+    venue = relationship("Venue", back_populates="payments")
+    table = relationship("Table", back_populates="payments")
 
 class UserSignal(Base):
     __tablename__ = "UserSignal"

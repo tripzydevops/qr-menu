@@ -1121,6 +1121,21 @@ def receive_order_payment(id: str, payment_data: Dict[str, str], db: Session = D
     db.commit()
     db.refresh(order)
 
+    # Create a Payment record for consistent reporting
+    db_payment = models.Payment(
+        id=str(uuid.uuid4()),
+        venueId=order.venueId,
+        tableId=order.tableId or "",
+        amount=order.totalAmount,
+        paymentMethod=payment_method,
+        splitMode="full",
+        label=None,
+        orderIds=[order.id],
+        orderItemIds=[]
+    )
+    db.add(db_payment)
+    db.commit()
+
     # Deduct stock and emit user signals for Tripzy.travel
     try:
         deduct_stock_from_order(db, order.id)
@@ -1180,6 +1195,24 @@ def pay_all_table_orders(table_id: str, payment_data: Dict[str, str], db: Sessio
         
     db.commit()
 
+    # Create a single Payment record for full table payment
+    total_amount = sum(Decimal(str(order.totalAmount)) for order in active_orders)
+    order_ids = [order.id for order in active_orders]
+    if active_orders:
+        db_payment = models.Payment(
+            id=str(uuid.uuid4()),
+            venueId=active_orders[0].venueId,
+            tableId=table_id,
+            amount=total_amount,
+            paymentMethod=payment_method,
+            splitMode="full",
+            label=None,
+            orderIds=order_ids,
+            orderItemIds=[]
+        )
+        db.add(db_payment)
+        db.commit()
+
     # Deduct stock and emit user signals for Tripzy.travel
     for order in active_orders:
         try:
@@ -1201,6 +1234,88 @@ def pay_all_table_orders(table_id: str, payment_data: Dict[str, str], db: Sessio
     return active_orders
 
 
+@app.post("/api/admin/tables/{table_id}/split-pay", response_model=List[schemas.PaymentSchema])
+def split_pay_table_orders(table_id: str, split_in: schemas.SplitPaymentCreate, db: Session = Depends(get_db)):
+    # 1. Get all active orders for this table
+    active_orders = db.query(models.Order).filter(
+        models.Order.tableId == table_id,
+        models.Order.status.in_(["pending", "preparing", "ready", "served"])
+    ).all()
+    
+    if not active_orders:
+        raise HTTPException(status_code=404, detail="No active orders found for this table")
+    
+    # 2. Calculate total bill
+    total_bill = sum(Decimal(str(order.totalAmount)) for order in active_orders)
+    
+    # 3. Validate sum of payments equals total bill (allow ±0.01 for rounding)
+    payment_sum = sum(Decimal(str(p.amount)) for p in split_in.payments)
+    if abs(payment_sum - total_bill) > Decimal("0.01"):
+        raise HTTPException(
+            status_code=400,
+            detail=f"Payment total ({payment_sum}) does not match bill total ({total_bill})"
+        )
+    
+    # 4. Create Payment records
+    venue_id = active_orders[0].venueId
+    order_ids = [order.id for order in active_orders]
+    created_payments = []
+    
+    for p in split_in.payments:
+        db_payment = models.Payment(
+            id=str(uuid.uuid4()),
+            venueId=venue_id,
+            tableId=table_id,
+            amount=p.amount,
+            paymentMethod=p.paymentMethod,
+            splitMode=split_in.splitMode,
+            label=p.label,
+            orderIds=order_ids,
+            orderItemIds=p.orderItemIds or []
+        )
+        db.add(db_payment)
+        created_payments.append(db_payment)
+    
+    # 5. Mark all active orders as completed with split payment
+    now = datetime.datetime.utcnow()
+    for order in active_orders:
+        order.status = "completed"
+        order.paymentMethod = "split"
+        order.paidAt = now
+    
+    # 6. Resolve pending bill waiter requests
+    pending_requests = db.query(models.WaiterRequest).filter(
+        models.WaiterRequest.tableId == table_id,
+        models.WaiterRequest.type == "bill",
+        models.WaiterRequest.status == "pending"
+    ).all()
+    for req in pending_requests:
+        req.status = "completed"
+    
+    db.commit()
+    
+    # 7. Deduct stock and emit signals for each order
+    for order in active_orders:
+        try:
+            deduct_stock_from_order(db, order.id)
+        except Exception as e:
+            print(f"Failed to deduct stock from order: {e}")
+        try:
+            emit_order_signals(db, order.id)
+        except Exception as e:
+            print(f"Failed to emit order signals: {e}")
+    
+    return created_payments
+
+
+@app.get("/api/admin/tables/{table_id}/payments", response_model=List[schemas.PaymentSchema])
+def get_table_payments(table_id: str, db: Session = Depends(get_db)):
+    payments = db.query(models.Payment).filter(
+        models.Payment.tableId == table_id
+    ).order_by(models.Payment.createdAt.desc()).all()
+    return payments
+
+
 @app.get("/api/admin/cashier/summary")
 def get_cashier_summary(venueId: str, db: Session = Depends(get_db)):
     # Calculate start of today in UTC
@@ -1216,9 +1331,15 @@ def get_cashier_summary(venueId: str, db: Session = Depends(get_db)):
     total_revenue = sum(float(order.totalAmount) for order in completed_orders)
     order_count = len(completed_orders)
     
-    cash_payments = sum(float(order.totalAmount) for order in completed_orders if order.paymentMethod == "cash")
-    card_payments = sum(float(order.totalAmount) for order in completed_orders if order.paymentMethod == "card")
-    online_payments = sum(float(order.totalAmount) for order in completed_orders if order.paymentMethod == "online")
+    # Query payments today for method breakdown (both full and split payments)
+    payments_today = db.query(models.Payment).filter(
+        models.Payment.venueId == venueId,
+        models.Payment.createdAt >= today_start
+    ).all()
+    
+    cash_payments = sum(float(p.amount) for p in payments_today if p.paymentMethod == "cash")
+    card_payments = sum(float(p.amount) for p in payments_today if p.paymentMethod == "card")
+    online_payments = sum(float(p.amount) for p in payments_today if p.paymentMethod == "online")
     
     # Active orders count (pending, preparing, ready, served)
     active_orders_count = db.query(models.Order).filter(
@@ -1260,6 +1381,8 @@ def get_cashier_summary(venueId: str, db: Session = Depends(get_db)):
         "cardRevenue": card_payments,
         "onlineRevenue": online_payments,
         "activeOrdersCount": active_orders_count,
+        "splitRevenue": sum(float(order.totalAmount) for order in completed_orders if order.paymentMethod == "split"),
+        "splitOrderCount": sum(1 for order in completed_orders if order.paymentMethod == "split"),
         "topItems": top_items
     }
 

@@ -48,6 +48,7 @@ model Venue {
   staff            VenueStaff[]
   orders           Order[]
   waiterRequests   WaiterRequest[]
+  payments         Payment[]
   ingredients      Ingredient[]
   suppliers        Supplier[]
   invoices         Invoice[]
@@ -67,6 +68,7 @@ model Table {
   venue     Venue    @relation(fields: [venueId], references: [id], onDelete: Cascade)
   orders    Order[]
   waiterRequests WaiterRequest[]
+  payments  Payment[]
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 }
@@ -269,6 +271,24 @@ model WaiterRequest {
   status    String   @default("pending") // "pending", "completed"
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
+}
+
+model Payment {
+  id            String      @id @default(uuid())
+  venueId       String
+  venue         Venue       @relation(fields: [venueId], references: [id], onDelete: Cascade)
+  tableId       String
+  table         Table       @relation(fields: [tableId], references: [id], onDelete: SetNull)
+  amount        Decimal
+  paymentMethod String      // "cash", "card"
+  splitMode     String      @default("full")  // "full", "equal", "by_item", "by_amount"
+  label         String?     // e.g. "Kişi 1", "Ali"
+  orderIds      String[]
+  orderItemIds  String[]    @default([])
+  createdAt     DateTime    @default(now())
+
+  @@index([venueId])
+  @@index([tableId])
 }
 
 model UserSignal {

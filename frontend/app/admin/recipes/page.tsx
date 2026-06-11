@@ -153,6 +153,7 @@ export default function AdminRecipesPage() {
   const [aiScanOpen, setAiScanOpen] = useState(false);
   const [aiText, setAiText] = useState("");
   const [aiScanning, setAiScanning] = useState(false);
+  const [aiSuggesting, setAiSuggesting] = useState(false);
   const [unmatchedScannedItems, setUnmatchedScannedItems] = useState<any[]>([]);
 
   // Yield Calculator states
@@ -315,11 +316,8 @@ export default function AdminRecipesPage() {
         const data = await res.json();
         const items = data.items || [];
         
-        const matched = items.filter((item: any) => item.ingredientId !== null);
-        const unmatched = items.filter((item: any) => item.ingredientId === null);
-        
-        if (matched.length > 0 || unmatched.length > 0) {
-          const matchedItems = matched.map((item: any) => {
+        if (items.length > 0) {
+          const mappedItems = items.map((item: any) => {
             const ing = ingredients.find(i => i.id === item.ingredientId);
             const defaultAmount = parseFloat(item.amountUsed) || 0;
             return {
@@ -331,12 +329,12 @@ export default function AdminRecipesPage() {
               amountUsed: defaultAmount,
               inputAmount: defaultAmount,
               inputUnit: ing?.unit || item.unit || "g",
-              confidence: item.confidence !== undefined ? item.confidence : 1.0,
+              confidence: item.confidence !== undefined ? item.confidence : (item.ingredientId ? 1.0 : 0.0),
               originalText: item.originalText || item.name || ""
             };
           });
-          setRecipeItems(matchedItems);
-          setUnmatchedScannedItems(unmatched);
+          
+          setRecipeItems(mappedItems);
           
           if (data.suggestedYieldQuantity) {
             const qty = Number(data.suggestedYieldQuantity);
@@ -372,6 +370,74 @@ export default function AdminRecipesPage() {
       alert("AI tarama sırasında bir hata oluştu.");
     } finally {
       setAiScanning(false);
+    }
+  };
+
+  const handleAiSuggestRecipe = async () => {
+    if (!selectedItem) return;
+    setErrors(null);
+    setAiSuggesting(true);
+    setUnmatchedScannedItems([]);
+    try {
+      const res = await fetch(`${apiUrl}/api/admin/inventory/recipes/suggest?venueId=${venueId}&menuItemId=${selectedItem.id}`, {
+        method: "POST",
+      });
+
+      if (res.ok) {
+        const data = await res.json();
+        const items = data.items || [];
+        
+        if (items.length > 0) {
+          const mappedItems = items.map((item: any) => {
+            const ing = ingredients.find(i => i.id === item.ingredientId);
+            const defaultAmount = parseFloat(item.amountUsed) || 0;
+            return {
+              ingredientId: item.ingredientId,
+              name: ing?.name || item.name || "Bilinmeyen Malzeme",
+              unit: ing?.unit || item.unit || "g",
+              density: ing?.density || item.density || 1.0,
+              cost: parseFloat(ing?.weightedCost || "0.0"),
+              amountUsed: defaultAmount,
+              inputAmount: defaultAmount,
+              inputUnit: ing?.unit || item.unit || "g",
+              confidence: item.confidence !== undefined ? item.confidence : (item.ingredientId ? 1.0 : 0.0),
+              originalText: item.originalText || item.name || ""
+            };
+          });
+          
+          setRecipeItems(mappedItems);
+          
+          if (data.suggestedYieldQuantity) {
+            const qty = Number(data.suggestedYieldQuantity);
+            const unit = data.suggestedYieldUnit || "porsiyon";
+            setTotalYield(qty);
+            setYieldUnit(unit);
+            
+            if (unit === "porsiyon") {
+              setYieldMode("porsiyon");
+              setPortionUnit("porsiyon");
+              setPortionSize(1);
+            } else if (["g", "kg"].includes(unit)) {
+              setYieldMode("weight");
+              setPortionUnit("g");
+              setPortionSize(150); 
+            } else {
+              setYieldMode("volume");
+              setPortionUnit("ml");
+              setPortionSize(150);
+            }
+          }
+        } else {
+          alert("Yapay Zeka bu ürün için reçete öneremedi.");
+        }
+      } else {
+        alert("Yapay Zeka reçete önerisi başarısız oldu.");
+      }
+    } catch (err) {
+      console.error(err);
+      alert("Reçete önerisi sırasında bir hata oluştu.");
+    } finally {
+      setAiSuggesting(false);
     }
   };
 
@@ -486,6 +552,40 @@ export default function AdminRecipesPage() {
     setIsSaving(true);
 
     try {
+      // 1. Automatically create missing ingredients
+      const updatedRecipeItems = [...recipeItems];
+      for (let i = 0; i < updatedRecipeItems.length; i++) {
+        const item = updatedRecipeItems[i];
+        if (!item.ingredientId) {
+          const resIng = await fetch(`${apiUrl}/api/admin/inventory/ingredients`, {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({
+              venueId,
+              name: item.name,
+              unit: item.unit,
+              density: Number(item.density) || 1.0,
+              currentStock: 0,
+              weightedCost: 0,
+            })
+          });
+          
+          if (resIng.ok) {
+            const newIng = await resIng.json();
+            setIngredients(prev => [...prev, newIng]);
+            updatedRecipeItems[i] = {
+              ...item,
+              ingredientId: newIng.id,
+              cost: 0,
+            };
+          } else {
+            const errData = await resIng.json();
+            throw new Error(errData.detail || `Malzeme '${item.name}' oluşturulamadı.`);
+          }
+        }
+      }
+
+      // 2. Save the recipe
       const isEdit = selectedItem.recipe !== null;
       const url = isEdit 
         ? `${apiUrl}/api/admin/inventory/recipes/${selectedItem.recipe!.id}`
@@ -499,7 +599,7 @@ export default function AdminRecipesPage() {
         yieldUnit: yieldUnit,
         portionSize: portionSize,
         totalYield: totalYield,
-        ingredients: recipeItems.map(item => ({
+        ingredients: updatedRecipeItems.map(item => ({
           ingredientId: item.ingredientId,
           amountUsed: item.amountUsed
         }))
@@ -518,9 +618,9 @@ export default function AdminRecipesPage() {
         const errData = await res.json();
         setErrors(errData.detail || "Reçete kaydedilirken hata oluştu.");
       }
-    } catch (e) {
+    } catch (e: any) {
       console.error(e);
-      setErrors("Sunucu bağlantı hatası.");
+      setErrors(e.message || "Sunucu bağlantı hatası.");
     } finally {
       setIsSaving(false);
     }
@@ -871,13 +971,27 @@ export default function AdminRecipesPage() {
               <div className="w-full md:w-7/12 p-5 flex flex-col overflow-hidden bg-[#16213E]/10">
                 <div className="flex justify-between items-center mb-3">
                   <h4 className="text-xs font-bold text-gray-300 uppercase tracking-wider">Reçete İçeriği</h4>
-                  <button
-                    onClick={() => { setAiScanOpen(!aiScanOpen); setAiText(""); }}
-                    className="flex items-center space-x-1 text-[10px] text-[#C9A84C] hover:text-[#C9A84C]/80 font-bold transition-all bg-[#1C1C28]/80 px-2.5 py-1.5 rounded-lg border border-gray-800 hover:border-[#C9A84C]/35"
-                  >
-                    <Sparkles className="h-3 w-3 text-[#C9A84C]" />
-                    <span>AI Reçete Tara</span>
-                  </button>
+                  <div className="flex space-x-2">
+                    <button
+                      onClick={handleAiSuggestRecipe}
+                      disabled={aiSuggesting || aiScanning}
+                      className="flex items-center space-x-1 text-[10px] text-purple-400 hover:text-purple-300 font-bold transition-all bg-[#1C1C28]/80 px-2.5 py-1.5 rounded-lg border border-gray-800 hover:border-purple-500/35 disabled:opacity-50"
+                    >
+                      {aiSuggesting ? (
+                        <Loader2 className="h-3.5 w-3.5 text-purple-400 animate-spin" />
+                      ) : (
+                        <ChefHat className="h-3.5 w-3.5 text-purple-400" />
+                      )}
+                      <span>{aiSuggesting ? "AI Öneriyor..." : "AI Reçete Öner"}</span>
+                    </button>
+                    <button
+                      onClick={() => { setAiScanOpen(!aiScanOpen); setAiText(""); }}
+                      className="flex items-center space-x-1 text-[10px] text-[#C9A84C] hover:text-[#C9A84C]/80 font-bold transition-all bg-[#1C1C28]/80 px-2.5 py-1.5 rounded-lg border border-gray-800 hover:border-[#C9A84C]/35"
+                    >
+                      <Sparkles className="h-3 w-3 text-[#C9A84C]" />
+                      <span>AI Reçete Tara</span>
+                    </button>
+                  </div>
                 </div>
 
                 {/* AI Scan Form Panel */}

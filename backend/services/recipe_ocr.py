@@ -279,3 +279,190 @@ def fallback_parse_recipe(text_content: Optional[str], existing_ingredients: Lis
         "suggestedYieldQuantity": suggested_qty,
         "suggestedYieldUnit": suggested_unit
     }
+
+
+def suggest_recipe_from_name(
+    menu_item_name_tr: str,
+    menu_item_name_en: str,
+    description_tr: Optional[str] = None,
+    description_en: Optional[str] = None,
+    existing_ingredients: Optional[List[Dict[str, Any]]] = None
+) -> Dict[str, Any]:
+    """
+    Suggests a recipe (ingredients, amounts, units, yield) for a menu item
+    using gemini-3.1-flash-lite. Attempts to match with existing ingredients.
+    """
+    if not existing_ingredients:
+        existing_ingredients = []
+
+    api_key = os.environ.get("GEMINI_API_KEY")
+    if not api_key:
+        return fallback_suggest_recipe(menu_item_name_tr, existing_ingredients)
+
+    url = f"https://generativelanguage.googleapis.com/v1beta/models/gemini-3.1-flash-lite:generateContent?key={api_key}"
+
+    # Build prompt context with existing ingredients
+    prompt_context = "Available ingredients in database:\n"
+    for ing in existing_ingredients:
+        density_val = ing.get("density")
+        if density_val is None:
+            density_val = 1.0
+        prompt_context += f'- ID: "{ing.get("id")}", Name: "{ing.get("name")}", Unit: "{ing.get("unit")}", Density: "{density_val} g/mL"\n'
+
+    prompt = (
+        f"Generate a professional kitchen recipe for the menu item: \"{menu_item_name_tr}\" (English: \"{menu_item_name_en}\").\n"
+        f"Description: \"{description_tr or ''}\" (English: \"{description_en or ''}\").\n\n"
+        "Analyze this menu item and estimate:\n"
+        "1. The typical ingredients needed to prepare it.\n"
+        "2. The suggested yield quantity and yield unit (e.g., set yield to 1 portion/porsiyon, or 1.5 kg, etc. whichever is appropriate).\n\n"
+        "Return a JSON object with this exact structure:\n"
+        "{\n"
+        "  \"items\": [\n"
+        "    {\n"
+        "      \"ingredientId\": \"string or null\",\n"
+        "      \"name\": \"string\",\n"
+        "      \"amountUsed\": number,\n"
+        "      \"unit\": \"string\",\n"
+        "      \"originalText\": \"string\",\n"
+        "      \"confidence\": number\n"
+        "    }\n"
+        "  ],\n"
+        "  \"suggestedYieldQuantity\": number or null,\n"
+        "  \"suggestedYieldUnit\": \"string or null\"\n"
+        "}\n\n"
+        "RULES FOR INGREDIENTS:\n"
+        f"{prompt_context}\n"
+        "- Prioritize matching the recipe ingredients to the provided database ingredients list. Translate terms where appropriate (e.g. Zucchini matches 'Kabak', flour matches 'Un', egg matches 'Yumurta').\n"
+        "- If matched to a database ingredient, set 'ingredientId' to its ID, 'name' to the database ingredient's name, 'unit' to the database unit, 'confidence' to a float between 0.8 and 1.0, and 'originalText' to a description of how it's used in the recipe (e.g., '150g Un').\n"
+        "- If an ingredient is required but cannot be matched to any database ingredient, set 'ingredientId' to null, 'confidence' to 0.0, 'originalText' to the raw text description (e.g. '50g Kaju'), 'name' to the translated Turkish name of the ingredient, and 'unit' to a standard unit (e.g., 'g', 'ml', 'unit').\n"
+        "- The 'amountUsed' must be a positive number in the unit specified for that ingredient in the database list.\n"
+        "- IMPORTANT CONVERSION RULE:\n"
+        "  If the database unit is weight-based (e.g., g, kg) but you are using volume-based amounts (e.g., ml, cup, tbsp), you MUST convert it to the database unit using the provided Density (in g/mL) for that ingredient.\n"
+        "  - 1 cup = 240 mL\n"
+        "  - 1 tbsp = 15 mL\n"
+        "  - 1 tsp = 5 mL\n\n"
+        "RULES FOR YIELD:\n"
+        "- Recommend a typical yield (e.g., 1 portion/porsiyon, 10 portions, etc.). Set suggestedYieldQuantity and suggestedYieldUnit accordingly."
+    )
+
+    payload = {
+        "contents": [
+            {
+                "parts": [{"text": prompt}]
+            }
+        ],
+        "generationConfig": {
+            "responseMimeType": "application/json"
+        }
+    }
+
+    max_retries = 4
+    retry_delay = 4.0
+
+    for attempt in range(max_retries):
+        try:
+            with httpx.Client(timeout=90.0) as client:
+                response = client.post(url, json=payload)
+                if response.status_code == 200:
+                    data = response.json()
+                    text_response = data["candidates"][0]["content"]["parts"][0]["text"]
+                    try:
+                        return json.loads(text_response.strip())
+                    except Exception as json_err:
+                        raise Exception(f"Failed to parse JSON response: {json_err}. Raw text: {text_response}")
+                elif response.status_code in [429, 503]:
+                    if attempt < max_retries - 1:
+                        import time
+                        time.sleep(retry_delay)
+                        retry_delay *= 2
+                        continue
+                    else:
+                        raise Exception(f"Gemini API error status {response.status_code}: {response.text}")
+                else:
+                    raise Exception(f"Gemini API error status {response.status_code}: {response.text}")
+        except Exception as e:
+            if attempt < max_retries - 1:
+                import time
+                time.sleep(retry_delay)
+                retry_delay *= 2
+                continue
+            else:
+                # Fall back to mock matching if all retries fail
+                print(f"[Recipe OCR] Suggest recipe API failed: {e}. Using fallback.")
+                return fallback_suggest_recipe(menu_item_name_tr, existing_ingredients)
+
+
+def fallback_suggest_recipe(menu_item_name: str, existing_ingredients: List[Dict[str, Any]]) -> Dict[str, Any]:
+    """
+    Fallback mock recipe suggest generator for offline/testing development.
+    """
+    items = []
+    
+    # Simple semantic keyword matching for fallback
+    name_lower = menu_item_name.lower()
+    
+    # We can match 2 random ingredients or name-based ingredients
+    matches_found = 0
+    for ing in existing_ingredients:
+        ing_name = ing.get("name", "").lower()
+        # if the ingredient name matches partially or is generic (like flour, milk, egg)
+        is_match = False
+        if "ezme" in name_lower and ing_name in ["peynir", "yoğurt", "ceviz", "sarımsak", "zeytinyağı", "nane"]:
+            is_match = True
+        elif "mücver" in name_lower and ing_name in ["kabak", "un", "yumurta", "dereotu", "tuz", "yağ"]:
+            is_match = True
+        elif "çorba" in name_lower and ing_name in ["su", "tuz", "un", "teryağı", "salça"]:
+            is_match = True
+            
+        if is_match or (matches_found < 2 and ing_name in ["tuz", "un", "süt", "su"]):
+            unit = ing.get("unit", "g")
+            amount = 150.0 if unit in ["g", "ml"] else 2.0
+            items.append({
+                "ingredientId": ing.get("id"),
+                "name": ing.get("name"),
+                "amountUsed": amount,
+                "unit": unit,
+                "originalText": f"AI Suggested {ing.get('name')}",
+                "confidence": 0.85
+            })
+            matches_found += 1
+            
+    # If no matches found, suggest first 2 ingredients
+    if not items and existing_ingredients:
+        for ing in existing_ingredients[:2]:
+            unit = ing.get("unit", "g")
+            amount = 100.0 if unit in ["g", "ml"] else 1.0
+            items.append({
+                "ingredientId": ing.get("id"),
+                "name": ing.get("name"),
+                "amountUsed": amount,
+                "unit": unit,
+                "originalText": f"AI Suggested {ing.get('name')}",
+                "confidence": 0.8
+            })
+
+    # Add an unmatched ingredient as demonstration
+    if "ezme" in name_lower:
+        items.append({
+            "ingredientId": None,
+            "name": "Ceviz İçi",
+            "amountUsed": 30.0,
+            "unit": "g",
+            "originalText": "Found unmatched ingredient: Ceviz İçi",
+            "confidence": 0.0
+        })
+    elif "mücver" in name_lower:
+        items.append({
+            "ingredientId": None,
+            "name": "Dereotu",
+            "amountUsed": 15.0,
+            "unit": "g",
+            "originalText": "Found unmatched ingredient: Dereotu",
+            "confidence": 0.0
+        })
+
+    return {
+        "items": items,
+        "suggestedYieldQuantity": 1.0,
+        "suggestedYieldUnit": "porsiyon"
+    }
