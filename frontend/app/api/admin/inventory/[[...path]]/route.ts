@@ -1508,8 +1508,8 @@ RULES FOR YIELD:
 
           if (res.ok) {
             break;
-          } else if (res.status === 400 && payload.tools) {
-            console.warn(`[Recipe Suggestion] 400 Bad Request with google_search. Retrying without search tool.`);
+          } else if ((res.status === 400 || res.status === 429) && payload.tools) {
+            console.warn(`[Recipe Suggestion] ${res.status} error with google_search. Retrying without search tool.`);
             delete payload.tools;
             continue;
           } else if (res.status === 429 || res.status === 503) {
