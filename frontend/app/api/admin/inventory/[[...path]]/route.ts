@@ -1382,7 +1382,17 @@ RULES FOR YIELD:
         }
       }
 
-      console.error("[Recipe OCR] Gemini API failed.");
+      // Graceful fallback: return empty items so the frontend shows a user-friendly "no match" message
+      console.error("[Recipe OCR] Gemini API failed or response was unparseable.");
+      if (res && res.ok) {
+        // Gemini returned 200 but response was unparseable — return empty result
+        return NextResponse.json({
+          items: [],
+          suggestedYieldQuantity: null,
+          suggestedYieldUnit: null,
+          detail: "AI yanıtı okunamadı. Lütfen tekrar deneyin."
+        });
+      }
       return NextResponse.json(
         { detail: `Gemini API failed with status ${res ? res.status : "Unknown"}: ${lastErrText}` },
         { status: res ? res.status : 500 }
