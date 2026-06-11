@@ -1367,10 +1367,10 @@ RULES FOR YIELD:
 
       const url = `https://generativelanguage.googleapis.com/v1beta/models/gemini-3.1-flash-lite:generateContent?key=${apiKey}`;
 
-      const prompt = `Generate a professional kitchen recipe for the menu item: "${menuItem.nameTr}" (English: "${menuItem.nameEn}").
+      const prompt = `Search Google to find actual recipes and ingredient lists online for the dish: "${menuItem.nameTr}" (English: "${menuItem.nameEn}").
 Description: "${menuItem.descriptionTr || ""}" (English: "${menuItem.descriptionEn || ""}").
 
-Analyze this menu item and estimate:
+Use the online search results to estimate:
 1. The typical ingredients needed to prepare it.
 2. The suggested yield quantity and yield unit (e.g. 1 portion/porsiyon, 1.5 kg, etc. whichever is appropriate).
 
@@ -1406,13 +1406,18 @@ ${promptContext}
 RULES FOR YIELD:
 - Recommend a typical yield (e.g., 1 portion/porsiyon, 10 portions, etc.). Set suggestedYieldQuantity and suggestedYieldUnit accordingly.`;
 
-      const payload = {
+      let payload: any = {
         contents: [
           {
             parts: [
               { text: prompt }
             ],
           },
+        ],
+        tools: [
+          {
+            google_search: {}
+          }
         ],
         generationConfig: {
           responseMimeType: "application/json",
@@ -1434,6 +1439,10 @@ RULES FOR YIELD:
 
           if (res.ok) {
             break;
+          } else if (res.status === 400 && payload.tools) {
+            console.warn(`[Recipe Suggestion] 400 Bad Request with google_search. Retrying without search tool.`);
+            delete payload.tools;
+            continue;
           } else if (res.status === 429 || res.status === 503) {
             lastErrText = await res.text();
             console.warn(`[Recipe Suggestion] Gemini API busy (${res.status}). Retrying in ${retryDelay}ms... (Attempt ${attempt + 1}/${maxRetries})`);

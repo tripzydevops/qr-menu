@@ -310,9 +310,9 @@ def suggest_recipe_from_name(
         prompt_context += f'- ID: "{ing.get("id")}", Name: "{ing.get("name")}", Unit: "{ing.get("unit")}", Density: "{density_val} g/mL"\n'
 
     prompt = (
-        f"Generate a professional kitchen recipe for the menu item: \"{menu_item_name_tr}\" (English: \"{menu_item_name_en}\").\n"
+        f"Search Google to find actual recipes and ingredient lists online for the dish: \"{menu_item_name_tr}\" (English: \"{menu_item_name_en}\").\n"
         f"Description: \"{description_tr or ''}\" (English: \"{description_en or ''}\").\n\n"
-        "Analyze this menu item and estimate:\n"
+        "Use the online search results to estimate:\n"
         "1. The typical ingredients needed to prepare it.\n"
         "2. The suggested yield quantity and yield unit (e.g., set yield to 1 portion/porsiyon, or 1.5 kg, etc. whichever is appropriate).\n\n"
         "Return a JSON object with this exact structure:\n"
@@ -351,6 +351,11 @@ def suggest_recipe_from_name(
                 "parts": [{"text": prompt}]
             }
         ],
+        "tools": [
+            {
+                "google_search": {}
+            }
+        ],
         "generationConfig": {
             "responseMimeType": "application/json"
         }
@@ -370,6 +375,10 @@ def suggest_recipe_from_name(
                         return json.loads(text_response.strip())
                     except Exception as json_err:
                         raise Exception(f"Failed to parse JSON response: {json_err}. Raw text: {text_response}")
+                elif response.status_code == 400 and "tools" in payload:
+                    print("[Recipe OCR] 400 Bad Request with google_search. Retrying without search grounding.")
+                    del payload["tools"]
+                    continue
                 elif response.status_code in [429, 503]:
                     if attempt < max_retries - 1:
                         import time
