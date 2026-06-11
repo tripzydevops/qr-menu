@@ -11,6 +11,22 @@ import models
 import main
 
 def test_recipe_scan_endpoints():
+    from services import recipe_ocr
+    
+    # Save original functions
+    original_parse = recipe_ocr.parse_recipe
+    original_suggest = recipe_ocr.suggest_recipe_from_name
+    
+    def mock_parse_recipe(file_bytes=None, mime_type=None, text_content=None, existing_ingredients=None):
+        txt = text_content or "Need 1 cup of Flour and 2 cups of Milk."
+        return recipe_ocr.fallback_parse_recipe(txt, existing_ingredients or [])
+        
+    def mock_suggest_recipe(menu_item_name_tr, menu_item_name_en, description_tr=None, description_en=None, existing_ingredients=None):
+        return recipe_ocr.fallback_suggest_recipe(menu_item_name_tr, existing_ingredients or [])
+        
+    recipe_ocr.parse_recipe = mock_parse_recipe
+    recipe_ocr.suggest_recipe_from_name = mock_suggest_recipe
+
     db = SessionLocal()
     client = TestClient(main.app)
     
@@ -171,6 +187,10 @@ def test_recipe_scan_endpoints():
         assert float(updated_data["totalYield"]) == 3000.0
         
     finally:
+        # Restore original functions
+        recipe_ocr.parse_recipe = original_parse
+        recipe_ocr.suggest_recipe_from_name = original_suggest
+        
         # Cleanup
         db.query(models.RecipeIngredient).filter(models.RecipeIngredient.ingredientId == "test-ing-flour").delete()
         db.query(models.Recipe).filter(models.Recipe.menuItemId == "test-recipe-item-1").delete()

@@ -396,9 +396,7 @@ def suggest_recipe_from_name(
                 retry_delay *= 2
                 continue
             else:
-                # Fall back to mock matching if all retries fail
-                print(f"[Recipe OCR] Suggest recipe API failed: {e}. Using fallback.")
-                return fallback_suggest_recipe(menu_item_name_tr, existing_ingredients)
+                raise Exception(f"Exception suggesting recipe from Gemini API: {e}")
 
 
 def fallback_suggest_recipe(menu_item_name: str, existing_ingredients: List[Dict[str, Any]]) -> Dict[str, Any]:

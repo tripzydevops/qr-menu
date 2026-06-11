@@ -313,7 +313,12 @@ export default function AdminRecipesPage() {
       }
 
       if (res.ok) {
-        const data = await res.json();
+        let data;
+        try {
+          data = await res.json();
+        } catch (jsonErr) {
+          throw new Error("Sunucu yanıtı okunamadı. AI taraması başarısız oldu.");
+        }
         const items = data.items || [];
         
         if (items.length > 0) {
@@ -385,7 +390,12 @@ export default function AdminRecipesPage() {
       });
 
       if (res.ok) {
-        const data = await res.json();
+        let data;
+        try {
+          data = await res.json();
+        } catch (jsonErr) {
+          throw new Error("Sunucu yanıtı okunamadı. AI önerisi başarısız oldu.");
+        }
         const items = data.items || [];
         
         if (items.length > 0) {

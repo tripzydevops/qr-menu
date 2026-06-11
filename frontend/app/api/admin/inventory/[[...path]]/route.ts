@@ -1277,8 +1277,8 @@ CRITICAL CONVERSION RULE: If a match is found, compare the invoice packaging uni
         return NextResponse.json({ detail: "Gemini API Key is not configured." }, { status: 500 });
       }
 
-      // Use gemini-3.5-flash for OCR/scan tasks - best available model for vision and structured output
-      const url = `https://generativelanguage.googleapis.com/v1beta/models/gemini-3.5-flash:generateContent?key=${apiKey}`;
+      // Use gemini-3.1-flash-lite for OCR/scan tasks - stable and cost-efficient model
+      const url = `https://generativelanguage.googleapis.com/v1beta/models/gemini-3.1-flash-lite:generateContent?key=${apiKey}`;
 
       const prompt = `Analyze the recipe content (text or image) and extract:
 1. The list of ingredients.
@@ -1433,8 +1433,8 @@ RULES FOR YIELD:
         return NextResponse.json(fallback);
       }
 
-      // Use gemini-3.5-flash for recipe suggestions - best available model for reliable JSON output
-      const url = `https://generativelanguage.googleapis.com/v1beta/models/gemini-3.5-flash:generateContent?key=${apiKey}`;
+      // Use gemini-3.1-flash-lite for recipe suggestions - stable and cost-efficient model
+      const url = `https://generativelanguage.googleapis.com/v1beta/models/gemini-3.1-flash-lite:generateContent?key=${apiKey}`;
 
       const prompt = `Search Google to find actual recipes and ingredient lists online for the dish: "${menuItem.nameTr}" (English: "${menuItem.nameEn}").
 Description: "${menuItem.descriptionTr || ""}" (English: "${menuItem.descriptionEn || ""}").
@@ -1546,13 +1546,21 @@ RULES FOR YIELD:
             }
           }
         } catch (parseErr) {
-          console.warn(`[Recipe Suggestion] Failed to parse Gemini response, using fallback:`, parseErr);
+          console.warn(`[Recipe Suggestion] Failed to parse Gemini response:`, parseErr);
+          return NextResponse.json({
+            items: [],
+            suggestedYieldQuantity: null,
+            suggestedYieldUnit: null,
+            detail: "AI öneri yanıtı okunamadı. Lütfen tekrar deneyin."
+          });
         }
       }
 
-      // Fallback if Gemini fails or response is unparseable
-      const fallback = getMockRecipeSuggestion(menuItem.nameTr, allIngredients);
-      return NextResponse.json(fallback);
+      console.error("[Recipe Suggestion] Gemini API failed or response was unparseable.");
+      return NextResponse.json(
+        { detail: `Gemini API failed with status ${res ? res.status : "Unknown"}: ${lastErrText}` },
+        { status: res ? res.status : 500 }
+      );
     }
 
     return NextResponse.json({ detail: "Endpoint path not found" }, { status: 404 });
