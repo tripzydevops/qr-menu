@@ -363,11 +363,12 @@ export default function AdminRecipesPage() {
           alert("AI tariften hiçbir malzeme eşleştiremedi. Lütfen malzemelerin adlarını kontrol edin.");
         }
       } else {
-        alert("AI reçete tarama başarısız oldu.");
+        const errData = await res.json().catch(() => ({}));
+        alert(errData.detail || "AI reçete tarama başarısız oldu.");
       }
-    } catch (err) {
+    } catch (err: any) {
       console.error(err);
-      alert("AI tarama sırasında bir hata oluştu.");
+      alert(err.message || "AI tarama sırasında bir hata oluştu.");
     } finally {
       setAiScanning(false);
     }
@@ -431,11 +432,12 @@ export default function AdminRecipesPage() {
           alert("Yapay Zeka bu ürün için reçete öneremedi.");
         }
       } else {
-        alert("Yapay Zeka reçete önerisi başarısız oldu.");
+        const errData = await res.json().catch(() => ({}));
+        alert(errData.detail || "Yapay Zeka reçete önerisi başarısız oldu.");
       }
-    } catch (err) {
+    } catch (err: any) {
       console.error(err);
-      alert("Reçete önerisi sırasında bir hata oluştu.");
+      alert(err.message || "Reçete önerisi sırasında bir hata oluştu.");
     } finally {
       setAiSuggesting(false);
     }
