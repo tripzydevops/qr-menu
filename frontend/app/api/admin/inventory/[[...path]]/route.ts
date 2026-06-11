@@ -1277,7 +1277,8 @@ CRITICAL CONVERSION RULE: If a match is found, compare the invoice packaging uni
         return NextResponse.json({ detail: "Gemini API Key is not configured." }, { status: 500 });
       }
 
-      const url = `https://generativelanguage.googleapis.com/v1beta/models/gemini-3.1-flash-lite:generateContent?key=${apiKey}`;
+      // Use gemini-2.5-flash for OCR/scan tasks - it has much better vision capabilities for handwritten text
+      const url = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${apiKey}`;
 
       const prompt = `Analyze the recipe content (text or image) and extract:
 1. The list of ingredients.
@@ -1432,7 +1433,8 @@ RULES FOR YIELD:
         return NextResponse.json(fallback);
       }
 
-      const url = `https://generativelanguage.googleapis.com/v1beta/models/gemini-3.1-flash-lite:generateContent?key=${apiKey}`;
+      // Use gemini-2.5-flash for recipe suggestions - better quality and more reliable JSON output
+      const url = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${apiKey}`;
 
       const prompt = `Search Google to find actual recipes and ingredient lists online for the dish: "${menuItem.nameTr}" (English: "${menuItem.nameEn}").
 Description: "${menuItem.descriptionTr || ""}" (English: "${menuItem.descriptionEn || ""}").
