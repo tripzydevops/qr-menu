@@ -8,30 +8,39 @@ import { prisma } from "@/lib/prisma";
 // ---------------------------------------------------------------------------
 
 function cleanAndParseJson(text: string): any {
-  const textTrimmed = text.trim();
-  try {
-    return JSON.parse(textTrimmed);
-  } catch (e) {
-    const start = textTrimmed.indexOf("{");
-    const end = textTrimmed.lastIndexOf("}");
-    if (start !== -1 && end !== -1 && end > start) {
-      try {
-        return JSON.parse(textTrimmed.substring(start, end + 1));
-      } catch (innerErr) {
-        // Fall through
-      }
-    }
-    const startArr = textTrimmed.indexOf("[");
-    const endArr = textTrimmed.lastIndexOf("]");
-    if (startArr !== -1 && endArr !== -1 && endArr > startArr) {
-      try {
-        return JSON.parse(textTrimmed.substring(startArr, endArr + 1));
-      } catch (innerErr) {
-        // Fall through
-      }
-    }
-    throw e;
+  let textTrimmed = text.trim();
+
+  // Sanitize common malformed numeric patterns from LLM output
+  // - Remove bare minus signs not followed by a digit (e.g. "-," or "- " or "-}")
+  textTrimmed = textTrimmed.replace(/-(?![0-9])/g, "0");
+  // - Fix trailing decimal points (e.g. "5." → "5.0")
+  textTrimmed = textTrimmed.replace(/(\d)\.(?=[^0-9])/g, "$1.0");
+
+  const tryParse = (s: string): any => {
+    try { return JSON.parse(s); } catch { return undefined; }
+  };
+
+  // 1. Try direct parse
+  let result = tryParse(textTrimmed);
+  if (result !== undefined) return result;
+
+  // 2. Try extracting first {...} block
+  const start = textTrimmed.indexOf("{");
+  const end = textTrimmed.lastIndexOf("}");
+  if (start !== -1 && end !== -1 && end > start) {
+    result = tryParse(textTrimmed.substring(start, end + 1));
+    if (result !== undefined) return result;
   }
+
+  // 3. Try extracting first [...] block
+  const startArr = textTrimmed.indexOf("[");
+  const endArr = textTrimmed.lastIndexOf("]");
+  if (startArr !== -1 && endArr !== -1 && endArr > startArr) {
+    result = tryParse(textTrimmed.substring(startArr, endArr + 1));
+    if (result !== undefined) return result;
+  }
+
+  throw new Error(`Failed to parse JSON from LLM response: ${textTrimmed.substring(0, 200)}`);
 }
 
 async function verifyInventoryGating(venueId: string) {
@@ -377,11 +386,19 @@ Ensure the density is a positive float. Typical examples: Water = 1.0, Yogurt = 
       });
 
       if (res.ok) {
-        const data = await res.json();
-        const textResponse = data.candidates?.[0]?.content?.parts?.[0]?.text;
-        if (textResponse) {
-          const parsed = cleanAndParseJson(textResponse);
-          return NextResponse.json({ density: Number(parsed.density || 1.0) });
+        try {
+          const data = await res.json();
+          const densityParts = data.candidates?.[0]?.content?.parts || [];
+          const textResponse = densityParts
+            .filter((p: any) => p.text)
+            .map((p: any) => p.text)
+            .join("");
+          if (textResponse) {
+            const parsed = cleanAndParseJson(textResponse);
+            return NextResponse.json({ density: Number(parsed.density || 1.0) });
+          }
+        } catch (parseErr) {
+          console.warn(`[Density Suggest] Failed to parse Gemini response:`, parseErr);
         }
       }
       return NextResponse.json({ density: 1.0 });
@@ -792,7 +809,12 @@ CRITICAL CONVERSION RULE: If a match is found, compare the invoice packaging uni
 
       if (res && res.ok) {
         const data = await res.json();
-        const textResponse = data.candidates?.[0]?.content?.parts?.[0]?.text;
+        // Extract text from ALL parts (google_search grounding may split across multiple parts)
+        const ocrParts = data.candidates?.[0]?.content?.parts || [];
+        const textResponse = ocrParts
+          .filter((p: any) => p.text)
+          .map((p: any) => p.text)
+          .join("");
         if (textResponse) {
           try {
             const parsed = cleanAndParseJson(textResponse);
@@ -1344,11 +1366,19 @@ RULES FOR YIELD:
       }
 
       if (res && res.ok) {
-        const data = await res.json();
-        const textResponse = data.candidates?.[0]?.content?.parts?.[0]?.text;
-        if (textResponse) {
-          const parsed = cleanAndParseJson(textResponse);
-          return NextResponse.json(parsed);
+        try {
+          const data = await res.json();
+          const ocrScanParts = data.candidates?.[0]?.content?.parts || [];
+          const textResponse = ocrScanParts
+            .filter((p: any) => p.text)
+            .map((p: any) => p.text)
+            .join("");
+          if (textResponse) {
+            const parsed = cleanAndParseJson(textResponse);
+            return NextResponse.json(parsed);
+          }
+        } catch (parseErr) {
+          console.warn(`[Recipe OCR] Failed to parse Gemini response:`, parseErr);
         }
       }
 
@@ -1488,15 +1518,27 @@ RULES FOR YIELD:
       }
 
       if (res && res.ok) {
-        const data = await res.json();
-        const textResponse = data.candidates?.[0]?.content?.parts?.[0]?.text;
-        if (textResponse) {
-          const parsed = cleanAndParseJson(textResponse);
-          return NextResponse.json(parsed);
+        try {
+          const data = await res.json();
+          // Extract text from ALL parts (google_search grounding may split across multiple parts)
+          const parts = data.candidates?.[0]?.content?.parts || [];
+          const textResponse = parts
+            .filter((p: any) => p.text)
+            .map((p: any) => p.text)
+            .join("");
+          if (textResponse) {
+            const parsed = cleanAndParseJson(textResponse);
+            // Validate that parsed result has the expected structure
+            if (parsed && (Array.isArray(parsed.items) || Array.isArray(parsed))) {
+              return NextResponse.json(parsed);
+            }
+          }
+        } catch (parseErr) {
+          console.warn(`[Recipe Suggestion] Failed to parse Gemini response, using fallback:`, parseErr);
         }
       }
 
-      // Fallback if Gemini fails
+      // Fallback if Gemini fails or response is unparseable
       const fallback = getMockRecipeSuggestion(menuItem.nameTr, allIngredients);
       return NextResponse.json(fallback);
     }
