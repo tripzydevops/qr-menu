@@ -7,6 +7,33 @@ import { prisma } from "@/lib/prisma";
 // Helpers & Costing Logic
 // ---------------------------------------------------------------------------
 
+function cleanAndParseJson(text: string): any {
+  const textTrimmed = text.trim();
+  try {
+    return JSON.parse(textTrimmed);
+  } catch (e) {
+    const start = textTrimmed.indexOf("{");
+    const end = textTrimmed.lastIndexOf("}");
+    if (start !== -1 && end !== -1 && end > start) {
+      try {
+        return JSON.parse(textTrimmed.substring(start, end + 1));
+      } catch (innerErr) {
+        // Fall through
+      }
+    }
+    const startArr = textTrimmed.indexOf("[");
+    const endArr = textTrimmed.lastIndexOf("]");
+    if (startArr !== -1 && endArr !== -1 && endArr > startArr) {
+      try {
+        return JSON.parse(textTrimmed.substring(startArr, endArr + 1));
+      } catch (innerErr) {
+        // Fall through
+      }
+    }
+    throw e;
+  }
+}
+
 async function verifyInventoryGating(venueId: string) {
   const venue = await prisma.venue.findUnique({
     where: { id: venueId },
@@ -353,7 +380,7 @@ Ensure the density is a positive float. Typical examples: Water = 1.0, Yogurt = 
         const data = await res.json();
         const textResponse = data.candidates?.[0]?.content?.parts?.[0]?.text;
         if (textResponse) {
-          const parsed = JSON.parse(textResponse.trim());
+          const parsed = cleanAndParseJson(textResponse);
           return NextResponse.json({ density: Number(parsed.density || 1.0) });
         }
       }
@@ -768,7 +795,7 @@ CRITICAL CONVERSION RULE: If a match is found, compare the invoice packaging uni
         const textResponse = data.candidates?.[0]?.content?.parts?.[0]?.text;
         if (textResponse) {
           try {
-            const parsed = JSON.parse(textResponse.trim());
+            const parsed = cleanAndParseJson(textResponse);
 
             if (venueId && typeof parsed === "object" && parsed !== null) {
               const supplierName = parsed.supplierName;
@@ -1320,7 +1347,7 @@ RULES FOR YIELD:
         const data = await res.json();
         const textResponse = data.candidates?.[0]?.content?.parts?.[0]?.text;
         if (textResponse) {
-          const parsed = JSON.parse(textResponse.trim());
+          const parsed = cleanAndParseJson(textResponse);
           return NextResponse.json(parsed);
         }
       }
@@ -1464,7 +1491,7 @@ RULES FOR YIELD:
         const data = await res.json();
         const textResponse = data.candidates?.[0]?.content?.parts?.[0]?.text;
         if (textResponse) {
-          const parsed = JSON.parse(textResponse.trim());
+          const parsed = cleanAndParseJson(textResponse);
           return NextResponse.json(parsed);
         }
       }
