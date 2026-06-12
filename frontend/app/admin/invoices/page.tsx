@@ -501,21 +501,27 @@ export default function AdminInvoicesPage() {
     setInvDate(new Date(inv.invoiceDate).toISOString().split("T")[0]);
     
     const mappedItems: InvoiceItem[] = inv.items.map(item => {
+      const itemQty = Number(item.quantity);
+      const itemCost = Number(item.unitCost);
+      
       let isPackage = false;
       let packageCount = 1;
-      let packageSize = item.quantity;
-      let packagePrice = item.quantity * item.unitCost;
+      let packageSize = itemQty;
+      let packagePrice = itemQty * itemCost;
 
       if (typeof window !== "undefined") {
         const savedConfigStr = localStorage.getItem(`last_ing_config_${item.ingredientId}`);
         if (savedConfigStr) {
           try {
             const savedConfig = JSON.parse(savedConfigStr);
-            if (savedConfig.quantity === item.quantity && savedConfig.unitCost === item.unitCost) {
+            const savedQty = Number(savedConfig.quantity);
+            const savedCost = Number(savedConfig.unitCost);
+            
+            if (savedQty === itemQty && savedCost === itemCost) {
               isPackage = savedConfig.isPackage ?? false;
               packageCount = savedConfig.packageCount ?? 1;
-              packageSize = savedConfig.packageSize ?? item.quantity;
-              packagePrice = savedConfig.packagePrice ?? (item.quantity * item.unitCost);
+              packageSize = savedConfig.packageSize ?? itemQty;
+              packagePrice = savedConfig.packagePrice ?? (itemQty * itemCost);
             }
           } catch (e) {
             console.error("Failed to parse saved config on edit start", e);
@@ -527,9 +533,9 @@ export default function AdminInvoicesPage() {
         ingredientId: item.ingredientId,
         ingredientName: item.ingredientName,
         ingredientUnit: item.ingredientUnit,
-        quantity: item.quantity,
-        unitCost: item.unitCost,
-        vatRate: item.vatRate ?? 0.01,
+        quantity: itemQty,
+        unitCost: itemCost,
+        vatRate: item.vatRate !== null ? Number(item.vatRate) : 0.01,
         isVatInclusive: item.isVatInclusive ?? false,
         isPackage,
         packageCount,
@@ -1019,7 +1025,7 @@ export default function AdminInvoicesPage() {
                                             )}
                                           </p>
                                           <p className="text-[10px] text-gray-500 font-mono mt-0.5">
-                                            {item.quantity} {item.ingredientUnit || ""} x ₺{parseFloat(item.unitCost as any) < 1 ? parseFloat(item.unitCost as any).toFixed(4) : parseFloat(item.unitCost as any).toFixed(2)}
+                                            {Number(parseFloat(item.quantity as any).toFixed(2))} {item.ingredientUnit || ""} x ₺{parseFloat(item.unitCost as any) < 1 ? parseFloat(item.unitCost as any).toFixed(4) : parseFloat(item.unitCost as any).toFixed(2)}
                                             <span className="text-[9px] text-gray-400 ml-1">
                                               ({item.isVatInclusive ? "KDV Dahil" : "KDV Hariç"} - %{Number(item.vatRate || 0.01) * 100})
                                             </span>

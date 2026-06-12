@@ -40,10 +40,13 @@ async function proxyRequest(request: NextRequest, segments: string[]) {
 
     const res = await fetch(targetUrl, options);
 
-    // Forward response headers back
+    // Forward response headers back (avoid forwarding transport-level headers that cause compression/chunking conflicts)
     const responseHeaders = new Headers();
     res.headers.forEach((value, key) => {
-      responseHeaders.set(key, value);
+      const lowerKey = key.toLowerCase();
+      if (!["content-encoding", "content-length", "transfer-encoding", "connection", "keep-alive"].includes(lowerKey)) {
+        responseHeaders.set(key, value);
+      }
     });
 
     // Handle response content-type

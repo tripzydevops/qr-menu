@@ -94,7 +94,7 @@ export default function WaiterConsolePage() {
   
   // Notification states
   const [newOrderToast, setNewOrderToast] = useState<{ tableName: string; text: string } | null>(null);
-  const [activePrintRequest, setActivePrintRequest] = useState<{ tableName: string; items: any[]; totalAmount: number } | null>(null);
+  const [activePrintRequest, setActivePrintRequest] = useState<{ tableName: string; items: any[]; subtotal?: number; discountAmount?: number; totalAmount: number } | null>(null);
   const [successMsg, setSuccessMsg] = useState<string | null>(null);
 
   // Auto-dismiss success message toast
@@ -511,6 +511,8 @@ export default function WaiterConsolePage() {
     );
     
     const itemsMap: Record<string, { menuItemNameTr: string; menuItemNameEn: string; quantity: number; price: number; notes: string[] }> = {};
+    let subtotal = 0;
+    let discountAmount = 0;
     let totalAmount = 0;
 
     tableOrders.forEach((o) => {
@@ -519,7 +521,9 @@ export default function WaiterConsolePage() {
         const price = Number(item.price);
         if (itemsMap[key]) {
           itemsMap[key].quantity += item.quantity;
-          if (item.notes) itemsMap[key].notes.push(item.notes);
+          if (item.notes && !itemsMap[key].notes.includes(item.notes)) {
+            itemsMap[key].notes.push(item.notes);
+          }
         } else {
           itemsMap[key] = {
             menuItemNameTr: item.menuItemNameTr || "Ürün",
@@ -530,12 +534,21 @@ export default function WaiterConsolePage() {
           };
         }
       });
-      totalAmount += Number(o.totalAmount);
+      
+      const orderTotal = Number(o.totalAmount);
+      const orderDiscount = o.discountAmount ? Number(o.discountAmount) : 0;
+      const orderNet = o.netAmount ? Number(o.netAmount) : 0;
+
+      subtotal += orderTotal;
+      discountAmount += orderDiscount;
+      totalAmount += (orderNet > 0 || orderDiscount > 0) ? orderNet : orderTotal;
     });
 
     return {
       ordersCount: tableOrders.length,
       items: Object.values(itemsMap),
+      subtotal,
+      discountAmount,
       totalAmount,
     };
   };
@@ -550,6 +563,8 @@ export default function WaiterConsolePage() {
     setActivePrintRequest({
       tableName,
       items: bill.items,
+      subtotal: bill.subtotal,
+      discountAmount: bill.discountAmount,
       totalAmount: bill.totalAmount
     });
     setTimeout(() => {
@@ -798,10 +813,27 @@ export default function WaiterConsolePage() {
                               </div>
                             ))}
                           </div>
-                          <div className="flex justify-between items-center pt-2 border-t border-dashed border-gray-800/60 text-xs font-bold font-mono">
-                            <span className="text-emerald-400">TOPLAM HESAP:</span>
-                            <span className="text-white text-sm">₺{bill.totalAmount.toFixed(2)}</span>
-                          </div>
+                          {bill.discountAmount && bill.discountAmount > 0 ? (
+                            <div className="space-y-1 text-xs font-mono pt-2 border-t border-dashed border-gray-800/60">
+                              <div className="flex justify-between text-gray-400">
+                                <span>Ara Toplam:</span>
+                                <span>₺{bill.subtotal?.toFixed(2)}</span>
+                              </div>
+                              <div className="flex justify-between text-green-400">
+                                <span>İndirim:</span>
+                                <span>-₺{bill.discountAmount.toFixed(2)}</span>
+                              </div>
+                              <div className="flex justify-between items-center text-sm font-bold pt-1 border-t border-dotted border-gray-800/40">
+                                <span className="text-emerald-400">TOPLAM HESAP:</span>
+                                <span className="text-white">₺{bill.totalAmount.toFixed(2)}</span>
+                              </div>
+                            </div>
+                          ) : (
+                            <div className="flex justify-between items-center pt-2 border-t border-dashed border-gray-800/60 text-xs font-bold font-mono">
+                              <span className="text-emerald-400">TOPLAM HESAP:</span>
+                              <span className="text-white text-sm">₺{bill.totalAmount.toFixed(2)}</span>
+                            </div>
+                          )}
                         </div>
                       )}
 
@@ -1534,10 +1566,27 @@ export default function WaiterConsolePage() {
             </tbody>
           </table>
           
-          <div className="flex justify-between items-center font-bold text-sm mt-3 pt-1">
-            <span>TOPLAM:</span>
-            <span>₺{activePrintRequest.totalAmount.toFixed(2)}</span>
-          </div>
+          {activePrintRequest.discountAmount && activePrintRequest.discountAmount > 0 ? (
+            <div className="border-t border-dashed border-black pt-2 mt-2 space-y-1 text-[11px]">
+              <div className="flex justify-between items-center">
+                <span>Ara Toplam:</span>
+                <span className="font-mono">₺{activePrintRequest.subtotal?.toFixed(2)}</span>
+              </div>
+              <div className="flex justify-between items-center text-green-700 font-semibold">
+                <span>İndirim:</span>
+                <span className="font-mono">-₺{activePrintRequest.discountAmount.toFixed(2)}</span>
+              </div>
+              <div className="flex justify-between items-center font-bold text-sm pt-1 border-t border-dotted border-black">
+                <span>GENEL TOPLAM:</span>
+                <span className="font-mono text-base">₺{activePrintRequest.totalAmount.toFixed(2)}</span>
+              </div>
+            </div>
+          ) : (
+            <div className="flex justify-between items-center font-bold text-sm mt-3 pt-1 border-t border-dashed border-black">
+              <span>TOPLAM:</span>
+              <span className="font-mono">₺{activePrintRequest.totalAmount.toFixed(2)}</span>
+            </div>
+          )}
           
           <div className="text-center text-[9px] text-gray-500 mt-8 pt-4 border-t border-dashed border-gray-400">
             Tripzy QR Menü SaaS tarafından üretilmiştir.
