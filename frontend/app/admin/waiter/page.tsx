@@ -24,8 +24,15 @@ import {
   Trash2,
   PlusCircle,
   ShoppingBag,
-  ChefHat
+  ChefHat,
+  Banknote,
+  CreditCard,
+  Split,
+  Tag
 } from "lucide-react";
+
+import SplitPaymentModal from "../cashier/SplitPaymentModal";
+import DiscountModal from "../cashier/DiscountModal";
 
 interface WaiterRequest {
   id: string;
@@ -53,6 +60,12 @@ interface Order {
   tableId?: string;
   tableName?: string;
   totalAmount: number;
+  discountAmount?: string | number;
+  discountType?: string;
+  discountRef?: string;
+  netAmount?: string | number;
+  paymentMethod?: string;
+  paidAt?: string;
   createdAt: string;
   items: OrderItem[];
 }
@@ -94,6 +107,12 @@ export default function WaiterConsolePage() {
   const [orderSubmitting, setOrderSubmitting] = useState(false);
   const [searchQuery, setSearchQuery] = useState("");
   const [selectedCategory, setSelectedCategory] = useState<string | null>(null);
+
+  // Table Action Sheet & Modals States
+  const [activeActionTable, setActiveActionTable] = useState<any | null>(null);
+  const [showTableActionModal, setShowTableActionModal] = useState(false);
+  const [showSplitModal, setShowSplitModal] = useState(false);
+  const [showDiscountModal, setShowDiscountModal] = useState(false);
 
   // Load tables and menu categories for POS order-taking
   useEffect(() => {
@@ -406,6 +425,83 @@ export default function WaiterConsolePage() {
     }
   };
 
+  // Handle processing full payment (cash/card) at the table
+  const handleProcessPayment = async (tableId: string, paymentMethod: "cash" | "card") => {
+    if (!window.confirm("Ödemeyi onaylıyor musunuz?")) return;
+    try {
+      const res = await fetch(`${apiUrl}/api/admin/tables/${tableId}/pay`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ paymentMethod }),
+      });
+
+      if (!res.ok) {
+        throw new Error("Ödeme işlemi başarısız oldu.");
+      }
+
+      playWaiterChime();
+      alert("Ödeme başarıyla alındı ve masa kapatıldı!");
+      setRefreshKey((prev) => prev + 1);
+      setShowTableActionModal(false);
+      setActiveActionTable(null);
+    } catch (err: any) {
+      console.error(err);
+      alert(err.message || "Ödeme sırasında bir hata oluştu.");
+    }
+  };
+
+  // Helper to aggregate active bill items for a table (for payments & modals)
+  const getTableBillingData = (tableId: string) => {
+    const tableOrders = allOrders.filter(
+      (o) => o.tableId === tableId && 
+      (o.status === "pending" || o.status === "preparing" || o.status === "ready" || o.status === "served")
+    );
+    
+    const itemsMap: Record<string, { nameTr: string; nameEn: string; quantity: number; price: number; notes: string[]; orderItemIds: string[] }> = {};
+    let subtotal = 0;
+    let discountAmount = 0;
+    let totalBill = 0;
+
+    tableOrders.forEach((o) => {
+      o.items.forEach((item) => {
+        const key = item.menuItemId + (item.notes ? `-${item.notes}` : "");
+        const price = Number(item.price);
+        if (itemsMap[key]) {
+          itemsMap[key].quantity += item.quantity;
+          itemsMap[key].orderItemIds.push(item.id);
+          if (item.notes && !itemsMap[key].notes.includes(item.notes)) {
+            itemsMap[key].notes.push(item.notes);
+          }
+        } else {
+          itemsMap[key] = {
+            nameTr: item.menuItemNameTr || "Ürün",
+            nameEn: item.menuItemNameEn || "Item",
+            quantity: item.quantity,
+            price: price,
+            notes: item.notes ? [item.notes] : [],
+            orderItemIds: [item.id]
+          };
+        }
+      });
+      
+      const orderTotal = Number(o.totalAmount);
+      const orderDiscount = o.discountAmount ? Number(o.discountAmount) : 0;
+      const orderNet = o.netAmount ? Number(o.netAmount) : 0;
+
+      subtotal += orderTotal;
+      discountAmount += orderDiscount;
+      totalBill += (orderNet > 0 || orderDiscount > 0) ? orderNet : orderTotal;
+    });
+
+    return {
+      ordersCount: tableOrders.length,
+      items: Object.values(itemsMap),
+      subtotal,
+      discountAmount,
+      totalBill,
+    };
+  };
+
   // Helper to aggregate active bill items for a table
   const getTableActiveBill = (tableId: string) => {
     const tableOrders = allOrders.filter(
@@ -483,6 +579,8 @@ export default function WaiterConsolePage() {
     const d = new Date(dateString);
     return d.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
   };
+
+  const billingData = activeActionTable ? getTableBillingData(activeActionTable.id) : null;
 
   return (
     <>
@@ -695,36 +793,57 @@ export default function WaiterConsolePage() {
                       </div>
 
                       {/* Action buttons */}
-                      <div className="flex gap-2.5 mt-4">
-                        {printingEnabled && c.type === "bill" && c.tableId && bill && bill.items.length > 0 && (
+                      <div className="flex flex-col gap-2.5 mt-4">
+                        {c.type === "bill" ? (
+                          <>
+                            <div className="flex gap-2 w-full">
+                              {printingEnabled && c.tableId && bill && bill.items.length > 0 && (
+                                <button
+                                  onClick={() => handlePrintBill(c.tableName || "Masa ?", c.tableId)}
+                                  className="flex-1 py-3 rounded-xl border bg-indigo-950/20 hover:bg-indigo-900/30 border-indigo-900/40 text-indigo-400 font-bold text-xs tracking-wide transition-all active:scale-98 flex items-center justify-center space-x-1 shadow-md"
+                                >
+                                  <Printer className="h-4 w-4" />
+                                  <span>Yazdır</span>
+                                </button>
+                              )}
+                              <button
+                                onClick={() => handleProcessPayment(c.tableId, "cash")}
+                                className="flex-1 py-3 rounded-xl bg-emerald-600 hover:bg-emerald-750 text-black font-extrabold text-xs tracking-wide transition-all active:scale-98 flex items-center justify-center space-x-1 shadow-md shadow-emerald-950/20"
+                              >
+                                <Banknote className="h-4 w-4" />
+                                <span>Nakit Öde</span>
+                              </button>
+                              <button
+                                onClick={() => handleProcessPayment(c.tableId, "card")}
+                                className="flex-1 py-3 rounded-xl bg-blue-600 hover:bg-blue-750 text-white font-extrabold text-xs tracking-wide transition-all active:scale-98 flex items-center justify-center space-x-1 shadow-md shadow-blue-950/20"
+                              >
+                                <CreditCard className="h-4 w-4" />
+                                <span>Kart Öde</span>
+                              </button>
+                            </div>
+                            <button
+                              onClick={() => handleResolveCall(c.id)}
+                              className="w-full py-2.5 rounded-xl border border-gray-800 bg-gray-900/40 hover:bg-gray-800 text-gray-400 hover:text-white font-bold text-xs tracking-wide transition-all active:scale-98 flex items-center justify-center space-x-1"
+                            >
+                              <Check className="h-3.5 w-3.5" />
+                              <span>Ödemesiz Talebi Kapat</span>
+                            </button>
+                          </>
+                        ) : (
                           <button
-                            onClick={() => handlePrintBill(c.tableName || "Masa ?", c.tableId)}
-                            className="flex-1 py-3 rounded-xl border bg-indigo-950/20 hover:bg-indigo-900/30 border-indigo-900/40 text-indigo-400 font-bold text-xs tracking-wide transition-all active:scale-98 flex items-center justify-center space-x-1 shadow-md shadow-indigo-950/20"
+                            onClick={() => handleResolveCall(c.id)}
+                            className="w-full py-3 rounded-xl text-xs font-bold transition-all active:scale-98 text-black flex items-center justify-center space-x-1 bg-amber-500 hover:bg-amber-600 shadow-md shadow-amber-950/20"
                           >
-                            <Printer className="h-4 w-4" />
-                            <span>Adisyon Fişi</span>
+                            <Check className="h-4 w-4" />
+                            <span>Tamamlandı</span>
                           </button>
                         )}
-                        
-                        <button
-                          onClick={() => handleResolveCall(c.id)}
-                          className={`py-3 rounded-xl text-xs font-bold transition-all active:scale-98 text-black flex items-center justify-center space-x-1 ${
-                            printingEnabled && c.type === "bill" && bill && bill.items.length > 0 ? "flex-1" : "w-full"
-                          } ${
-                            c.type === "waiter" 
-                              ? "bg-amber-500 hover:bg-amber-600 shadow-md shadow-amber-950/20" 
-                              : "bg-emerald-500 hover:bg-emerald-600 shadow-md shadow-emerald-950/20"
-                          }`}
-                        >
-                          <Check className="h-4 w-4" />
-                          <span>Tamamlandı</span>
-                        </button>
+                      </div>
                     </div>
-                  </div>
-                );
-              })}
-            </div>
-          ) ) : activeTab === "runs" ? (
+                  );
+                })}
+              </div>
+            ) ) : activeTab === "runs" ? (
             /* Render Ready Runs & Active Table Orders (Yemek Servisi) */
             (runs.length === 0 && allOrders.filter(o => o.status === "pending" || o.status === "preparing").length === 0) ? (
               <div className="flex flex-col items-center justify-center py-20 text-center space-y-3">
@@ -918,8 +1037,13 @@ export default function WaiterConsolePage() {
                         <button
                           key={table.id}
                           onClick={() => {
-                            setSelectedTableId(table.id);
-                            setCart([]);
+                            if (hasActiveOrder) {
+                              setActiveActionTable(table);
+                              setShowTableActionModal(true);
+                            } else {
+                              setSelectedTableId(table.id);
+                              setCart([]);
+                            }
                           }}
                           className={`p-5 rounded-2xl border transition-all duration-300 flex flex-col items-center justify-center text-center space-y-2.5 min-h-[110px] relative ${
                             hasActiveOrder 
@@ -1178,6 +1302,168 @@ export default function WaiterConsolePage() {
           )}
         </main>
       </div>
+
+      {/* Table Action Modal for Occupied Tables */}
+      {showTableActionModal && activeActionTable && billingData && (
+        <div className="fixed inset-0 z-40 flex items-center justify-center bg-black/75 backdrop-blur-sm no-print">
+          <div className="bg-[#0E0E18] border border-gray-805 w-full max-w-md mx-4 rounded-2xl p-5 shadow-2xl flex flex-col space-y-4 max-h-[90vh]">
+            <div className="flex items-center justify-between border-b border-gray-800/40 pb-3">
+              <div>
+                <h3 className="font-serif font-black text-lg text-white">
+                  {activeActionTable.name} İşlemleri
+                </h3>
+                <span className="text-[10px] text-gray-400 block mt-0.5">
+                  Masa hesabı ve servis yönetimi
+                </span>
+              </div>
+              <button
+                onClick={() => {
+                  setShowTableActionModal(false);
+                  setActiveActionTable(null);
+                }}
+                className="p-1 rounded-lg text-gray-500 hover:text-white hover:bg-gray-805"
+              >
+                ✕
+              </button>
+            </div>
+
+            {/* Billing Summary */}
+            <div className="bg-black/30 border border-gray-800/60 rounded-xl p-3.5 space-y-2.5 flex-grow overflow-y-auto max-h-[250px] no-scrollbar">
+              <span className="text-[9px] uppercase tracking-wider font-extrabold text-[#6366F1] block border-b border-gray-850 pb-1.5">
+                Masa Hesabı Detayı ({billingData.ordersCount} Sipariş)
+              </span>
+              <div className="space-y-1.5">
+                {billingData.items.map((item: any, idx: number) => (
+                  <div key={idx} className="flex justify-between text-xs font-mono">
+                    <span className="text-gray-300">
+                      {item.quantity}x {item.nameTr}
+                    </span>
+                    <span className="text-white">
+                      ₺{(item.price * item.quantity).toFixed(2)}
+                    </span>
+                  </div>
+                ))}
+              </div>
+              
+              {billingData.discountAmount > 0 && (
+                <div className="flex justify-between items-center pt-2 border-t border-dashed border-gray-800/40 text-xs text-green-450">
+                  <span>İndirim:</span>
+                  <span className="font-mono">-{billingData.discountAmount.toFixed(2)} ₺</span>
+                </div>
+              )}
+
+              <div className="flex justify-between items-center pt-2 border-t border-dashed border-gray-850 text-xs font-bold font-mono">
+                <span className="text-indigo-400">GENEL TOPLAM:</span>
+                <span className="text-white text-sm">₺{billingData.totalBill.toFixed(2)}</span>
+              </div>
+            </div>
+
+            {/* Action Buttons Grid */}
+            <div className="grid grid-cols-2 gap-3">
+              {/* Add items button */}
+              <button
+                onClick={() => {
+                  setSelectedTableId(activeActionTable.id);
+                  setCart([]);
+                  setShowTableActionModal(false);
+                }}
+                className="col-span-2 py-3 rounded-xl bg-[#6366F1] hover:bg-[#5053df] text-white font-bold text-xs tracking-wide transition-all flex items-center justify-center space-x-1.5 shadow-md active:scale-98"
+              >
+                <PlusCircle className="h-4 w-4" />
+                <span>Yeni Sipariş Ekle</span>
+              </button>
+
+              {/* Cash Settle */}
+              <button
+                onClick={() => handleProcessPayment(activeActionTable.id, "cash")}
+                className="py-3 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-black font-bold text-xs tracking-wide transition-all flex items-center justify-center space-x-1 shadow-md active:scale-98"
+              >
+                <Banknote className="h-4 w-4" />
+                <span>Nakit Ödeme</span>
+              </button>
+
+              {/* Card Settle */}
+              <button
+                onClick={() => handleProcessPayment(activeActionTable.id, "card")}
+                className="py-3 rounded-xl bg-blue-650 hover:bg-blue-700 text-white font-bold text-xs tracking-wide transition-all flex items-center justify-center space-x-1 shadow-md active:scale-98"
+              >
+                <CreditCard className="h-4 w-4" />
+                <span>Kart Ödeme</span>
+              </button>
+
+              {/* Split Payment */}
+              <button
+                onClick={() => {
+                  setShowSplitModal(true);
+                }}
+                className="py-3 rounded-xl border border-[#C9A84C]/35 bg-[#C9A84C]/5 text-[#C9A84C] hover:bg-[#C9A84C]/10 font-bold text-xs tracking-wide transition-all flex items-center justify-center space-x-1 active:scale-98"
+              >
+                <Split className="h-4 w-4" />
+                <span>Hesabı Böl</span>
+              </button>
+
+              {/* Discount Application */}
+              <button
+                onClick={() => {
+                  setShowDiscountModal(true);
+                }}
+                className="py-3 rounded-xl border border-gray-700 bg-gray-900/60 text-gray-300 hover:text-white hover:bg-gray-800 font-bold text-xs tracking-wide transition-all flex items-center justify-center space-x-1 active:scale-98"
+              >
+                <Tag className="h-4 w-4" />
+                <span>İndirim Uygula</span>
+              </button>
+
+              {/* Print Slip */}
+              {printingEnabled && (
+                <button
+                  onClick={() => handlePrintBill(activeActionTable.name, activeActionTable.id)}
+                  className="col-span-2 py-2.5 rounded-xl border border-gray-800 bg-gray-900/40 hover:bg-gray-800 text-gray-400 hover:text-white font-bold text-xs tracking-wide transition-all flex items-center justify-center space-x-1 active:scale-98"
+                >
+                  <Printer className="h-4 w-4" />
+                  <span>Adisyon Fişi Yazdır</span>
+                </button>
+              )}
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Split Payment Modal */}
+      {showSplitModal && activeActionTable && billingData && (
+        <SplitPaymentModal
+          isOpen={showSplitModal}
+          onClose={() => setShowSplitModal(false)}
+          totalBill={billingData.totalBill}
+          tableName={activeActionTable.name}
+          tableId={activeActionTable.id}
+          items={billingData.items}
+          apiUrl={apiUrl}
+          onPaymentSuccess={(msg) => {
+            playWaiterChime();
+            alert(msg);
+            setShowSplitModal(false);
+            setShowTableActionModal(false);
+            setActiveActionTable(null);
+            setRefreshKey((prev) => prev + 1);
+          }}
+        />
+      )}
+
+      {/* Discount Modal */}
+      {showDiscountModal && activeActionTable && billingData && (
+        <DiscountModal
+          isOpen={showDiscountModal}
+          onClose={() => setShowDiscountModal(false)}
+          tableId={activeActionTable.id}
+          tableName={activeActionTable.name}
+          totalBill={billingData.totalBill}
+          apiUrl={apiUrl}
+          onDiscountApplied={(amt, type, ref, msg) => {
+            playWaiterChime();
+            setRefreshKey((prev) => prev + 1);
+          }}
+        />
+      )}
 
       {/* Print Slip Component (Only visible in print media) */}
       {activePrintRequest && (
