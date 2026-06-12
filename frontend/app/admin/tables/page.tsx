@@ -101,7 +101,7 @@ export default function AdminTablesPage() {
   };
 
   const handleDeleteTable = async (id: string) => {
-    if (!confirm("Are you sure you want to delete this table? The QR code will no longer function.")) return;
+    if (!confirm("Bu masayı silmek istediğinize emin misiniz? Bu masaya ait QR kod artık çalışmayacaktır.")) return;
 
     try {
       const res = await fetch(`${apiUrl}/api/admin/tables/${id}`, {

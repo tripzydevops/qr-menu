@@ -28,7 +28,9 @@ import {
   Banknote,
   CreditCard,
   Split,
-  Tag
+  Tag,
+  CheckCircle2,
+  X
 } from "lucide-react";
 
 import SplitPaymentModal from "../cashier/SplitPaymentModal";
@@ -93,6 +95,17 @@ export default function WaiterConsolePage() {
   // Notification states
   const [newOrderToast, setNewOrderToast] = useState<{ tableName: string; text: string } | null>(null);
   const [activePrintRequest, setActivePrintRequest] = useState<{ tableName: string; items: any[]; totalAmount: number } | null>(null);
+  const [successMsg, setSuccessMsg] = useState<string | null>(null);
+
+  // Auto-dismiss success message toast
+  useEffect(() => {
+    if (successMsg) {
+      const timer = setTimeout(() => {
+        setSuccessMsg(null);
+      }, 5000);
+      return () => clearTimeout(timer);
+    }
+  }, [successMsg]);
 
   const [refreshKey, setRefreshKey] = useState(0);
   const [timeNow, setTimeNow] = useState(Date.now());
@@ -636,6 +649,25 @@ export default function WaiterConsolePage() {
               className="p-1 rounded bg-black/20 hover:bg-black/35 text-white transition-all text-xs"
             >
               ✕
+            </button>
+          </div>
+        )}
+
+        {/* Success Toast Alert */}
+        {successMsg && (
+          <div className="mx-4 mt-4 bg-green-500/10 border border-green-500/30 text-green-400 rounded-2xl p-4 flex items-center justify-between shadow-2xl animate-fade-in-up duration-300 relative z-30">
+            <div className="flex items-center space-x-3">
+              <CheckCircle2 className="h-5 w-5 text-green-400" />
+              <div>
+                <span className="font-bold text-[10px] block uppercase tracking-wider text-green-500/70">İŞLEM BAŞARILI</span>
+                <p className="text-xs font-semibold mt-0.5">{successMsg}</p>
+              </div>
+            </div>
+            <button 
+              onClick={() => setSuccessMsg(null)}
+              className="p-1 rounded bg-green-500/10 hover:bg-green-500/20 text-green-400 transition-all text-xs"
+            >
+              <X className="h-4 w-4" />
             </button>
           </div>
         )}
@@ -1428,7 +1460,7 @@ export default function WaiterConsolePage() {
           apiUrl={apiUrl}
           onPaymentSuccess={(msg) => {
             playWaiterChime();
-            alert(msg);
+            setSuccessMsg(msg);
             setShowSplitModal(false);
             setShowTableActionModal(false);
             setActiveActionTable(null);
@@ -1441,13 +1473,18 @@ export default function WaiterConsolePage() {
       {showDiscountModal && activeActionTable && billingData && (
         <DiscountModal
           isOpen={showDiscountModal}
-          onClose={() => setShowDiscountModal(false)}
+          onClose={() => {
+            setShowDiscountModal(false);
+            setShowTableActionModal(false);
+            setActiveActionTable(null);
+          }}
           tableId={activeActionTable.id}
           tableName={activeActionTable.name}
           totalBill={billingData.totalBill}
           apiUrl={apiUrl}
           onDiscountApplied={(amt, type, ref, msg) => {
             playWaiterChime();
+            setSuccessMsg(msg);
             setRefreshKey((prev) => prev + 1);
           }}
         />
@@ -1516,7 +1553,7 @@ export default function WaiterConsolePage() {
             display: none !important;
           }
           /* Reset parent containers to block layouts to prevent print engine flex/grid height bugs */
-          html, body, main, div.min-h-screen, div.flex-grow {
+          html, body, main, div.min-h-screen:not(.no-print), div.flex-grow:not(.no-print) {
             display: block !important;
             position: static !important;
             width: auto !important;

@@ -34,6 +34,8 @@ The platform is designed as a next-generation, recommendation-driven digital QR 
     *   Fully localized (TR/EN) with category navigation, sticky scroll-spy header, dietary filters, and online/offline resilience.
 *   **Premium Visual Branding:**
     *   Staged custom vector `favicon.svg` branding (luxury gold stylized "T" with sparkle emblem on dark crimson background) and `/favicon.ico` fallback support to maintain a clean dev-console with zero `404` warnings.
+*   **Waiter Console visual success feedback:** Added a custom success toast notification (5-second auto-dismiss) on discount and split payment completions. Replaced all native browser-blocking `alert()` prompts with the non-blocking toast, and automated layout resets on sidebar close.
+*   **Inventory API route proxy refactor:** Converted frontend inventory catch-all endpoints to proxy requests directly to the FastAPI backend service, removing duplicated business/costing logic.
 
 ### Layer 2: Autonomous Reasoning Engine & API (FastAPI)
 
@@ -41,12 +43,12 @@ The platform is designed as a next-generation, recommendation-driven digital QR 
     *   **Guest Router:** Resolves table tokens to load restaurant menus, operating hours, and categories.
     *   **Admin Router:** Secure endpoints for CRUD operations on venues, tables, categories, and items.
     *   **Super Admin Stats Router:** Endpoint returning system-wide platform statistics.
-    *   **Inventory Router (`api/inventory.py`):** Prefix `/api/admin/inventory`. Exposes CRUD endpoints for ingredients, suppliers, invoices, recipes, rules, alerts, and syncs.
+    *   **Inventory Router (`api/inventory.py`):** Prefix `/api/admin/inventory`. Exposes CRUD endpoints for ingredients, suppliers, invoices, recipes, rules, alerts, suggest-density, and syncs.
 *   **Costing, OCR & Density Services:**
     *   **`services/costing.py`**: Computes WAC average costings, triggers cascade-recalculations for recipes, and processes automatic stock deductions upon completion of orders.
     *   **`services/invoice_ocr.py`**: Integrates Gemini 3.1 Flash-Lite multimodal API to parse unstructured receipt photos/PDFs into structured invoice item objects.
-    *   **`services/signal_bridge.py`**: Enrichment logger mapping transaction sizes, price brackets, and dietary profiles to `UserSignal` events for the Tripzy recommendation engine.
-    *   **AI Density Suggestion (`/ingredients/suggest-density`):** Connects to Gemini API to intelligently query and guess specific gravity/densities (g/mL) of standard Turkish/cafe cooking ingredients for auto-fill functionality.
+    *   **`services/signal_bridge.py`**: Enrichment logger mapping transaction sizes, price brackets, and dietary profiles to `UserSignal` events for the Tripzy recommendation engine. Features a Signal Export function and a new REST API endpoint `GET /api/admin/venues/{venueId}/signals/export` exposing this data.
+    *   **AI Density Suggestion (`/ingredients/suggest-density`):** Exposes a route to guess specific gravity/densities (g/mL) of standard cooking ingredients using Gemini API.
 
 ### Layer 3: Data & Algorithms (Supabase & Prisma)
 
@@ -81,6 +83,8 @@ To achieve full launch readiness in the Turkish market, the following items rema
     *   Build the reasoning module to explain *why* food items are recommended.
 2.  **Cross-Domain Agent Inference (Layer 1):**
     *   Consume the logged `UserSignal` datasets inside the Tripzy travel engine to resolve user dining profiles.
+3.  **Real-time synchronization (Layer 1):**
+    *   Transition the KDS, Waiter, and Cashier terminals from HTTP polling to Supabase Realtime table listener channels to optimize performance and minimize db query load.
 
 ---
 

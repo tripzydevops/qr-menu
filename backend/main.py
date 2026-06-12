@@ -18,7 +18,7 @@ try:
     from .services.embeddings import get_embedding_sync, get_embedding
     from .api.inventory import router as inventory_router
     from .services.costing import deduct_stock_from_order
-    from .services.signal_bridge import emit_order_signals
+    from .services.signal_bridge import emit_order_signals, export_lifestyle_signals
 except ImportError:
     from database import get_db, engine, Base
     import models
@@ -28,7 +28,7 @@ except ImportError:
     from services.embeddings import get_embedding_sync, get_embedding
     from api.inventory import router as inventory_router
     from services.costing import deduct_stock_from_order
-    from services.signal_bridge import emit_order_signals
+    from services.signal_bridge import emit_order_signals, export_lifestyle_signals
 
 # Create database tables if they do not exist
 Base.metadata.create_all(bind=engine)
@@ -147,7 +147,7 @@ def get_menu_by_qr_token(qr_token: str, request: Request, locale: Optional[str] 
 
     # Filter items that are available for guests
     for category in categories:
-        category.items = [item for item in category.items if item.isAvailable and getattr(item, "showOnMenu", True)]
+        category.items = [item for item in category.items if not item.isDeleted and item.isAvailable and getattr(item, "showOnMenu", True)]
         # Sort items within category
         category.items = sorted(category.items, key=lambda x: x.sortOrder)
 
@@ -273,6 +273,7 @@ async def search_menu_items(qr_token: str, q: str, db: Session = Depends(get_db)
             WHERE "categoryId" IN (SELECT id FROM "Category" WHERE "venueId" = :venue_id)
               AND "isAvailable" = true
               AND "showOnMenu" = true
+              AND "isDeleted" = false
               AND "embedding" IS NOT NULL
             ORDER BY "embedding" <=> cast(:query_vector as vector)
             LIMIT 10;
@@ -286,6 +287,7 @@ async def search_menu_items(qr_token: str, q: str, db: Session = Depends(get_db)
             models.MenuItem.categoryId.in_(db.query(models.Category.id).filter(models.Category.venueId == table.venueId)),
             models.MenuItem.isAvailable == True,
             models.MenuItem.showOnMenu == True,
+            models.MenuItem.isDeleted == False,
             (models.MenuItem.nameTr.ilike(f"%{q}%")) | (models.MenuItem.nameEn.ilike(f"%{q}%")) |
             (models.MenuItem.descriptionTr.ilike(f"%{q}%")) | (models.MenuItem.descriptionEn.ilike(f"%{q}%"))
         ).limit(10).all()
@@ -334,6 +336,19 @@ def record_user_signals(payload: schemas.BatchUserSignalsCreate, db: Session = D
     except Exception as e:
         db.rollback()
         raise HTTPException(status_code=500, detail=f"Failed to record signals: {str(e)}")
+
+@app.get("/api/admin/venues/{venueId}/signals/export")
+def export_venue_signals(venueId: str, db: Session = Depends(get_db)):
+    """
+    Export all signals collected at a venue to feed Tripzy's Cross-Domain Transfer Agent.
+    """
+    venue = db.query(models.Venue).filter(models.Venue.id == venueId).first()
+    if not venue:
+        raise HTTPException(status_code=404, detail="Venue not found")
+    try:
+        return export_lifestyle_signals(db, venueId)
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Failed to export signals: {str(e)}")
 
 # --- ADMIN ENDPOINTS ---
 
@@ -455,8 +470,14 @@ def delete_table(id: str, db: Session = Depends(get_db)):
 
 # Categories
 @app.get("/api/admin/categories", response_model=List[schemas.CategorySchema])
-def list_categories(venueId: str, db: Session = Depends(get_db)):
-    return db.query(models.Category).filter(models.Category.venueId == venueId).order_by(models.Category.sortOrder.asc()).all()
+def list_categories(venueId: str, request: Request, db: Session = Depends(get_db)):
+    user_role = request.headers.get("x-user-role")
+    show_deleted = user_role == "SUPER_ADMIN"
+    categories = db.query(models.Category).filter(models.Category.venueId == venueId).order_by(models.Category.sortOrder.asc()).all()
+    for cat in categories:
+        if not show_deleted:
+            cat.items = [item for item in cat.items if not item.isDeleted]
+    return categories
 
 @app.post("/api/admin/categories", response_model=schemas.CategorySchema, status_code=status.HTTP_201_CREATED)
 def create_category(cat_in: schemas.CategoryCreate, db: Session = Depends(get_db)):
@@ -659,11 +680,21 @@ def update_menu_item(id: str, item_in: schemas.MenuItemCreate, background_tasks:
     return item
 
 @app.delete("/api/admin/menu-items/{id}", status_code=status.HTTP_204_NO_CONTENT)
-def delete_menu_item(id: str, db: Session = Depends(get_db)):
+def delete_menu_item(id: str, request: Request, permanent: bool = False, db: Session = Depends(get_db)):
     item = db.query(models.MenuItem).filter(models.MenuItem.id == id).first()
     if not item:
         raise HTTPException(status_code=404, detail="Menu Item not found")
-    db.delete(item)
+    
+    user_role = request.headers.get("x-user-role")
+    is_super_admin = (user_role == "SUPER_ADMIN") or permanent
+
+    if is_super_admin:
+        db.delete(item)
+    else:
+        item.isDeleted = True
+        if item.recipe:
+            item.recipe.isDeleted = True
+            
     db.commit()
 
 @app.put("/api/admin/menu-items/reorder", status_code=status.HTTP_204_NO_CONTENT)

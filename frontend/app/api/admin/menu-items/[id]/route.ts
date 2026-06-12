@@ -100,9 +100,14 @@ export async function DELETE(
 ) {
   try {
     const { id } = params;
+    const userRole = request.headers.get("x-user-role");
+    const { searchParams } = new URL(request.url);
+    const permanent = searchParams.get("permanent") === "true";
+    const isSuperAdmin = userRole === "SUPER_ADMIN" || permanent;
 
     const item = await prisma.menuItem.findUnique({
       where: { id },
+      include: { recipe: true },
     });
 
     if (!item) {
@@ -112,10 +117,25 @@ export async function DELETE(
       );
     }
 
-    await prisma.menuItem.update({
-      where: { id },
-      data: { isDeleted: true },
-    });
+    if (isSuperAdmin) {
+      await prisma.menuItem.delete({
+        where: { id },
+      });
+    } else {
+      await prisma.$transaction(async (tx) => {
+        await tx.menuItem.update({
+          where: { id },
+          data: { isDeleted: true },
+        });
+
+        if (item.recipe) {
+          await tx.recipe.update({
+            where: { menuItemId: id },
+            data: { isDeleted: true },
+          });
+        }
+      });
+    }
 
     return new NextResponse(null, { status: 204 });
   } catch (error: any) {

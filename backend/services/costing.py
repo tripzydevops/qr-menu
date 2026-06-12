@@ -115,6 +115,80 @@ def process_invoice(db: Session, invoice_id: str) -> models.Invoice:
 
 
 # ---------------------------------------------------------------------------
+# 1.1. revert_invoice_items
+# ---------------------------------------------------------------------------
+
+def revert_invoice_items(db: Session, invoice_id: str) -> None:
+    """
+    Revert the stock and WAC changes caused by a processed invoice.
+    1. For each InvoiceItem, subtract quantity from Ingredient stock,
+       and reverse WAC calculation.
+    2. Recalculate affected recipes.
+    """
+    invoice = db.query(models.Invoice).filter(models.Invoice.id == invoice_id).first()
+    if not invoice:
+        raise ValueError(f"Invoice {invoice_id} not found")
+    if invoice.status != "processed":
+        # Only processed invoices have affected stock/WAC
+        return
+
+    affected_ingredient_ids = set()
+
+    for item in invoice.items:
+        ingredient = db.query(models.Ingredient).filter(
+            models.Ingredient.id == item.ingredientId
+        ).first()
+        if not ingredient:
+            continue
+
+        current_stock = _dec(ingredient.currentStock)
+        current_wac = _dec(ingredient.weightedCost)
+        qty = _dec(item.quantity)
+        entered_unit_cost = _dec(item.unitCost)
+        vat_rate = _dec(item.vatRate)
+        is_inclusive = item.isVatInclusive
+
+        # Calculate Net Unit Cost (KDV-hariç)
+        if is_inclusive:
+            unit_cost = entered_unit_cost / (_ONE + vat_rate)
+        else:
+            unit_cost = entered_unit_cost
+
+        # Reverse WAC:
+        # Stock_old = Stock_new - Qty
+        # WAC_old = (Stock_new * WAC_new - Qty * Cost) / Stock_old
+        old_stock = current_stock - qty
+        if old_stock > _ZERO:
+            old_wac = (current_stock * current_wac - qty * unit_cost) / old_stock
+        else:
+            old_wac = _ZERO
+
+        old_cost = current_wac
+
+        ingredient.currentStock = old_stock
+        ingredient.weightedCost = old_wac
+        ingredient.updatedAt = datetime.datetime.utcnow()
+
+        # Log cost change
+        cost_log = models.IngredientCostLog(
+            id=str(uuid.uuid4()),
+            ingredientId=ingredient.id,
+            oldCost=old_cost,
+            newCost=old_wac,
+            reason="invoice_reversion",
+        )
+        db.add(cost_log)
+
+        affected_ingredient_ids.add(ingredient.id)
+
+    db.flush()
+
+    # Cascade to recipes
+    for ingredient_id in affected_ingredient_ids:
+        recalculate_affected_recipes(db, ingredient_id)
+
+
+# ---------------------------------------------------------------------------
 # 2. recalculate_recipe_cost
 # ---------------------------------------------------------------------------
 
@@ -261,7 +335,7 @@ def get_profitability_dashboard(
     menu_items = (
         db.query(models.MenuItem)
         .join(models.Category, models.MenuItem.categoryId == models.Category.id)
-        .filter(models.Category.venueId == venue_id)
+        .filter(models.Category.venueId == venue_id, models.MenuItem.isDeleted == False)
         .all()
     )
 
@@ -272,7 +346,7 @@ def get_profitability_dashboard(
 
     for mi in menu_items:
         recipe = mi.recipe
-        if not recipe:
+        if not recipe or recipe.isDeleted:
             continue
         items_with_recipes += 1
 

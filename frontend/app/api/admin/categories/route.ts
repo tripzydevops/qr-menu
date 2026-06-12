@@ -15,13 +15,16 @@ export async function GET(request: NextRequest) {
       );
     }
 
+    const userRole = request.headers.get("x-user-role");
+    const showDeleted = userRole === "SUPER_ADMIN";
+
     const categories = await prisma.category.findMany({
       where: { venueId },
       orderBy: { sortOrder: "asc" },
       include: {
         translations: true,
         items: {
-          where: { isDeleted: false },
+          where: showDeleted ? undefined : { isDeleted: false },
           orderBy: { sortOrder: "asc" },
           include: {
             translations: true,

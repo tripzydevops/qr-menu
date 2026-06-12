@@ -4,6 +4,9 @@ from typing import List, Optional, Dict
 from decimal import Decimal
 import uuid
 import datetime
+import os
+import json
+import httpx
 
 try:
     from ..database import get_db
@@ -37,6 +40,40 @@ def verify_inventory_gating(venue_id: str, db: Session) -> models.Venue:
 # ---------------------------------------------------------------------------
 # 1. Ingredients Endpoints
 # ---------------------------------------------------------------------------
+@router.get("/ingredients/suggest-density")
+async def suggest_density(name: str):
+    api_key = os.environ.get("GEMINI_API_KEY")
+    if not api_key:
+        return {"density": 1.0}
+
+    url = f"https://generativelanguage.googleapis.com/v1beta/models/gemini-3.1-flash-lite:generateContent?key={api_key}"
+    prompt = (
+        f"You are a culinary science assistant. Estimate the density (specific gravity) in g/mL of the ingredient named: \"{name}\".\n"
+        "Return a JSON object with this exact structure:\n"
+        "{\n"
+        "  \"density\": number\n"
+        "}\n"
+        "Ensure the density is a positive float. Typical examples: Water = 1.0, Yogurt = 1.08, Olive Oil = 0.92, Flour = 0.52, Sugar = 0.85, Milk = 1.03, Honey = 1.42. If you don't know or the name is unclear, default to 1.0."
+    )
+
+    payload = {
+        "contents": [{"parts": [{"text": prompt}]}],
+        "generationConfig": {"responseMimeType": "application/json"},
+    }
+
+    try:
+        async with httpx.AsyncClient(timeout=10.0) as client:
+            response = await client.post(url, json=payload)
+            if response.status_code == 200:
+                data = response.json()
+                text_response = data["candidates"][0]["content"]["parts"][0]["text"]
+                parsed = json.loads(text_response.strip())
+                return {"density": float(parsed.get("density", 1.0))}
+    except Exception as e:
+        print(f"[Density Suggest] Exception calling Gemini: {e}")
+
+    return {"density": 1.0}
+
 @router.get("/ingredients", response_model=List[schemas.IngredientSchema])
 def list_ingredients(venueId: str, db: Session = Depends(get_db)):
     venue = verify_inventory_gating(venueId, db)
@@ -244,6 +281,64 @@ def get_invoice(id: str, db: Session = Depends(get_db)):
             item.ingredientUnit = item.ingredient.unit
     return inv
 
+@router.put("/invoices/{id}", response_model=schemas.InvoiceSchema)
+def update_invoice(id: str, inv_in: schemas.InvoiceCreate, db: Session = Depends(get_db)):
+    inv = db.query(models.Invoice).filter(models.Invoice.id == id).first()
+    if not inv:
+        raise HTTPException(status_code=404, detail="Invoice not found")
+    
+    verify_inventory_gating(inv.venueId, db)
+    
+    # Revert WAC and stock changes from the original items if it was processed
+    if inv.status == "processed":
+        costing.revert_invoice_items(db, inv.id)
+    
+    # Delete original InvoiceItems
+    db.query(models.InvoiceItem).filter(models.InvoiceItem.invoiceId == id).delete()
+    
+    # Calculate new total amount
+    total_amount = Decimal("0.0")
+    for item in inv_in.items:
+        total_amount += Decimal(str(item.quantity)) * Decimal(str(item.unitCost))
+        
+    inv.invoiceNumber = inv_in.invoiceNumber
+    inv.supplierId = inv_in.supplierId
+    inv.invoiceDate = inv_in.invoiceDate
+    inv.totalAmount = total_amount
+    inv.status = "pending"  # temporarily pending to allow re-processing
+    inv.updatedAt = datetime.datetime.utcnow()
+    db.flush()
+    
+    for item in inv_in.items:
+        db_item = models.InvoiceItem(
+            id=str(uuid.uuid4()),
+            invoiceId=inv.id,
+            ingredientId=item.ingredientId,
+            quantity=Decimal(str(item.quantity)),
+            unitCost=Decimal(str(item.unitCost)),
+            vatRate=Decimal(str(item.vatRate)) if item.vatRate is not None else Decimal("0.01"),
+            isVatInclusive=item.isVatInclusive if item.isVatInclusive is not None else False,
+            totalCost=Decimal(str(item.quantity)) * Decimal(str(item.unitCost)),
+            rawName=item.rawName,
+            brand=item.brand
+        )
+        db.add(db_item)
+        
+    db.commit()
+    db.refresh(inv)
+    
+    # Re-process the invoice automatically
+    processed = costing.process_invoice(db, inv.id)
+    
+    if processed.supplier:
+        processed.supplierName = processed.supplier.name
+    for it in processed.items:
+        if it.ingredient:
+            it.ingredientName = it.ingredient.name
+            it.ingredientUnit = it.ingredient.unit
+            
+    return processed
+
 @router.delete("/invoices/{id}", response_model=schemas.InvoiceSchema)
 def void_invoice(id: str, db: Session = Depends(get_db)):
     inv = db.query(models.Invoice).filter(models.Invoice.id == id).first()
@@ -252,6 +347,10 @@ def void_invoice(id: str, db: Session = Depends(get_db)):
     
     verify_inventory_gating(inv.venueId, db)
     
+    # Revert WAC and stock changes before marking status as "void"
+    if inv.status == "processed":
+        costing.revert_invoice_items(db, inv.id)
+        
     inv.status = "void"
     inv.updatedAt = datetime.datetime.utcnow()
     db.commit()
@@ -497,17 +596,28 @@ async def suggest_recipe(
 # 4. Recipes Endpoints
 # ---------------------------------------------------------------------------
 @router.get("/recipes", response_model=List[schemas.RecipeSchema])
-def list_recipes(venueId: str, db: Session = Depends(get_db)):
+def list_recipes(venueId: str, request: Request, db: Session = Depends(get_db)):
     verify_inventory_gating(venueId, db)
     
+    user_role = request.headers.get("x-user-role")
+    show_deleted = user_role == "SUPER_ADMIN"
+    
     # Get all menu items with their recipes in this venue
-    recipes = db.query(models.Recipe).join(
+    query = db.query(models.Recipe).join(
         models.MenuItem, models.Recipe.menuItemId == models.MenuItem.id
     ).join(
         models.Category, models.MenuItem.categoryId == models.Category.id
     ).filter(
         models.Category.venueId == venueId
-    ).all()
+    )
+
+    if not show_deleted:
+        query = query.filter(
+            models.Recipe.isDeleted == False,
+            models.MenuItem.isDeleted == False
+        )
+
+    recipes = query.all()
 
     # Decorate Recipe schemas
     for r in recipes:

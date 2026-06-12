@@ -1,8 +1,8 @@
 "use client";
 
+import React, { useEffect, useState } from "react";
 import { DEFAULT_VENUE_ID } from "@/lib/config";
 
-import React, { useEffect, useState } from "react";
 import { 
   FileText, 
   Upload, 
@@ -16,7 +16,8 @@ import {
   Calendar,
   Sparkles,
   DollarSign,
-  X
+  X,
+  Edit
 } from "lucide-react";
 
 interface Ingredient {
@@ -72,6 +73,7 @@ export default function AdminInvoicesPage() {
   const [isScanning, setIsScanning] = useState(false);
   const [expandedInvoiceId, setExpandedInvoiceId] = useState<string | null>(null);
   const [showArchived, setShowArchived] = useState(false);
+  const [editingInvoiceId, setEditingInvoiceId] = useState<string | null>(null);
 
   // Form states
   const [invNumber, setInvNumber] = useState("");
@@ -285,8 +287,13 @@ export default function AdminInvoicesPage() {
         }))
       };
 
-      const res = await fetch(`${apiUrl}/api/admin/inventory/invoices`, {
-        method: "POST",
+      const method = editingInvoiceId ? "PUT" : "POST";
+      const endpoint = editingInvoiceId 
+        ? `${apiUrl}/api/admin/inventory/invoices/${editingInvoiceId}`
+        : `${apiUrl}/api/admin/inventory/invoices`;
+
+      const res = await fetch(endpoint, {
+        method,
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(payload)
       });
@@ -480,10 +487,61 @@ export default function AdminInvoicesPage() {
     setInvDate(new Date().toISOString().split("T")[0]);
     setLineItems([]);
     setErrors({});
+    setEditingInvoiceId(null);
   };
 
   const toggleExpand = (id: string) => {
     setExpandedInvoiceId(expandedInvoiceId === id ? null : id);
+  };
+
+  const handleStartEdit = (inv: Invoice) => {
+    setEditingInvoiceId(inv.id);
+    setInvNumber(inv.invoiceNumber || "");
+    setSelectedSupplierId(inv.supplierId);
+    setInvDate(new Date(inv.invoiceDate).toISOString().split("T")[0]);
+    
+    const mappedItems: InvoiceItem[] = inv.items.map(item => {
+      let isPackage = false;
+      let packageCount = 1;
+      let packageSize = item.quantity;
+      let packagePrice = item.quantity * item.unitCost;
+
+      if (typeof window !== "undefined") {
+        const savedConfigStr = localStorage.getItem(`last_ing_config_${item.ingredientId}`);
+        if (savedConfigStr) {
+          try {
+            const savedConfig = JSON.parse(savedConfigStr);
+            if (savedConfig.quantity === item.quantity && savedConfig.unitCost === item.unitCost) {
+              isPackage = savedConfig.isPackage ?? false;
+              packageCount = savedConfig.packageCount ?? 1;
+              packageSize = savedConfig.packageSize ?? item.quantity;
+              packagePrice = savedConfig.packagePrice ?? (item.quantity * item.unitCost);
+            }
+          } catch (e) {
+            console.error("Failed to parse saved config on edit start", e);
+          }
+        }
+      }
+
+      return {
+        ingredientId: item.ingredientId,
+        ingredientName: item.ingredientName,
+        ingredientUnit: item.ingredientUnit,
+        quantity: item.quantity,
+        unitCost: item.unitCost,
+        vatRate: item.vatRate ?? 0.01,
+        isVatInclusive: item.isVatInclusive ?? false,
+        isPackage,
+        packageCount,
+        packageSize,
+        packagePrice,
+        brand: item.brand || "",
+        rawName: item.rawName || ""
+      };
+    });
+    
+    setLineItems(mappedItems);
+    setIsCreating(true);
   };
 
   return (
@@ -526,11 +584,19 @@ export default function AdminInvoicesPage() {
           </label>
           
           <button 
-            onClick={() => { clearForm(); setIsCreating(!isCreating); }}
+            onClick={() => {
+              if (isCreating) {
+                clearForm();
+                setIsCreating(false);
+              } else {
+                clearForm();
+                setIsCreating(true);
+              }
+            }}
             className="flex items-center space-x-1 px-4 py-2.5 rounded-xl bg-gradient-to-r from-[#722F37] to-[#C9A84C]/80 hover:to-[#C9A84C] text-white font-semibold text-xs transition-all shadow-md shadow-[#722F37]/15"
           >
-            <Plus className="h-4 w-4" />
-            <span>{isCreating ? "Listeyi Göster" : "Manuel Fatura Gir"}</span>
+            {isCreating ? <X className="h-4 w-4" /> : <Plus className="h-4 w-4" />}
+            <span>{isCreating ? (editingInvoiceId ? "Düzenlemeyi İptal Et" : "Listeyi Göster") : "Manuel Fatura Gir"}</span>
           </button>
         </div>
       </div>
@@ -540,7 +606,7 @@ export default function AdminInvoicesPage() {
         <div className="bg-[#16213E]/30 border border-gray-800/50 rounded-2xl p-6 shadow-xl space-y-6">
           <h3 className="font-serif text-lg font-bold text-white flex items-center space-x-2">
             <FileText className="h-5 w-5 text-[#C9A84C]" />
-            <span>Fatura Bilgileri</span>
+            <span>{editingInvoiceId ? "Faturayı Düzenle" : "Fatura Bilgileri"}</span>
           </h3>
 
           <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
@@ -831,7 +897,7 @@ export default function AdminInvoicesPage() {
                 className="flex items-center space-x-1.5 px-6 py-2.5 rounded-xl bg-[#722F37] hover:bg-[#8B3E48] text-white font-bold text-xs transition-all shadow-md shadow-[#722F37]/15"
               >
                 <Check className="h-4 w-4" />
-                <span>Faturayı Kaydet</span>
+                <span>{editingInvoiceId ? "Değişiklikleri Kaydet" : "Faturayı Kaydet"}</span>
               </button>
             </div>
           </div>
@@ -913,13 +979,22 @@ export default function AdminInvoicesPage() {
                                   {inv.isArchived ? "Geri Yükle" : "Arşivle"}
                                 </button>
                                 {!isVoid && !inv.isArchived && (
-                                  <button
-                                    onClick={() => handleVoidInvoice(inv.id)}
-                                    className="p-1.5 rounded-lg bg-red-950/15 hover:bg-red-950/40 text-red-400 border border-red-950/30"
-                                    title="Faturayı İptal Et"
-                                  >
-                                    <Trash2 className="h-3.5 w-3.5" />
-                                  </button>
+                                  <>
+                                    <button
+                                      onClick={() => handleStartEdit(inv)}
+                                      className="p-1.5 rounded-lg bg-blue-950/15 hover:bg-blue-950/40 text-blue-400 border border-blue-950/30"
+                                      title="Faturayı Düzenle"
+                                    >
+                                      <Edit className="h-3.5 w-3.5" />
+                                    </button>
+                                    <button
+                                      onClick={() => handleVoidInvoice(inv.id)}
+                                      className="p-1.5 rounded-lg bg-red-950/15 hover:bg-red-950/40 text-red-400 border border-red-950/30"
+                                      title="Faturayı İptal Et"
+                                    >
+                                      <Trash2 className="h-3.5 w-3.5" />
+                                    </button>
+                                  </>
                                 )}
                               </div>
                             </td>

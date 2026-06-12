@@ -307,7 +307,7 @@ export default function AdminMenuPage() {
   };
 
   const handleDeleteCategory = async (id: string) => {
-    if (!confirm("Are you sure you want to delete this category and all its items?")) return;
+    if (!confirm("Bu kategoriyi ve içerdiği tüm ürünleri silmek istediğinize emin misiniz? Bu işlem geri alınamaz.")) return;
 
     try {
       const res = await fetch(`${apiUrl}/api/admin/categories/${id}`, {
@@ -391,7 +391,7 @@ export default function AdminMenuPage() {
   };
 
   const handleDeleteItem = async (id: string) => {
-    if (!confirm("Delete this menu item?")) return;
+    if (!confirm("Bu menü ürününü silmek istediğinize emin misiniz? Bu işlem ürünü ve varsa ona bağlı reçeteyi menüden kaldıracaktır.")) return;
 
     try {
       const res = await fetch(`${apiUrl}/api/admin/menu-items/${id}`, {

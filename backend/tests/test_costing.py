@@ -482,6 +482,161 @@ def test_wac_with_kdv():
         cleanup_test_entities(db)
         db.close()
 
+def test_edit_invoice():
+    db = SessionLocal()
+    cleanup_test_entities(db)
+    setup_test_entities(db)
+    try:
+        # Create ingredient
+        ing = models.Ingredient(
+            id="test-ing-edit",
+            name="Sugar",
+            unit="g",
+            currentStock=Decimal("0.0"),
+            weightedCost=Decimal("0.0"),
+            venueId="test-venue-1"
+        )
+        db.add(ing)
+        db.commit()
+
+        # Submit invoice: 1000g @ 0.1 TL/g (Total 100)
+        inv = models.Invoice(
+            id="test-inv-edit",
+            supplierId="test-sup-1",
+            invoiceDate=datetime.datetime.utcnow(),
+            totalAmount=Decimal("100.00"),
+            status="pending",
+            venueId="test-venue-1"
+        )
+        db.add(inv)
+        db.flush()
+        
+        inv_item = models.InvoiceItem(
+            id="test-invitem-edit",
+            invoiceId="test-inv-edit",
+            ingredientId="test-ing-edit",
+            quantity=Decimal("1000.0"),
+            unitCost=Decimal("0.1"),
+            totalCost=Decimal("100.0")
+        )
+        db.add(inv_item)
+        db.commit()
+
+        # Process invoice
+        costing.process_invoice(db, "test-inv-edit")
+
+        # Verify initial WAC and stock
+        db.refresh(ing)
+        assert ing.currentStock == Decimal("1000.0000")
+        assert ing.weightedCost == Decimal("0.100000")
+
+        # Now edit/update the invoice: change quantity to 500g and unit cost to 0.2 TL/g (Total 100)
+        # 1. Revert original
+        costing.revert_invoice_items(db, "test-inv-edit")
+        db.refresh(ing)
+        assert ing.currentStock == Decimal("0.0000")
+        assert ing.weightedCost == Decimal("0.0000")
+
+        # 2. Delete old item, add new item
+        db.query(models.InvoiceItem).filter(models.InvoiceItem.invoiceId == "test-inv-edit").delete()
+        new_inv_item = models.InvoiceItem(
+            id="test-invitem-edit-new",
+            invoiceId="test-inv-edit",
+            ingredientId="test-ing-edit",
+            quantity=Decimal("500.0"),
+            unitCost=Decimal("0.2"),
+            totalCost=Decimal("100.0")
+        )
+        db.add(new_inv_item)
+        
+        # 3. Update invoice
+        inv.totalAmount = Decimal("100.00")
+        inv.status = "pending"
+        db.commit()
+
+        # 4. Process again
+        costing.process_invoice(db, "test-inv-edit")
+
+        # Verify edited WAC and stock: 500g at 0.2 TL/g
+        db.refresh(ing)
+        assert ing.currentStock == Decimal("500.0000")
+        assert ing.weightedCost == Decimal("0.200000")
+
+        print("test_edit_invoice passed.")
+    finally:
+        db.query(models.InvoiceItem).filter(models.InvoiceItem.id.like("test-%")).delete()
+        db.query(models.Invoice).filter(models.Invoice.id == "test-inv-edit").delete()
+        db.query(models.IngredientCostLog).filter(models.IngredientCostLog.ingredientId == "test-ing-edit").delete()
+        db.query(models.Ingredient).filter(models.Ingredient.id == "test-ing-edit").delete()
+        cleanup_test_entities(db)
+        db.close()
+
+def test_void_invoice_reversion():
+    db = SessionLocal()
+    cleanup_test_entities(db)
+    setup_test_entities(db)
+    try:
+        # Create ingredient
+        ing = models.Ingredient(
+            id="test-ing-void",
+            name="Salt",
+            unit="g",
+            currentStock=Decimal("0.0"),
+            weightedCost=Decimal("0.0"),
+            venueId="test-venue-1"
+        )
+        db.add(ing)
+        db.commit()
+
+        # Submit invoice: 1000g @ 0.1 TL/g
+        inv = models.Invoice(
+            id="test-inv-void",
+            supplierId="test-sup-1",
+            invoiceDate=datetime.datetime.utcnow(),
+            totalAmount=Decimal("100.00"),
+            status="pending",
+            venueId="test-venue-1"
+        )
+        db.add(inv)
+        db.flush()
+        
+        inv_item = models.InvoiceItem(
+            id="test-invitem-void",
+            invoiceId="test-inv-void",
+            ingredientId="test-ing-void",
+            quantity=Decimal("1000.0"),
+            unitCost=Decimal("0.1"),
+            totalCost=Decimal("100.0")
+        )
+        db.add(inv_item)
+        db.commit()
+
+        # Process invoice
+        costing.process_invoice(db, "test-inv-void")
+
+        # Verify WAC and stock
+        db.refresh(ing)
+        assert ing.currentStock == Decimal("1000.0000")
+        assert ing.weightedCost == Decimal("0.100000")
+
+        # Void the invoice and verify reversion
+        costing.revert_invoice_items(db, "test-inv-void")
+        inv.status = "void"
+        db.commit()
+
+        db.refresh(ing)
+        assert ing.currentStock == Decimal("0.0000")
+        assert ing.weightedCost == Decimal("0.0000")
+
+        print("test_void_invoice_reversion passed.")
+    finally:
+        db.query(models.InvoiceItem).filter(models.InvoiceItem.id.like("test-%")).delete()
+        db.query(models.Invoice).filter(models.Invoice.id == "test-inv-void").delete()
+        db.query(models.IngredientCostLog).filter(models.IngredientCostLog.ingredientId == "test-ing-void").delete()
+        db.query(models.Ingredient).filter(models.Ingredient.id == "test-ing-void").delete()
+        cleanup_test_entities(db)
+        db.close()
+
 if __name__ == "__main__":
     print("Running costing and inventory engine tests...")
     test_wac_calculations()
@@ -489,4 +644,6 @@ if __name__ == "__main__":
     test_price_sync()
     test_stock_deduction()
     test_wac_with_kdv()
+    test_edit_invoice()
+    test_void_invoice_reversion()
     print("All backend tests completed successfully!")

@@ -56,7 +56,7 @@ export async function GET(
             SELECT m.id, m."nameTr", m."nameEn", m."descriptionTr", m."descriptionEn", m.price, m."imageUrl", m.allergens, m."isAvailable", m."categoryId"
             FROM "MenuItem" m
             JOIN "Category" c ON m."categoryId" = c.id
-            WHERE c."venueId" = $1 AND m."isAvailable" = true
+            WHERE c."venueId" = $1 AND m."isAvailable" = true AND m."isDeleted" = false
             ORDER BY m.embedding <=> $2::vector ASC
             LIMIT 6
             `,
@@ -79,7 +79,7 @@ export async function GET(
         SELECT m.id, m."nameTr", m."nameEn", m."descriptionTr", m."descriptionEn", m.price, m."imageUrl", m.allergens, m."isAvailable", m."categoryId"
         FROM "MenuItem" m
         JOIN "Category" c ON m."categoryId" = c.id
-        WHERE c."venueId" = $1 AND m."isAvailable" = true
+        WHERE c."venueId" = $1 AND m."isAvailable" = true AND m."isDeleted" = false
           AND (
             m."nameTr" ILIKE $2 OR
             m."nameEn" ILIKE $2 OR
