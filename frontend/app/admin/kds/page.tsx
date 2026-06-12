@@ -277,7 +277,7 @@ export default function KitchenDisplaySystemPage() {
               Mutfak Görüntüleme Sistemi (KDS)
             </span>
             <span className="text-[10px] text-gray-400 font-mono tracking-wider block">
-              Karaköy Lokantası — Canlı Mutfak Paneli
+              {orgName} — Canlı Mutfak Paneli
             </span>
           </div>
         </div>

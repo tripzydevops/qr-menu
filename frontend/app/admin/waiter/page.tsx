@@ -2,7 +2,7 @@
 
 import { DEFAULT_VENUE_ID } from "@/lib/config";
 
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useState, useRef } from "react";
 import Link from "next/link";
 import { 
   Bell, 
@@ -86,9 +86,9 @@ export default function WaiterConsolePage() {
   const [orgName, setOrgName] = useState("Karaköy Lokantası");
   
   // Tracking alerts
-  const [seenCallIds, setSeenCallIds] = useState<Set<string>>(new Set());
-  const [seenRunIds, setSeenRunIds] = useState<Set<string>>(new Set());
-  const [seenOrderIds, setSeenOrderIds] = useState<Set<string>>(new Set());
+  const seenCallIds = useRef<Set<string>>(new Set());
+  const seenRunIds = useRef<Set<string>>(new Set());
+  const seenOrderIds = useRef<Set<string>>(new Set());
   
   // Notification states
   const [newOrderToast, setNewOrderToast] = useState<{ tableName: string; text: string } | null>(null);
@@ -224,7 +224,7 @@ export default function WaiterConsolePage() {
         // Check for new calls to trigger chime
         let hasNewCall = false;
         callsData.forEach(c => {
-          if (!seenCallIds.has(c.id)) {
+          if (!seenCallIds.current.has(c.id)) {
             hasNewCall = true;
           }
         });
@@ -232,7 +232,7 @@ export default function WaiterConsolePage() {
         // Check for new runs to trigger chime
         let hasNewRun = false;
         readyRuns.forEach(r => {
-          if (!seenRunIds.has(r.id)) {
+          if (!seenRunIds.current.has(r.id)) {
             hasNewRun = true;
           }
         });
@@ -241,7 +241,7 @@ export default function WaiterConsolePage() {
         let hasNewOrder = false;
         let newOrderDetails = null;
         ordersData.forEach(o => {
-          if (!seenOrderIds.has(o.id)) {
+          if (!seenOrderIds.current.has(o.id)) {
             if (o.status === "pending" && !loading) {
               hasNewOrder = true;
               const mainItemName = o.items[0]?.menuItemNameTr || "Sipariş";
@@ -259,22 +259,10 @@ export default function WaiterConsolePage() {
         setAllOrders(ordersData);
         setRuns(readyRuns);
 
-        // Update seen records
-        setSeenCallIds(prev => {
-          const next = new Set(prev);
-          callsData.forEach(c => next.add(c.id));
-          return next;
-        });
-        setSeenRunIds(prev => {
-          const next = new Set(prev);
-          readyRuns.forEach(r => next.add(r.id));
-          return next;
-        });
-        setSeenOrderIds(prev => {
-          const next = new Set(prev);
-          ordersData.forEach(o => next.add(o.id));
-          return next;
-        });
+        // Update seen records in refs
+        callsData.forEach(c => seenCallIds.current.add(c.id));
+        readyRuns.forEach(r => seenRunIds.current.add(r.id));
+        ordersData.forEach(o => seenOrderIds.current.add(o.id));
 
         if (hasNewOrder && newOrderDetails) {
           setNewOrderToast(newOrderDetails);
@@ -293,7 +281,7 @@ export default function WaiterConsolePage() {
     fetchWaiterData();
     const interval = setInterval(fetchWaiterData, 5000);
     return () => clearInterval(interval);
-  }, [seenCallIds, seenRunIds, seenOrderIds, refreshKey, loading]);
+  }, [refreshKey, loading]);
 
   // Handle call resolution
   const handleResolveCall = async (requestId: string) => {

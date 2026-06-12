@@ -62,6 +62,12 @@ export async function PUT(
       tableName: order.table?.name || null,
       status: order.status,
       totalAmount: Number(order.totalAmount),
+      discountAmount: Number(order.discountAmount),
+      discountType: order.discountType,
+      discountRef: order.discountRef,
+      netAmount: Number(order.netAmount),
+      paymentMethod: order.paymentMethod,
+      paidAt: order.paidAt ? order.paidAt.toISOString() : null,
       createdAt: order.createdAt.toISOString(),
       items: order.items.map((item) => ({
         id: item.id,
