@@ -17,7 +17,8 @@ import {
   Sparkles,
   DollarSign,
   X,
-  Edit
+  Edit,
+  Search
 } from "lucide-react";
 
 interface Ingredient {
@@ -92,6 +93,10 @@ export default function AdminInvoicesPage() {
   const [newIngDensity, setNewIngDensity] = useState(1.0);
   const [targetLineItemIndex, setTargetLineItemIndex] = useState<number | null>(null);
   const [creatingIngLoading, setCreatingIngLoading] = useState(false);
+
+  // Searchable select states
+  const [openDropdownIndex, setOpenDropdownIndex] = useState<number | null>(null);
+  const [ingSearchTerm, setIngSearchTerm] = useState("");
 
   const fetchData = async () => {
     try {
@@ -709,18 +714,77 @@ export default function AdminInvoicesPage() {
                             + Yeni Ekle
                           </button>
                         </div>
-                        <select
-                          value={item.ingredientId}
-                          onChange={(e) => handleUpdateLineItem(index, "ingredientId", e.target.value)}
-                          className={`w-full bg-[#1C1C28] border rounded-lg px-2 py-2 text-xs text-white focus:outline-none ${
-                            errors[`item_${index}_ing`] ? "border-red-500" : "border-gray-800"
-                          }`}
-                        >
-                          <option value="">Malzeme Seçin...</option>
-                          {ingredients.map(ing => (
-                            <option key={ing.id} value={ing.id}>{ing.name} ({ing.unit})</option>
-                          ))}
-                        </select>
+                        <div className="relative">
+                          <button
+                            type="button"
+                            onClick={() => {
+                              if (openDropdownIndex === index) {
+                                setOpenDropdownIndex(null);
+                              } else {
+                                setOpenDropdownIndex(index);
+                                setIngSearchTerm("");
+                              }
+                            }}
+                            className={`w-full bg-[#1C1C28] border rounded-lg px-2 py-2 text-xs text-white text-left focus:outline-none flex justify-between items-center h-[38px] ${
+                              errors[`item_${index}_ing`] ? "border-red-500" : "border-gray-800"
+                            }`}
+                          >
+                            <span className="truncate">
+                              {currentIng ? `${currentIng.name} (${currentIng.unit})` : "Malzeme Seçin..."}
+                            </span>
+                            <ChevronDown className="h-3.5 w-3.5 text-gray-500 flex-shrink-0 ml-1" />
+                          </button>
+
+                          {openDropdownIndex === index && (
+                            <>
+                              <div 
+                                className="fixed inset-0 z-40" 
+                                onClick={() => setOpenDropdownIndex(null)}
+                              />
+                              
+                              <div className="absolute left-0 mt-1 w-64 bg-[#1C1C28] border border-gray-800 rounded-lg shadow-2xl z-50 p-2 space-y-2 max-h-[300px] flex flex-col">
+                                <div className="relative">
+                                  <Search className="absolute left-2.5 top-2.5 h-3.5 w-3.5 text-gray-500" />
+                                  <input
+                                    type="text"
+                                    placeholder="Malzeme ara..."
+                                    value={ingSearchTerm}
+                                    onChange={(e) => setIngSearchTerm(e.target.value)}
+                                    className="w-full bg-[#16213E] border border-gray-800 rounded pl-8 pr-2 py-1.5 text-xs text-white focus:outline-none focus:border-[#C9A84C]/50"
+                                    autoFocus
+                                  />
+                                </div>
+                                <div className="overflow-y-auto flex-grow space-y-0.5 max-h-[200px] no-scrollbar">
+                                  {ingredients.filter(ing => 
+                                    ing.name.toLowerCase().includes(ingSearchTerm.toLowerCase())
+                                  ).length > 0 ? (
+                                    ingredients.filter(ing => 
+                                      ing.name.toLowerCase().includes(ingSearchTerm.toLowerCase())
+                                    ).map(ing => (
+                                      <button
+                                        key={ing.id}
+                                        type="button"
+                                        onClick={() => {
+                                          handleUpdateLineItem(index, "ingredientId", ing.id);
+                                          setOpenDropdownIndex(null);
+                                        }}
+                                        className={`w-full text-left px-2 py-1.5 rounded text-xs hover:bg-[#722F37] hover:text-white transition-colors truncate ${
+                                          item.ingredientId === ing.id ? "bg-[#722F37]/35 text-[#C9A84C] font-semibold" : "text-gray-300"
+                                        }`}
+                                      >
+                                        {ing.name} ({ing.unit})
+                                      </button>
+                                    ))
+                                  ) : (
+                                    <div className="text-center py-4 text-[10px] text-gray-500">
+                                      Malzeme bulunamadı
+                                    </div>
+                                  )}
+                                </div>
+                              </div>
+                            </>
+                          )}
+                        </div>
                       </div>
 
                       <div className="md:col-span-2">
