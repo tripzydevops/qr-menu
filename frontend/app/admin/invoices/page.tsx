@@ -94,6 +94,13 @@ export default function AdminInvoicesPage() {
   const [targetLineItemIndex, setTargetLineItemIndex] = useState<number | null>(null);
   const [creatingIngLoading, setCreatingIngLoading] = useState(false);
 
+  // New supplier form states
+  const [isCreatingSupplier, setIsCreatingSupplier] = useState(false);
+  const [newSupName, setNewSupName] = useState("");
+  const [newSupEmail, setNewSupEmail] = useState("");
+  const [newSupPhone, setNewSupPhone] = useState("");
+  const [creatingSupLoading, setCreatingSupLoading] = useState(false);
+
   // Searchable select states
   const [openDropdownIndex, setOpenDropdownIndex] = useState<number | null>(null);
   const [ingSearchTerm, setIngSearchTerm] = useState("");
@@ -247,6 +254,52 @@ export default function AdminInvoicesPage() {
       alert("Malzeme eklenirken bir hata oluştu.");
     } finally {
       setCreatingIngLoading(false);
+    }
+  };
+
+  const handleCreateNewSupplier = async () => {
+    if (!newSupName.trim()) {
+      alert("Lütfen tedarikçi adını girin.");
+      return;
+    }
+
+    try {
+      setCreatingSupLoading(true);
+      const payload = {
+        venueId,
+        name: newSupName.trim(),
+        contactEmail: newSupEmail.trim() || null,
+        contactPhone: newSupPhone.trim() || null,
+      };
+
+      const res = await fetch(`${apiUrl}/api/admin/inventory/suppliers`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(payload)
+      });
+
+      if (res.ok) {
+        const newSup = await res.json();
+        // Update local suppliers list
+        setSuppliers(prev => [...prev, newSup].sort((a, b) => a.name.localeCompare(b.name)));
+        
+        // Auto-select the newly created supplier
+        setSelectedSupplierId(newSup.id);
+        
+        // Reset states and close modal
+        setNewSupName("");
+        setNewSupEmail("");
+        setNewSupPhone("");
+        setIsCreatingSupplier(false);
+      } else {
+        const err = await res.json();
+        alert(err.detail || "Tedarikçi eklenemedi.");
+      }
+    } catch (e) {
+      console.error(e);
+      alert("Tedarikçi eklenirken bir hata oluştu.");
+    } finally {
+      setCreatingSupLoading(false);
     }
   };
 
@@ -631,7 +684,16 @@ export default function AdminInvoicesPage() {
 
           <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
             <div>
-              <label className="text-xs text-gray-400 block mb-1">Tedarikçi</label>
+              <div className="flex justify-between items-center mb-1">
+                <label className="text-xs text-gray-400">Tedarikçi</label>
+                <button
+                  type="button"
+                  onClick={() => setIsCreatingSupplier(true)}
+                  className="text-[10px] text-[#C9A84C] hover:underline"
+                >
+                  + Yeni Ekle
+                </button>
+              </div>
               <select
                 value={selectedSupplierId}
                 onChange={(e) => setSelectedSupplierId(e.target.value)}
@@ -1254,6 +1316,93 @@ export default function AdminInvoicesPage() {
                 className="flex items-center space-x-1 px-4 py-2 rounded-xl bg-gradient-to-r from-[#722F37] to-[#C9A84C]/80 hover:to-[#C9A84C] text-white font-bold text-xs transition-all shadow-md shadow-[#722F37]/15 disabled:opacity-50"
               >
                 {creatingIngLoading ? (
+                  <Loader2 className="h-4 w-4 animate-spin" />
+                ) : (
+                  <Check className="h-4 w-4" />
+                )}
+                <span>Kaydet</span>
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Inline Create Supplier Modal */}
+      {isCreatingSupplier && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm animate-in fade-in duration-200">
+          <div className="w-full max-w-md bg-[#16213E]/95 border border-gray-800/80 rounded-2xl p-6 shadow-2xl space-y-4 animate-in fade-in zoom-in-95 duration-200">
+            <div className="flex justify-between items-center pb-2 border-b border-gray-800/40">
+              <h3 className="font-serif text-lg font-bold text-white flex items-center space-x-2">
+                <Plus className="h-5 w-5 text-[#C9A84C]" />
+                <span>Yeni Tedarikçi Ekle</span>
+              </h3>
+              <button
+                onClick={() => {
+                  setIsCreatingSupplier(false);
+                  setNewSupName("");
+                  setNewSupEmail("");
+                  setNewSupPhone("");
+                }}
+                className="text-gray-400 hover:text-white"
+              >
+                <X className="h-5 w-5" />
+              </button>
+            </div>
+
+            <div className="space-y-4">
+              <div>
+                <label className="text-xs text-gray-400 block mb-1">Tedarikçi Adı (Zorunlu)</label>
+                <input
+                  type="text"
+                  value={newSupName}
+                  onChange={(e) => setNewSupName(e.target.value)}
+                  className="w-full bg-[#1C1C28] border border-gray-800 rounded-xl px-4 py-2.5 text-xs text-white focus:outline-none focus:border-[#C9A84C]/50"
+                  placeholder="örn. Metro Market, Kahve İthalat A.Ş..."
+                  autoFocus
+                />
+              </div>
+
+              <div>
+                <label className="text-xs text-gray-400 block mb-1">E-posta (Opsiyonel)</label>
+                <input
+                  type="email"
+                  value={newSupEmail}
+                  onChange={(e) => setNewSupEmail(e.target.value)}
+                  className="w-full bg-[#1C1C28] border border-gray-800 rounded-xl px-4 py-2.5 text-xs text-white focus:outline-none focus:border-[#C9A84C]/50"
+                  placeholder="örn. siparis@tedarikci.com"
+                />
+              </div>
+
+              <div>
+                <label className="text-xs text-gray-400 block mb-1">Telefon (Opsiyonel)</label>
+                <input
+                  type="text"
+                  value={newSupPhone}
+                  onChange={(e) => setNewSupPhone(e.target.value)}
+                  className="w-full bg-[#1C1C28] border border-gray-800 rounded-xl px-4 py-2.5 text-xs text-white focus:outline-none focus:border-[#C9A84C]/50"
+                  placeholder="örn. +90 212 555 12 34"
+                />
+              </div>
+            </div>
+
+            <div className="flex justify-end space-x-2 pt-2 border-t border-gray-800/40">
+              <button
+                onClick={() => {
+                  setIsCreatingSupplier(false);
+                  setNewSupName("");
+                  setNewSupEmail("");
+                  setNewSupPhone("");
+                }}
+                className="px-4 py-2 rounded-xl bg-gray-800 hover:bg-gray-700 text-xs font-bold text-white transition-all border border-gray-700/50"
+              >
+                İptal
+              </button>
+              <button
+                onClick={handleCreateNewSupplier}
+                disabled={creatingSupLoading}
+                className="flex items-center space-x-1 px-4 py-2 rounded-xl bg-gradient-to-r from-[#722F37] to-[#C9A84C]/80 hover:to-[#C9A84C] text-white font-bold text-xs transition-all shadow-md shadow-[#722F37]/15 disabled:opacity-50"
+              >
+                {creatingSupLoading ? (
                   <Loader2 className="h-4 w-4 animate-spin" />
                 ) : (
                   <Check className="h-4 w-4" />

@@ -306,24 +306,21 @@ export default function AdminInventoryPage() {
             Reçetelerinizde kullandığınız hammaddeleri, maliyetlerini ve tedarikçileri yönetin.
           </p>
         </div>
-        <div>
-          {activeTab === "ingredients" ? (
-            <button 
-              onClick={openAddIngModal}
-              className="flex items-center space-x-1.5 px-4 py-2.5 rounded-xl bg-gradient-to-r from-[#722F37] to-[#C9A84C]/80 hover:to-[#C9A84C] text-white font-semibold text-xs transition-all shadow-md shadow-[#722F37]/15"
-            >
-              <Plus className="h-4 w-4" />
-              <span>Yeni Malzeme Ekle</span>
-            </button>
-          ) : (
-            <button 
-              onClick={openAddSupModal}
-              className="flex items-center space-x-1.5 px-4 py-2.5 rounded-xl bg-gradient-to-r from-[#722F37] to-[#C9A84C]/80 hover:to-[#C9A84C] text-white font-semibold text-xs transition-all shadow-md shadow-[#722F37]/15"
-            >
-              <Plus className="h-4 w-4" />
-              <span>Yeni Tedarikçi Ekle</span>
-            </button>
-          )}
+        <div className="flex flex-wrap gap-2">
+          <button 
+            onClick={openAddIngModal}
+            className="flex items-center space-x-1.5 px-4 py-2.5 rounded-xl bg-gradient-to-r from-[#722F37] to-[#C9A84C]/80 hover:to-[#C9A84C] text-white font-semibold text-xs transition-all shadow-md shadow-[#722F37]/15"
+          >
+            <Plus className="h-4 w-4" />
+            <span>Yeni Malzeme Ekle</span>
+          </button>
+          <button 
+            onClick={openAddSupModal}
+            className="flex items-center space-x-1.5 px-4 py-2.5 rounded-xl border border-gray-800 hover:bg-gray-800/40 text-white font-semibold text-xs transition-all"
+          >
+            <Plus className="h-4 w-4" />
+            <span>Yeni Tedarikçi Ekle</span>
+          </button>
         </div>
       </div>
 
