@@ -466,6 +466,7 @@ class IngredientBase(BaseModel):
     reorderLevel: Optional[Decimal] = None
     density: Decimal = Decimal("1.0")
     lastBrand: Optional[str] = None
+    weightedCost: Optional[Decimal] = Decimal("0.0")
 
 class IngredientCreate(IngredientBase):
     venueId: str
@@ -476,6 +477,7 @@ class IngredientUpdate(BaseModel):
     reorderLevel: Optional[Decimal] = None
     density: Optional[Decimal] = None
     lastBrand: Optional[str] = None
+    weightedCost: Optional[Decimal] = None
 
 class IngredientSchema(IngredientBase):
     id: str

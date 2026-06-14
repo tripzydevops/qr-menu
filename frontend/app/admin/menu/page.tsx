@@ -787,6 +787,30 @@ export default function AdminMenuPage() {
                 </div>
               </div>
 
+              <div>
+                <label className="text-xs text-gray-400 block mb-1">Kategori</label>
+                <div className="relative">
+                  <select
+                    value={itemCategoryId}
+                    onChange={(e) => setItemCategoryId(e.target.value)}
+                    className={`w-full bg-[#1C1C28] border rounded-xl px-4 py-2.5 text-sm text-white focus:outline-none appearance-none pr-10 ${
+                      itemErrors.categoryId ? "border-red-500 focus:border-red-500" : "border-gray-800 focus:border-[#C9A84C]/50"
+                    }`}
+                  >
+                    <option value="" disabled className="text-gray-500">Kategori Seçin</option>
+                    {categories.map((cat) => (
+                      <option key={cat.id} value={cat.id} className="bg-[#1C1C28] text-white">
+                        {cat.nameTr} {cat.nameEn ? `(${cat.nameEn})` : ""}
+                      </option>
+                    ))}
+                  </select>
+                  <div className="pointer-events-none absolute inset-y-0 right-0 flex items-center px-3 text-gray-400">
+                    <ChevronDown className="h-4 w-4" />
+                  </div>
+                </div>
+                {itemErrors.categoryId && <p className="text-red-500 text-[11px] mt-1">{itemErrors.categoryId}</p>}
+              </div>
+
               <div className="grid grid-cols-2 gap-3">
                 <div>
                   <label className="text-xs text-gray-400 block mb-1">Açıklama (TR)</label>

@@ -102,7 +102,7 @@ def create_ingredient(ing_in: schemas.IngredientCreate, db: Session = Depends(ge
         unit=ing_in.unit,
         currentStock=Decimal("0.0"),
         reorderLevel=Decimal(str(ing_in.reorderLevel)) if ing_in.reorderLevel is not None else None,
-        weightedCost=Decimal("0.0"),
+        weightedCost=Decimal(str(ing_in.weightedCost)) if ing_in.weightedCost is not None else Decimal("0.0"),
         density=Decimal(str(ing_in.density)),
         lastBrand=ing_in.lastBrand,
         venueId=ing_in.venueId,
@@ -127,6 +127,8 @@ def update_ingredient(id: str, ing_in: schemas.IngredientBase, db: Session = Dep
     db_ing.density = Decimal(str(ing_in.density))
     if ing_in.lastBrand is not None:
         db_ing.lastBrand = ing_in.lastBrand
+    if ing_in.weightedCost is not None:
+        db_ing.weightedCost = Decimal(str(ing_in.weightedCost))
     db_ing.updatedAt = datetime.datetime.utcnow()
     
     db.commit()

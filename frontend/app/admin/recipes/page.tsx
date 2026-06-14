@@ -61,10 +61,11 @@ interface RecipeItemForm {
   density: number;
   cost: number;
   amountUsed: number;
-  inputAmount: number;
+  inputAmount: number | string;
   inputUnit: string;
   originalText?: string;
   confidence?: number;
+  lineCostOverride?: string;
 }
 
 const convertUnit = (amount: number, fromUnit: string, toUnit: string, density: number): number => {
@@ -162,6 +163,13 @@ export default function AdminRecipesPage() {
   const [portionSize, setPortionSize] = useState<number>(1);
   const [portionUnit, setPortionUnit] = useState<string>("g");
   const [totalYield, setTotalYield] = useState<number>(1);
+
+  // Inline Ingredient creation state
+  const [showNewIngForm, setShowNewIngForm] = useState(false);
+  const [newIngName, setNewIngName] = useState("");
+  const [newIngUnit, setNewIngUnit] = useState("g");
+  const [newIngCost, setNewIngCost] = useState("0");
+  const [newIngDensity, setNewIngDensity] = useState("1.0");
 
   // Form errors
   const [errors, setErrors] = useState<string | null>(null);
@@ -524,23 +532,119 @@ export default function AdminRecipesPage() {
     setRecipeItems(recipeItems.filter((_, i) => i !== index));
   };
 
-  const handleUpdateAmount = (index: number, amount: number, unit?: string) => {
+  const handleUpdateAmount = (index: number, amountVal: string | number, unit?: string) => {
     setRecipeItems(
       recipeItems.map((item, i) => {
         if (i === index) {
           const nextUnit = unit !== undefined ? unit : item.inputUnit;
-          const nextAmount = amount;
-          const amountUsed = convertUnit(nextAmount, nextUnit, item.unit, item.density);
+          
+          let parsedAmount = 0;
+          if (typeof amountVal === "string") {
+            if (amountVal === "-" || amountVal === "") {
+              parsedAmount = 0;
+            } else {
+              parsedAmount = parseFloat(amountVal);
+              if (isNaN(parsedAmount)) parsedAmount = 0;
+            }
+          } else {
+            parsedAmount = amountVal;
+          }
+
+          const amountUsed = convertUnit(parsedAmount, nextUnit, item.unit, item.density);
           return {
             ...item,
-            inputAmount: nextAmount,
+            inputAmount: amountVal,
             inputUnit: nextUnit,
             amountUsed,
+            lineCostOverride: undefined,
           };
         }
         return item;
       })
     );
+  };
+
+  const handleUpdateLineCost = (index: number, costVal: string) => {
+    if (costVal !== "" && costVal !== "-" && !/^-?\d*\.?\d*$/.test(costVal)) {
+      return;
+    }
+
+    setRecipeItems(
+      recipeItems.map((item, i) => {
+        if (i === index) {
+          const parsedCost = parseFloat(costVal);
+          if (isNaN(parsedCost)) {
+            return {
+              ...item,
+              lineCostOverride: costVal,
+            };
+          }
+
+          if (item.cost !== 0) {
+            const nextAmountUsed = parsedCost / item.cost;
+            const nextInputAmount = convertUnit(nextAmountUsed, item.unit, item.inputUnit, item.density);
+            return {
+              ...item,
+              amountUsed: nextAmountUsed,
+              inputAmount: Number(nextInputAmount.toFixed(4)),
+              lineCostOverride: undefined,
+            };
+          } else {
+            const assumedUnitCost = 1.0;
+            const nextAmountUsed = parsedCost / assumedUnitCost;
+            const nextInputAmount = convertUnit(nextAmountUsed, item.unit, item.inputUnit, item.density);
+            return {
+              ...item,
+              cost: assumedUnitCost,
+              amountUsed: nextAmountUsed,
+              inputAmount: Number(nextInputAmount.toFixed(4)),
+              lineCostOverride: undefined,
+            };
+          }
+        }
+        return item;
+      })
+    );
+  };
+
+  const handleCreateIngredientInline = async () => {
+    if (!newIngName.trim()) {
+      alert("Malzeme adı zorunludur.");
+      return;
+    }
+    try {
+      const res = await fetch(`${apiUrl}/api/admin/inventory/ingredients`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          venueId,
+          name: newIngName.trim(),
+          unit: newIngUnit,
+          density: parseFloat(newIngDensity) || 1.0,
+          weightedCost: parseFloat(newIngCost) || 0.0,
+          currentStock: 0,
+        })
+      });
+      if (res.ok) {
+        const newIng = await res.json();
+        setIngredients(prev => [...prev, newIng]);
+        handleAddIngredientToRecipe({
+          id: newIng.id,
+          name: newIng.name,
+          unit: newIng.unit,
+          weightedCost: newIng.weightedCost.toString(),
+          density: parseFloat(newIng.density) || 1.0,
+        });
+        setShowNewIngForm(false);
+        setNewIngName("");
+      } else {
+        const err = await res.json();
+        alert(err.detail || "Malzeme oluşturulamadı.");
+      }
+    } catch (e) {
+      console.error(e);
+      alert("Malzeme oluşturulurken hata oluştu.");
+    }
   };
 
   const calculateTotalCost = () => {
@@ -578,7 +682,7 @@ export default function AdminRecipesPage() {
               unit: item.unit,
               density: Number(item.density) || 1.0,
               currentStock: 0,
-              weightedCost: 0,
+              weightedCost: item.cost,
             })
           });
           
@@ -588,11 +692,26 @@ export default function AdminRecipesPage() {
             updatedRecipeItems[i] = {
               ...item,
               ingredientId: newIng.id,
-              cost: 0,
+              cost: parseFloat(newIng.weightedCost) || 0,
             };
           } else {
-            const errData = await resIng.json();
+            const errData = await resIng.json().catch(() => ({}));
             throw new Error(errData.detail || `Malzeme '${item.name}' oluşturulamadı.`);
+          }
+        } else {
+          // If the unit cost changed, update the database
+          const originalIng = ingredients.find(ing => ing.id === item.ingredientId);
+          if (originalIng && parseFloat(originalIng.weightedCost) !== item.cost) {
+            await fetch(`${apiUrl}/api/admin/inventory/ingredients/${item.ingredientId}`, {
+              method: "PUT",
+              headers: { "Content-Type": "application/json" },
+              body: JSON.stringify({
+                name: originalIng.name,
+                unit: originalIng.unit,
+                density: Number(originalIng.density) || 1.0,
+                weightedCost: item.cost,
+              })
+            });
           }
         }
       }
@@ -956,6 +1075,89 @@ export default function AdminRecipesPage() {
                   />
                 </div>
 
+                {/* Add New Ingredient Form (Inline) */}
+                {showNewIngForm ? (
+                  <div className="bg-[#1C1C28]/90 border border-gray-800 p-3 rounded-lg mb-3 space-y-2.5 text-xs flex-shrink-0">
+                    <p className="font-semibold text-[#C9A84C]">Yeni Malzeme Ekle</p>
+                    <div className="grid grid-cols-2 gap-2">
+                      <div>
+                        <label className="text-[10px] text-gray-400 block mb-1">Malzeme Adı</label>
+                        <input
+                          type="text"
+                          value={newIngName}
+                          onChange={(e) => setNewIngName(e.target.value)}
+                          className="w-full bg-[#16213E] border border-gray-800 rounded px-2.5 py-1.5 text-white text-xs focus:outline-none focus:border-[#C9A84C]/50"
+                          placeholder="örn. Tuz"
+                        />
+                      </div>
+                      <div>
+                        <label className="text-[10px] text-gray-400 block mb-1">Birim</label>
+                        <select
+                          value={newIngUnit}
+                          onChange={(e) => setNewIngUnit(e.target.value)}
+                          className="w-full bg-[#16213E] border border-gray-800 rounded px-2 py-1.5 text-white text-xs focus:outline-none focus:border-[#C9A84C]/50"
+                        >
+                          <option value="g">Gram (g)</option>
+                          <option value="kg">Kilo (kg)</option>
+                          <option value="ml">Mililitre (ml)</option>
+                          <option value="liter">Litre (L)</option>
+                          <option value="unit">Adet (unit)</option>
+                        </select>
+                      </div>
+                    </div>
+                    <div className="grid grid-cols-2 gap-2">
+                      <div>
+                        <label className="text-[10px] text-gray-400 block mb-1">Birim Maliyet (₺)</label>
+                        <input
+                          type="number"
+                          step="any"
+                          value={newIngCost}
+                          onChange={(e) => setNewIngCost(e.target.value)}
+                          className="w-full bg-[#16213E] border border-gray-800 rounded px-2.5 py-1.5 text-white font-mono text-xs focus:outline-none focus:border-[#C9A84C]/50"
+                        />
+                      </div>
+                      <div>
+                        <label className="text-[10px] text-gray-400 block mb-1">Yoğunluk (g/ml)</label>
+                        <input
+                          type="number"
+                          step="any"
+                          value={newIngDensity}
+                          onChange={(e) => setNewIngDensity(e.target.value)}
+                          className="w-full bg-[#16213E] border border-gray-800 rounded px-2.5 py-1.5 text-white font-mono text-xs focus:outline-none focus:border-[#C9A84C]/50"
+                        />
+                      </div>
+                    </div>
+                    <div className="flex justify-end space-x-2 pt-1">
+                      <button
+                        onClick={() => setShowNewIngForm(false)}
+                        className="px-2.5 py-1 rounded bg-gray-800 text-white font-bold hover:bg-gray-700 text-[10px]"
+                      >
+                        İptal
+                      </button>
+                      <button
+                        onClick={handleCreateIngredientInline}
+                        className="px-2.5 py-1 rounded bg-[#722F37] text-white font-bold hover:bg-[#8B3E48] text-[10px]"
+                      >
+                        Ekle
+                      </button>
+                    </div>
+                  </div>
+                ) : (
+                  <button
+                    onClick={() => {
+                      setNewIngName(ingSearchQuery);
+                      setNewIngUnit("g");
+                      setNewIngCost("0");
+                      setNewIngDensity("1.0");
+                      setShowNewIngForm(true);
+                    }}
+                    className="w-full mb-3 px-3 py-2 bg-[#722F37]/10 hover:bg-[#722F37]/20 border border-[#722F37]/30 text-[#C9A84C] text-[11px] font-bold rounded-lg flex items-center justify-center space-x-1 transition-all flex-shrink-0"
+                  >
+                    <Plus className="h-3.5 w-3.5" />
+                    <span>Yeni Malzeme Tanımla</span>
+                  </button>
+                )}
+
                 {/* List */}
                 <div className="flex-grow overflow-y-auto space-y-1.5 pr-1 no-scrollbar">
                   {filteredIngSearch.length > 0 ? (
@@ -1121,7 +1323,22 @@ export default function AdminRecipesPage() {
                               )}
                             </div>
                             <div className="flex items-center space-x-2 mt-0.5">
-                              <span className="text-[9px] text-gray-500 font-mono">₺{item.cost.toFixed(2)} / {item.unit}</span>
+                              <div className="flex items-center space-x-1">
+                                <span className="text-[9px] text-gray-500 font-mono">₺</span>
+                                <input
+                                  type="text"
+                                  value={item.cost}
+                                  onChange={(e) => {
+                                    const val = e.target.value;
+                                    if (val === "" || val === "-" || /^-?\d*\.?\d*$/.test(val)) {
+                                      const parsedCost = parseFloat(val) || 0;
+                                      setRecipeItems(recipeItems.map((ri, rIdx) => rIdx === index ? { ...ri, cost: parsedCost } : ri));
+                                    }
+                                  }}
+                                  className="w-10 bg-transparent border-b border-gray-800/80 focus:border-[#C9A84C]/50 text-[9px] text-gray-400 font-mono px-0.5 focus:outline-none text-center"
+                                />
+                                <span className="text-[9px] text-gray-500 font-mono">/ {item.unit}</span>
+                              </div>
                               {item.inputUnit !== item.unit && (
                                 <span className="text-[9px] bg-gray-800/40 border border-gray-700/20 px-1.5 py-0.2 rounded font-mono text-[#C9A84C] font-semibold">
                                   (= {item.amountUsed.toFixed(1)} {item.unit})
@@ -1132,10 +1349,14 @@ export default function AdminRecipesPage() {
                           
                           <div className="flex items-center space-x-1.5 flex-shrink-0">
                             <input
-                              type="number"
-                              step="0.01"
+                              type="text"
                               value={item.inputAmount}
-                              onChange={(e) => handleUpdateAmount(index, parseFloat(e.target.value) || 0)}
+                              onChange={(e) => {
+                                const val = e.target.value;
+                                if (val === "" || val === "-" || /^-?\d*\.?\d*$/.test(val)) {
+                                  handleUpdateAmount(index, val);
+                                }
+                              }}
                               className="w-16 bg-[#1C1C28] border border-gray-800 rounded px-2 py-1 text-center font-mono text-xs text-white focus:outline-none focus:border-[#C9A84C]/50"
                             />
                             <select
@@ -1159,8 +1380,14 @@ export default function AdminRecipesPage() {
                             </select>
                           </div>
 
-                          <div className="text-right flex-shrink-0 w-20">
-                            <p className="font-mono text-xs font-semibold text-white">₺{lineCost.toFixed(2)}</p>
+                          <div className="flex items-center space-x-1 flex-shrink-0 w-24 justify-end">
+                            <span className="text-gray-500 font-mono text-xs">₺</span>
+                            <input
+                              type="text"
+                              value={item.lineCostOverride !== undefined ? item.lineCostOverride : lineCost.toFixed(2)}
+                              onChange={(e) => handleUpdateLineCost(index, e.target.value)}
+                              className="w-16 bg-[#1C1C28] border border-gray-800 rounded px-2 py-1 text-right font-mono text-xs text-white focus:outline-none focus:border-[#C9A84C]/50"
+                            />
                           </div>
 
                           <button
