@@ -1045,14 +1045,13 @@ export default function WaiterConsolePage() {
                                 Sipariş Saati: {formatDate(r.createdAt)}
                               </div>
 
-                              {/* Action Button to bypass KDS */}
-                              <button
-                                onClick={() => handleServeOrder(r.id)}
-                                className="w-full mt-2 py-3 rounded-xl bg-gray-800 hover:bg-gray-750 text-white font-bold text-xs tracking-wide transition-all active:scale-98 flex items-center justify-center space-x-1 shadow-sm border border-gray-700/40"
+                              {/* Status indicator — waiter must wait for kitchen to mark ready */}
+                              <div
+                                className="w-full mt-2 py-3 rounded-xl bg-gray-800/50 text-gray-500 font-bold text-xs tracking-wide flex items-center justify-center space-x-2 border border-gray-700/20 cursor-not-allowed select-none"
                               >
-                                <Check className="h-4 w-4" />
-                                <span>Teslim Edildi / Servis Et</span>
-                              </button>
+                                <Loader2 className="h-4 w-4 animate-spin" />
+                                <span>{r.status === "pending" ? "Mutfak Onayı Bekleniyor…" : "Mutfakta Hazırlanıyor…"}</span>
+                              </div>
                             </div>
                           );
                         })}
