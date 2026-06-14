@@ -1642,6 +1642,16 @@ export default function AdminRecipesPage() {
                         })()}%
                       </span>
                     </div>
+                    <div className="col-span-2 pt-2 border-t border-gray-800/40 flex justify-between items-center text-xs">
+                      <span className="text-gray-500 font-semibold">Porsiyon Başına Net Kâr:</span>
+                      <span className="font-mono font-bold text-white text-sm">
+                        ₺{(() => {
+                          const sellPriceNum = parseFloat(sellingPrice) || 0;
+                          const costPerPortion = calculateTotalCost() / calculatedPortions;
+                          return Math.max(0, sellPriceNum - costPerPortion).toFixed(2);
+                        })()}
+                      </span>
+                    </div>
                   </div>
                 </div>
               </div>
