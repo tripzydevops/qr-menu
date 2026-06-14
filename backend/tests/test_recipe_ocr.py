@@ -30,6 +30,16 @@ def test_recipe_scan_endpoints():
     db = SessionLocal()
     client = TestClient(main.app)
     
+    # 0. Cleanup any stale test data from previous runs
+    db.query(models.RecipeIngredient).filter(models.RecipeIngredient.ingredientId == "test-ing-flour").delete()
+    db.query(models.Recipe).filter(models.Recipe.menuItemId == "test-recipe-item-1").delete()
+    db.query(models.MenuItem).filter(models.MenuItem.id == "test-recipe-item-1").delete()
+    db.query(models.Category).filter(models.Category.id == "test-recipe-cat-1").delete()
+    db.query(models.Ingredient).filter(models.Ingredient.venueId == "test-recipe-venue-1").delete()
+    db.query(models.Venue).filter(models.Venue.id == "test-recipe-venue-1").delete()
+    db.query(models.Organization).filter(models.Organization.id == "test-recipe-org-1").delete()
+    db.commit()
+
     # 1. Setup test data
     # Create Organization with inventoryEnabled=True
     org = models.Organization(id="test-recipe-org-1", name="Recipe Test Org", inventoryEnabled=True)
@@ -68,6 +78,39 @@ def test_recipe_scan_endpoints():
         venueId="test-recipe-venue-1"
     )
     db.add(ing_milk)
+
+    ing_garlic = models.Ingredient(
+        id="test-ing-garlic",
+        name="Sarımsak",
+        unit="g",
+        currentStock=Decimal("100.00"),
+        weightedCost=Decimal("0.20"),
+        density=Decimal("1.0"),
+        venueId="test-recipe-venue-1"
+    )
+    db.add(ing_garlic)
+
+    ing_olive_oil = models.Ingredient(
+        id="test-ing-olive-oil",
+        name="Zeytinyağı",
+        unit="ml",
+        currentStock=Decimal("1000.00"),
+        weightedCost=Decimal("0.15"),
+        density=Decimal("0.91"),
+        venueId="test-recipe-venue-1"
+    )
+    db.add(ing_olive_oil)
+
+    ing_pepper = models.Ingredient(
+        id="test-ing-pepper",
+        name="Karabiber",
+        unit="g",
+        currentStock=Decimal("50.00"),
+        weightedCost=Decimal("0.50"),
+        density=Decimal("1.0"),
+        venueId="test-recipe-venue-1"
+    )
+    db.add(ing_pepper)
     
     # Create category and menu item for recipe CRUD test
     cat = models.Category(
@@ -93,7 +136,7 @@ def test_recipe_scan_endpoints():
     
     try:
         # Test Case A: Scan via text JSON input (using fallback parsing mode)
-        recipe_text = "For this recipe we need 2 cups of Flour and 1 cup of Milk. Makes 1.5 kg."
+        recipe_text = "For this recipe we need 2 cups of Flour, 1 cup of Milk, 2 diş sarımsak, 1 çay bardağı zeytinyağı, and 3 çay kaşığı karabiber. Makes 1.5 kg."
         
         response = client.post(
             "/api/admin/inventory/recipes/scan?venueId=test-recipe-venue-1",
@@ -111,6 +154,9 @@ def test_recipe_scan_endpoints():
         # Verify both ingredients are returned with correct matching
         matched_flour = next((x for x in items if x["ingredientId"] == "test-ing-flour"), None)
         matched_milk = next((x for x in items if x["ingredientId"] == "test-ing-milk"), None)
+        matched_garlic = next((x for x in items if x["ingredientId"] == "test-ing-garlic"), None)
+        matched_olive_oil = next((x for x in items if x["ingredientId"] == "test-ing-olive-oil"), None)
+        matched_pepper = next((x for x in items if x["ingredientId"] == "test-ing-pepper"), None)
         
         assert matched_flour is not None
         assert abs(matched_flour["amountUsed"] - 249.6) < 1.0
@@ -119,6 +165,15 @@ def test_recipe_scan_endpoints():
         
         assert matched_milk is not None
         assert abs(matched_milk["amountUsed"] - 240.0) < 10.0
+
+        assert matched_garlic is not None
+        assert abs(matched_garlic["amountUsed"] - 8.0) < 0.1 # 2 diş * 4g = 8g
+
+        assert matched_olive_oil is not None
+        assert abs(matched_olive_oil["amountUsed"] - 100.0) < 0.1 # 1 çay bardağı = 100 ml
+
+        assert matched_pepper is not None
+        assert abs(matched_pepper["amountUsed"] - 7.5) < 0.1 # 3 çay kaşığı * 2.5g = 7.5g
         
         # Verify parsed yield
         assert data["suggestedYieldQuantity"] == 1.5

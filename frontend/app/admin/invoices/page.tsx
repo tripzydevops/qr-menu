@@ -47,6 +47,7 @@ interface InvoiceItem {
   packagePrice?: number;
   brand?: string;
   rawName?: string;
+  costInputUnit?: string;
 }
 
 interface Invoice {
@@ -129,7 +130,8 @@ export default function AdminInvoicesPage() {
         packageSize: 1,
         packagePrice: 0,
         brand: "",
-        rawName: ""
+        rawName: "",
+        costInputUnit: ingredients[0]?.unit || "g"
       }
     ]);
   };
@@ -145,6 +147,8 @@ export default function AdminInvoicesPage() {
         const updated = { ...item, [field]: value };
 
         if (field === "ingredientId" && value) {
+          const ing = ingredients.find(c => c.id === value);
+          updated.costInputUnit = ing ? ing.unit : "g";
           const savedConfigStr = typeof window !== "undefined" ? localStorage.getItem(`last_ing_config_${value}`) : null;
           if (savedConfigStr) {
             try {
@@ -446,6 +450,9 @@ export default function AdminInvoicesPage() {
               if (matchedIng) ingredientId = matchedIng.id;
             }
 
+            const currentMatched = updatedIngredients.find(ing => ing.id === ingredientId);
+            const ingUnit = currentMatched ? currentMatched.unit : "g";
+
             mappedItems.push({
               ingredientId: ingredientId,
               quantity: ocrItem.quantity || 1,
@@ -457,7 +464,8 @@ export default function AdminInvoicesPage() {
               packageSize: ocrItem.quantity || 1,
               packagePrice: (ocrItem.quantity || 1) * (ocrItem.unitCost || 0),
               brand: ocrItem.brand || "",
-              rawName: ocrItem.itemName || ""
+              rawName: ocrItem.itemName || "",
+              costInputUnit: ingUnit
             });
           });
         }
@@ -542,7 +550,8 @@ export default function AdminInvoicesPage() {
         packageSize,
         packagePrice,
         brand: item.brand || "",
-        rawName: item.rawName || ""
+        rawName: item.rawName || "",
+        costInputUnit: item.ingredientUnit || "g"
       };
     });
     
@@ -755,25 +764,60 @@ export default function AdminInvoicesPage() {
                             />
                           </div>
 
-                          <div className="md:col-span-1">
+                          <div className="md:col-span-2">
                             <label className="text-[10px] text-gray-400 block mb-1">
-                              Birim Fiyat {unit ? `(₺/${unit})` : " (₺)"}
+                              Birim Fiyatı
                             </label>
-                            <input
-                              type="number"
-                              step="0.01"
-                              value={item.unitCost}
-                              onChange={(e) => handleUpdateLineItem(index, "unitCost", parseFloat(e.target.value) || 0)}
-                              className={`w-full bg-[#1C1C28] border rounded-lg px-2 py-2 text-xs text-white font-mono focus:outline-none ${
-                                errors[`item_${index}_cost`] ? "border-red-500" : "border-gray-800"
-                              }`}
-                              placeholder="örn. 45"
-                            />
+                            <div className="flex space-x-1">
+                              <input
+                                type="number"
+                                step="any"
+                                value={
+                                  item.costInputUnit === "kg" || item.costInputUnit === "liter"
+                                    ? Number((item.unitCost * 1000).toFixed(4))
+                                    : item.unitCost
+                                }
+                                onChange={(e) => {
+                                  const val = parseFloat(e.target.value) || 0;
+                                  const baseCost =
+                                    item.costInputUnit === "kg" || item.costInputUnit === "liter"
+                                      ? val / 1000
+                                      : val;
+                                  handleUpdateLineItem(index, "unitCost", baseCost);
+                                }}
+                                className={`w-2/3 bg-[#1C1C28] border rounded-lg px-2 py-2 text-xs text-white font-mono focus:outline-none ${
+                                  errors[`item_${index}_cost`] ? "border-red-500" : "border-gray-800"
+                                }`}
+                                placeholder="örn. 45"
+                              />
+                              <select
+                                value={item.costInputUnit || unit || "g"}
+                                onChange={(e) => {
+                                  const nextCostUnit = e.target.value;
+                                  handleUpdateLineItem(index, "costInputUnit", nextCostUnit);
+                                }}
+                                className="w-1/3 bg-[#1C1C28] border border-gray-800 rounded-lg px-1 py-2 text-xs text-white focus:outline-none focus:border-[#C9A84C]/50 font-mono"
+                              >
+                                {unit === "g" ? (
+                                  <>
+                                    <option value="g">₺/g</option>
+                                    <option value="kg">₺/kg</option>
+                                  </>
+                                ) : unit === "ml" ? (
+                                  <>
+                                    <option value="ml">₺/ml</option>
+                                    <option value="liter">₺/L</option>
+                                  </>
+                                ) : (
+                                  <option value={unit || "g"}>₺/{unit || "g"}</option>
+                                )}
+                              </select>
+                            </div>
                           </div>
 
-                          <div className="md:col-span-2">
+                          <div className="md:col-span-1">
                             <label className="text-[10px] text-gray-400 block mb-1">Tutar (₺)</label>
-                            <div className="w-full bg-[#1C1C28]/80 border border-gray-800 rounded-lg px-2 py-2 text-xs text-[#C9A84C] font-mono font-bold flex items-center h-[38px]">
+                            <div className="w-full bg-[#1C1C28]/80 border border-gray-800 rounded-lg px-2 py-2 text-xs text-[#C9A84C] font-mono font-bold flex items-center h-[38px] overflow-hidden whitespace-nowrap text-ellipsis" title={`₺${(item.quantity * item.unitCost).toFixed(2)}`}>
                               ₺{(item.quantity * item.unitCost).toFixed(2)}
                             </div>
                           </div>

@@ -76,8 +76,11 @@ def parse_recipe(
         "  If the recipe specifies a volume-based quantity (e.g., cup, tablespoon, teaspoon, ml, liter) but the database ingredient's unit is weight-based (e.g., g, kg), you MUST convert the volume to weight using the provided Density (in g/mL) for that ingredient.\n"
         "  Standard conversions:\n"
         "  - 1 cup (Su bardağı) = 240 mL\n"
+        "  - 1 tea glass (Çay bardağı) = 100 mL\n"
         "  - 1 tablespoon (Yemek kaşığı / tbsp) = 15 mL\n"
-        "  - 1 teaspoon (Tatlı kaşığı / tsp) = 5 mL\n\n"
+        "  - 1 teaspoon (Tatlı kaşığı / tsp) = 5 mL\n"
+        "  - 1 Turkish teaspoon (Çay kaşığı) = 2.5 mL\n"
+        "  - 1 clove (Diş) = 4 g (standard conversion weight for count ingredients like garlic cloves)\n\n"
         "RULES FOR YIELD:\n"
         "- Look for yield information (e.g., 'Makes 1.5 kg', 'Makes 8 servings', 'Serves 4', 'Yields 2 Liters').\n"
         "- If in portions/servings, set 'suggestedYieldQuantity' to the number (e.g. 8) and 'suggestedYieldUnit' to 'porsiyon'.\n"
@@ -218,27 +221,46 @@ def fallback_parse_recipe(text_content: Optional[str], existing_ingredients: Lis
             context_end = min(len(text), idx + len(name) + 20)
             surrounding_text = text[context_start:context_end]
             
-            numbers = re.findall(r'\d+(?:\.\d+)?', surrounding_text)
-            if numbers:
-                try:
-                    amount = float(numbers[0])
-                except ValueError:
-                    pass
+            number_matches = [(float(m.group()), m.start()) for m in re.finditer(r'\d+(?:\.\d+)?', surrounding_text)]
+            unit_text = surrounding_text # fallback
+            if number_matches:
+                name_pos = idx - context_start
+                before_matches = [m for m in number_matches if m[1] < name_pos]
+                if before_matches:
+                    closest_num = min(before_matches, key=lambda x: name_pos - x[1])
+                    num_str_len = len(str(int(closest_num[0])))
+                    unit_text = surrounding_text[closest_num[1] + num_str_len : name_pos].lower()
+                else:
+                    closest_num = min(number_matches, key=lambda x: abs(x[1] - name_pos))
+                    unit_text = surrounding_text[name_pos + len(name) : closest_num[1]].lower()
+                amount = closest_num[0]
 
             if unit == "g":
-                if any(x in surrounding_text for x in ["cup", "bardak"]):
-                    amount = amount * 240.0 * density
-                elif any(x in surrounding_text for x in ["tbsp", "yemek kaşığı", "kaşık"]):
-                    amount = amount * 15.0 * density
-                elif any(x in surrounding_text for x in ["tsp", "tatlı kaşığı"]):
+                if any(x in unit_text for x in ["cup", "bardak", "bardağ"]):
+                    if any(y in unit_text for y in ["çay", "cay"]):
+                        amount = amount * 100.0 * density
+                    else:
+                        amount = amount * 240.0 * density
+                elif any(x in unit_text for x in ["çay kaşığı", "cay kasigi"]):
+                    amount = amount * 2.5 * density
+                elif any(x in unit_text for x in ["tsp", "tatlı kaşığı"]):
                     amount = amount * 5.0 * density
+                elif any(x in unit_text for x in ["tbsp", "yemek kaşığı", "kaşık"]):
+                    amount = amount * 15.0 * density
+                elif any(x in unit_text for x in ["clove", "diş"]):
+                    amount = amount * 4.0
             elif unit == "ml":
-                if any(x in surrounding_text for x in ["cup", "bardak"]):
-                    amount = amount * 240.0
-                elif any(x in surrounding_text for x in ["tbsp", "yemek kaşığı", "kaşık"]):
-                    amount = amount * 15.0
-                elif any(x in surrounding_text for x in ["tsp", "tatlı kaşığı"]):
+                if any(x in unit_text for x in ["cup", "bardak", "bardağ"]):
+                    if any(y in unit_text for y in ["çay", "cay"]):
+                        amount = amount * 100.0
+                    else:
+                        amount = amount * 240.0
+                elif any(x in unit_text for x in ["çay kaşığı", "cay kasigi"]):
+                    amount = amount * 2.5
+                elif any(x in unit_text for x in ["tsp", "tatlı kaşığı"]):
                     amount = amount * 5.0
+                elif any(x in unit_text for x in ["tbsp", "yemek kaşığı", "kaşık"]):
+                    amount = amount * 15.0
 
             items.append({
                 "ingredientId": ing_id,
@@ -339,8 +361,11 @@ def suggest_recipe_from_name(
         "- IMPORTANT CONVERSION RULE:\n"
         "  If the database unit is weight-based (e.g., g, kg) but you are using volume-based amounts (e.g., ml, cup, tbsp), you MUST convert it to the database unit using the provided Density (in g/mL) for that ingredient.\n"
         "  - 1 cup = 240 mL\n"
+        "  - 1 tea glass (çay bardağı) = 100 mL\n"
         "  - 1 tbsp = 15 mL\n"
-        "  - 1 tsp = 5 mL\n\n"
+        "  - 1 tsp = 5 mL\n"
+        "  - 1 Turkish teaspoon (çay kaşığı) = 2.5 mL\n"
+        "  - 1 clove (diş) = 4 g (standard weight for garlic cloves or similar count items converted to weight)\n\n"
         "RULES FOR YIELD:\n"
         "- Recommend a typical yield (e.g., 1 portion/porsiyon, 10 portions, etc.). Set suggestedYieldQuantity and suggestedYieldUnit accordingly."
     )

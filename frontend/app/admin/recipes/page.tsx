@@ -81,11 +81,17 @@ const convertUnit = (amount: number, fromUnit: string, toUnit: string, density: 
   } else if (fromUnit === "cup") {
     volumeMl = amount * 240;
     isVolume = true;
+  } else if (fromUnit === "tea_glass" || fromUnit === "çay_bardağı") {
+    volumeMl = amount * 100;
+    isVolume = true;
   } else if (fromUnit === "tbsp") {
     volumeMl = amount * 15;
     isVolume = true;
   } else if (fromUnit === "tsp") {
     volumeMl = amount * 5;
+    isVolume = true;
+  } else if (fromUnit === "çay_kaşığı" || fromUnit === "turkish_teaspoon") {
+    volumeMl = amount * 2.5;
     isVolume = true;
   }
 
@@ -93,8 +99,11 @@ const convertUnit = (amount: number, fromUnit: string, toUnit: string, density: 
     const weightG = volumeMl * density;
     if (toUnit === "g") return weightG;
     if (toUnit === "kg") return weightG / 1000;
+    if (toUnit === "clove" || toUnit === "diş") return weightG / 4;
     if (toUnit === "ml") return volumeMl;
     if (toUnit === "liter") return volumeMl / 1000;
+    if (toUnit === "tea_glass" || toUnit === "çay_bardağı") return volumeMl / 100;
+    if (toUnit === "çay_kaşığı" || toUnit === "turkish_teaspoon") return volumeMl / 2.5;
     return weightG;
   }
 
@@ -106,17 +115,23 @@ const convertUnit = (amount: number, fromUnit: string, toUnit: string, density: 
   } else if (fromUnit === "kg") {
     weightG = amount * 1000;
     isWeight = true;
+  } else if (fromUnit === "clove" || fromUnit === "diş") {
+    weightG = amount * 4;
+    isWeight = true;
   }
 
   if (isWeight) {
     if (toUnit === "g") return weightG;
     if (toUnit === "kg") return weightG / 1000;
+    if (toUnit === "clove" || toUnit === "diş") return weightG / 4;
     const volMl = weightG / (density || 1.0);
     if (toUnit === "ml") return volMl;
     if (toUnit === "liter") return volMl / 1000;
     if (toUnit === "cup") return volMl / 240;
+    if (toUnit === "tea_glass" || toUnit === "çay_bardağı") return volMl / 100;
     if (toUnit === "tbsp") return volMl / 15;
     if (toUnit === "tsp") return volMl / 5;
+    if (toUnit === "çay_kaşığı" || toUnit === "turkish_teaspoon") return volMl / 2.5;
     return weightG;
   }
 
@@ -1372,9 +1387,12 @@ export default function AdminRecipesPage() {
                                   <option value="kg">Kilo (kg)</option>
                                   <option value="ml">Mili. (ml)</option>
                                   <option value="liter">Litre (L)</option>
-                                  <option value="cup">Bardak (cup)</option>
+                                  <option value="cup">Su Bardak (cup)</option>
+                                  <option value="tea_glass">Çay Bardak (tea glass)</option>
                                   <option value="tbsp">Y.Kaşık (tbsp)</option>
                                   <option value="tsp">T.Kaşık (tsp)</option>
+                                  <option value="çay_kaşığı">Çay Kaşık (teaspoon)</option>
+                                  <option value="diş">Diş (clove)</option>
                                 </>
                               )}
                             </select>
