@@ -580,14 +580,15 @@ export default function AdminRecipesPage() {
   };
 
   const handleUpdateLineCost = (index: number, costVal: string) => {
-    if (costVal !== "" && costVal !== "-" && !/^-?\d*\.?\d*$/.test(costVal)) {
+    if (costVal !== "" && costVal !== "-" && !/^-?\d*[.,]?\d*$/.test(costVal)) {
       return;
     }
 
     setRecipeItems(
       recipeItems.map((item, i) => {
         if (i === index) {
-          const parsedCost = parseFloat(costVal);
+          const normalizedCostVal = costVal.replace(",", ".");
+          const parsedCost = parseFloat(normalizedCostVal);
           if (isNaN(parsedCost)) {
             return {
               ...item,
@@ -1345,8 +1346,9 @@ export default function AdminRecipesPage() {
                                   value={item.cost}
                                   onChange={(e) => {
                                     const val = e.target.value;
-                                    if (val === "" || val === "-" || /^-?\d*\.?\d*$/.test(val)) {
-                                      const parsedCost = parseFloat(val) || 0;
+                                    if (val === "" || val === "-" || /^-?\d*[.,]?\d*$/.test(val)) {
+                                      const normalizedVal = val.replace(",", ".");
+                                      const parsedCost = parseFloat(normalizedVal) || 0;
                                       setRecipeItems(recipeItems.map((ri, rIdx) => rIdx === index ? { ...ri, cost: parsedCost } : ri));
                                     }
                                   }}
@@ -1368,15 +1370,20 @@ export default function AdminRecipesPage() {
                               value={item.inputAmount}
                               onChange={(e) => {
                                 const val = e.target.value;
-                                if (val === "" || val === "-" || /^-?\d*\.?\d*$/.test(val)) {
-                                  handleUpdateAmount(index, val);
+                                if (val === "" || val === "-" || /^-?\d*[.,]?\d*$/.test(val)) {
+                                  handleUpdateAmount(index, val.replace(",", "."));
                                 }
                               }}
                               className="w-16 bg-[#1C1C28] border border-gray-800 rounded px-2 py-1 text-center font-mono text-xs text-white focus:outline-none focus:border-[#C9A84C]/50"
                             />
                             <select
                               value={item.inputUnit}
-                              onChange={(e) => handleUpdateAmount(index, item.inputAmount, e.target.value)}
+                              onChange={(e) => {
+                                const newUnit = e.target.value;
+                                const convertedAmount = convertUnit(item.amountUsed, item.unit, newUnit, item.density);
+                                const formattedAmount = Number(convertedAmount.toFixed(4));
+                                handleUpdateAmount(index, formattedAmount, newUnit);
+                              }}
                               className="bg-[#1C1C28] border border-gray-800 rounded px-1.5 py-1 text-xs text-white focus:outline-none focus:border-[#C9A84C]/50 w-24"
                             >
                               {item.unit === "unit" ? (
