@@ -556,3 +556,108 @@ def deduct_stock_from_order(db: Session, order_id: str) -> List[dict]:
 
     db.commit()
     return low_stock_warnings
+
+
+# ---------------------------------------------------------------------------
+# 8. reset_unverified_costs
+# ---------------------------------------------------------------------------
+
+def get_unverified_ingredients(db: Session, venue_id: str) -> List[models.Ingredient]:
+    """
+    Return ingredients whose cost was never set by an invoice or logged
+    in IngredientCostLog, but still have a non-zero weightedCost.
+    """
+    # IDs verified by invoice items
+    invoice_verified = (
+        db.query(models.InvoiceItem.ingredientId)
+        .join(models.Invoice, models.InvoiceItem.invoiceId == models.Invoice.id)
+        .filter(models.Invoice.status == "processed")
+        .distinct()
+        .all()
+    )
+    invoice_ids = {row[0] for row in invoice_verified}
+
+    # IDs verified by cost log entries
+    log_verified = (
+        db.query(models.IngredientCostLog.ingredientId)
+        .distinct()
+        .all()
+    )
+    log_ids = {row[0] for row in log_verified}
+
+    verified_ids = invoice_ids | log_ids
+
+    # Unverified ingredients with non-zero cost
+    query = (
+        db.query(models.Ingredient)
+        .filter(
+            models.Ingredient.venueId == venue_id,
+            models.Ingredient.weightedCost > _ZERO,
+        )
+    )
+    if verified_ids:
+        query = query.filter(models.Ingredient.id.notin_(verified_ids))
+
+    return query.all()
+
+
+def reset_unverified_costs(
+    db: Session, venue_id: str
+) -> dict:
+    """
+    Reset weightedCost to 0 for ingredients that have no invoice or
+    cost-log history.  Cascades recipe recalculations.
+    Returns a summary dict with reset details.
+    """
+    unverified = get_unverified_ingredients(db, venue_id)
+
+    affected_ingredient_ids: set = set()
+    reset_items: List[dict] = []
+
+    for ingredient in unverified:
+        old_cost = _dec(ingredient.weightedCost)
+
+        # Log the reset
+        cost_log = models.IngredientCostLog(
+            id=str(uuid.uuid4()),
+            ingredientId=ingredient.id,
+            oldCost=old_cost,
+            newCost=_ZERO,
+            reason="cost_reset",
+        )
+        db.add(cost_log)
+
+        ingredient.weightedCost = _ZERO
+        ingredient.updatedAt = datetime.datetime.utcnow()
+
+        reset_items.append({
+            "ingredientId": ingredient.id,
+            "ingredientName": ingredient.name,
+            "unit": ingredient.unit,
+            "currentWeightedCost": old_cost,
+        })
+        affected_ingredient_ids.add(ingredient.id)
+
+    db.flush()
+
+    # Cascade recipe recalculations
+    affected_recipe_ids: set = set()
+    for ingredient_id in affected_ingredient_ids:
+        recipe_ingredients = (
+            db.query(models.RecipeIngredient)
+            .filter(models.RecipeIngredient.ingredientId == ingredient_id)
+            .all()
+        )
+        for ri in recipe_ingredients:
+            if ri.recipeId not in affected_recipe_ids:
+                affected_recipe_ids.add(ri.recipeId)
+                recalculate_recipe_cost(db, ri.recipeId)
+                check_margin_alert(db, ri.recipeId)
+
+    db.commit()
+
+    return {
+        "resetCount": len(reset_items),
+        "resetIngredients": reset_items,
+        "affectedRecipeCount": len(affected_recipe_ids),
+    }

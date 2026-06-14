@@ -340,8 +340,8 @@ class Ingredient(Base):
     weightedCost = Column(Numeric(14, 6), default=0)  # WAC per unit
     density = Column(Numeric(14, 4), default=1.0, nullable=False)
     lastBrand = Column(String, nullable=True)
-    venueId = Column(String, ForeignKey("Venue.id", ondelete="CASCADE"), nullable=False)
-    organizationId = Column(String, nullable=True)  # Used when sharedInventory=true
+    venueId = Column(String, ForeignKey("Venue.id", ondelete="CASCADE"), nullable=False, index=True)
+    organizationId = Column(String, nullable=True, index=True)  # Used when sharedInventory=true
     createdAt = Column(DateTime, default=datetime.datetime.utcnow)
     updatedAt = Column(DateTime, default=datetime.datetime.utcnow, onupdate=datetime.datetime.utcnow)
 
@@ -358,7 +358,7 @@ class Supplier(Base):
     name = Column(String, nullable=False)
     contactEmail = Column(String, nullable=True)
     contactPhone = Column(String, nullable=True)
-    venueId = Column(String, ForeignKey("Venue.id", ondelete="CASCADE"), nullable=False)
+    venueId = Column(String, ForeignKey("Venue.id", ondelete="CASCADE"), nullable=False, index=True)
     createdAt = Column(DateTime, default=datetime.datetime.utcnow)
     updatedAt = Column(DateTime, default=datetime.datetime.utcnow, onupdate=datetime.datetime.utcnow)
 
@@ -371,11 +371,11 @@ class Invoice(Base):
 
     id = Column(String, primary_key=True, index=True)
     invoiceNumber = Column(String, nullable=True)
-    supplierId = Column(String, ForeignKey("Supplier.id", ondelete="CASCADE"), nullable=False)
+    supplierId = Column(String, ForeignKey("Supplier.id", ondelete="CASCADE"), nullable=False, index=True)
     invoiceDate = Column(DateTime, nullable=False)
     totalAmount = Column(Numeric(14, 2), nullable=False)
     status = Column(String, default="pending")  # "pending", "processed", "void"
-    venueId = Column(String, ForeignKey("Venue.id", ondelete="CASCADE"), nullable=False)
+    venueId = Column(String, ForeignKey("Venue.id", ondelete="CASCADE"), nullable=False, index=True)
     isArchived = Column(Boolean, default=False, nullable=False, index=True)
     createdAt = Column(DateTime, default=datetime.datetime.utcnow)
     updatedAt = Column(DateTime, default=datetime.datetime.utcnow, onupdate=datetime.datetime.utcnow)
@@ -389,8 +389,8 @@ class InvoiceItem(Base):
     __tablename__ = "InvoiceItem"
 
     id = Column(String, primary_key=True, index=True)
-    invoiceId = Column(String, ForeignKey("Invoice.id", ondelete="CASCADE"), nullable=False)
-    ingredientId = Column(String, ForeignKey("Ingredient.id", ondelete="CASCADE"), nullable=False)
+    invoiceId = Column(String, ForeignKey("Invoice.id", ondelete="CASCADE"), nullable=False, index=True)
+    ingredientId = Column(String, ForeignKey("Ingredient.id", ondelete="CASCADE"), nullable=False, index=True)
     quantity = Column(Numeric(14, 4), nullable=False)
     unitCost = Column(Numeric(14, 6), nullable=False)
     vatRate = Column(Numeric(5, 4), default=0.01)
@@ -426,8 +426,8 @@ class RecipeIngredient(Base):
     __tablename__ = "RecipeIngredient"
 
     id = Column(String, primary_key=True, index=True)
-    recipeId = Column(String, ForeignKey("Recipe.id", ondelete="CASCADE"), nullable=False)
-    ingredientId = Column(String, ForeignKey("Ingredient.id", ondelete="CASCADE"), nullable=False)
+    recipeId = Column(String, ForeignKey("Recipe.id", ondelete="CASCADE"), nullable=False, index=True)
+    ingredientId = Column(String, ForeignKey("Ingredient.id", ondelete="CASCADE"), nullable=False, index=True)
     amountUsed = Column(Numeric(14, 4), nullable=False)
 
     recipe = relationship("Recipe", back_populates="ingredients")
@@ -438,7 +438,7 @@ class IngredientCostLog(Base):
     __tablename__ = "IngredientCostLog"
 
     id = Column(String, primary_key=True, index=True)
-    ingredientId = Column(String, ForeignKey("Ingredient.id", ondelete="CASCADE"), nullable=False)
+    ingredientId = Column(String, ForeignKey("Ingredient.id", ondelete="CASCADE"), nullable=False, index=True)
     oldCost = Column(Numeric(14, 6), nullable=False)
     newCost = Column(Numeric(14, 6), nullable=False)
     reason = Column(String, nullable=False)  # "invoice", "manual_adjustment"
@@ -451,9 +451,9 @@ class PricingAlert(Base):
     __tablename__ = "PricingAlert"
 
     id = Column(String, primary_key=True, index=True)
-    venueId = Column(String, ForeignKey("Venue.id", ondelete="CASCADE"), nullable=False)
-    menuItemId = Column(String, ForeignKey("MenuItem.id"), nullable=False)
-    recipeId = Column(String, nullable=False)
+    venueId = Column(String, ForeignKey("Venue.id", ondelete="CASCADE"), nullable=False, index=True)
+    menuItemId = Column(String, ForeignKey("MenuItem.id"), nullable=False, index=True)
+    recipeId = Column(String, nullable=False, index=True)
     alertType = Column(String, nullable=False)  # "margin_drop", "low_stock", "cost_spike"
     message = Column(String, nullable=False)
     currentMargin = Column(Numeric(5, 4), nullable=False)

@@ -749,3 +749,25 @@ class ApplyDiscountResponse(BaseModel):
     message: str
     discountType: Optional[str] = None
     discountRef: Optional[str] = None
+
+
+# --- COST RESET SCHEMAS ---
+
+class UnverifiedCostItem(BaseModel):
+    ingredientId: str
+    ingredientName: str
+    unit: str
+    currentWeightedCost: Decimal
+
+class UnverifiedCostPreview(BaseModel):
+    venueId: str
+    totalIngredients: int
+    verifiedCount: int
+    unverifiedCount: int
+    unverifiedIngredients: List[UnverifiedCostItem]
+
+class CostResetResult(BaseModel):
+    venueId: str
+    resetCount: int
+    resetIngredients: List[UnverifiedCostItem]
+    affectedRecipeCount: int

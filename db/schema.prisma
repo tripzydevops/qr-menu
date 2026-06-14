@@ -332,6 +332,9 @@ model Ingredient {
   costHistory    IngredientCostLog[]
   createdAt      DateTime           @default(now())
   updatedAt      DateTime           @updatedAt
+
+  @@index([venueId])
+  @@index([organizationId])
 }
 
 model Supplier {
@@ -344,6 +347,8 @@ model Supplier {
   invoices       Invoice[]
   createdAt      DateTime   @default(now())
   updatedAt      DateTime   @updatedAt
+
+  @@index([venueId])
 }
 
 model Invoice {
@@ -362,6 +367,7 @@ model Invoice {
   updatedAt      DateTime      @updatedAt
 
   @@index([venueId])
+  @@index([supplierId])
   @@index([isArchived])
 }
 
@@ -378,6 +384,9 @@ model InvoiceItem {
   totalCost      Decimal
   rawName        String?
   brand          String?
+
+  @@index([invoiceId])
+  @@index([ingredientId])
 }
 
 model Recipe {
@@ -403,6 +412,9 @@ model RecipeIngredient {
   ingredientId   String
   ingredient     Ingredient @relation(fields: [ingredientId], references: [id], onDelete: Cascade)
   amountUsed     Decimal    // In the ingredient's unit (e.g. 15g, 200ml)
+
+  @@index([recipeId])
+  @@index([ingredientId])
 }
 
 model IngredientCostLog {
@@ -413,6 +425,8 @@ model IngredientCostLog {
   newCost        Decimal
   reason         String     // "invoice", "manual_adjustment"
   createdAt      DateTime   @default(now())
+
+  @@index([ingredientId])
 }
 
 model PricingAlert {
@@ -429,6 +443,10 @@ model PricingAlert {
   suggestedPrice Decimal?
   isResolved     Boolean    @default(false)
   createdAt      DateTime   @default(now())
+
+  @@index([venueId])
+  @@index([menuItemId])
+  @@index([recipeId])
 }
 
 model PricingAlertRule {

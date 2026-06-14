@@ -178,6 +178,7 @@ export default function AdminRecipesPage() {
   const [portionSize, setPortionSize] = useState<number>(1);
   const [portionUnit, setPortionUnit] = useState<string>("g");
   const [totalYield, setTotalYield] = useState<number>(1);
+  const [sellingPrice, setSellingPrice] = useState<string>("0");
 
   // Inline Ingredient creation state
   const [showNewIngForm, setShowNewIngForm] = useState(false);
@@ -192,22 +193,22 @@ export default function AdminRecipesPage() {
   const fetchData = async () => {
     try {
       setLoading(true);
-      const [itemsRes, ingRes] = await Promise.all([
+      const [itemsRes, ingRes, recipesRes] = await Promise.all([
         fetch(`${apiUrl}/api/admin/categories?venueId=${venueId}`), // Load categories + menu items
-        fetch(`${apiUrl}/api/admin/inventory/ingredients?venueId=${venueId}`) // Load ingredients
+        fetch(`${apiUrl}/api/admin/inventory/ingredients?venueId=${venueId}`), // Load ingredients
+        fetch(`${apiUrl}/api/admin/inventory/recipes?venueId=${venueId}`) // Load recipes
       ]);
 
       if (itemsRes.ok && ingRes.ok) {
         const categoriesData = await itemsRes.json();
         const ingredientsData = await ingRes.json();
+        const recipesList = recipesRes.ok ? await recipesRes.json() : [];
+
         setIngredients(ingredientsData);
         setCategories(categoriesData);
 
         // Flatten menu items with category names
         const flattenedItems: MenuItem[] = [];
-        // Load recipes for these menu items
-        const recipesRes = await fetch(`${apiUrl}/api/admin/inventory/recipes?venueId=${venueId}`);
-        const recipesList = recipesRes.ok ? await recipesRes.json() : [];
         const recipesMap = new Map(recipesList.map((r: any) => [r.menuItemId, r]));
 
         categoriesData.forEach((cat: any) => {
@@ -249,6 +250,7 @@ export default function AdminRecipesPage() {
     setErrors(null);
     setSelectedItem(item);
     setIngSearchQuery("");
+    setSellingPrice(parseFloat(item.price).toFixed(2));
 
     setUnmatchedScannedItems([]);
 
@@ -759,6 +761,26 @@ export default function AdminRecipesPage() {
       });
 
       if (res.ok) {
+        // Update the selling price of the menu item if it changed
+        const priceNum = parseFloat(sellingPrice) || 0;
+        if (priceNum !== parseFloat(selectedItem.price)) {
+          const itemRes = await fetch(`${apiUrl}/api/admin/menu-items/${selectedItem.id}`, {
+            method: "PUT",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({
+              categoryId: selectedItem.categoryId,
+              nameTr: selectedItem.nameTr,
+              nameEn: selectedItem.nameEn,
+              price: priceNum,
+              showOnMenu: selectedItem.showOnMenu ?? true,
+              isAvailable: true
+            })
+          });
+          if (!itemRes.ok) {
+            console.error("Failed to update menu item price:", await itemRes.text());
+          }
+        }
+
         setModalOpen(false);
         fetchData();
       } else {
@@ -1578,6 +1600,23 @@ export default function AdminRecipesPage() {
                     />
                   </div>
 
+                  {/* Selling Price Input */}
+                  <div className="space-y-1">
+                    <span className="text-gray-400 block font-semibold">Menü Satış Fiyatı (Opsiyonel):</span>
+                    <div className="relative mt-1">
+                      <span className="absolute left-2.5 top-1 text-gray-500 font-mono text-xs">₺</span>
+                      <input
+                        type="number"
+                        min="0"
+                        step="0.01"
+                        value={sellingPrice}
+                        onChange={(e) => setSellingPrice(e.target.value)}
+                        className="w-full bg-[#1C1C28] border border-gray-800 rounded pl-7 pr-2.5 py-1 font-mono text-xs text-white focus:outline-none focus:border-[#C9A84C]/50"
+                        placeholder="Mevcut satış fiyatını güncelleyin..."
+                      />
+                    </div>
+                  </div>
+
                   <div className="grid grid-cols-2 gap-3 pt-2 border-t border-gray-850 text-xs">
                     <div>
                       <span className="text-gray-500 block">Önerilen Fiyat:</span>
@@ -1588,11 +1627,19 @@ export default function AdminRecipesPage() {
                     <div>
                       <span className="text-gray-500 block">Mevcut Marjınız:</span>
                       <span className={`font-mono font-bold ${
-                        ((parseFloat(selectedItem.price) - (calculateTotalCost() / calculatedPortions)) / parseFloat(selectedItem.price)) < targetMargin
-                          ? "text-red-400"
-                          : "text-emerald-400"
+                        (() => {
+                          const sellPriceNum = parseFloat(sellingPrice) || 0;
+                          const costPerPortion = calculateTotalCost() / calculatedPortions;
+                          const currentMarginVal = sellPriceNum > 0 ? (sellPriceNum - costPerPortion) / sellPriceNum : 0;
+                          return currentMarginVal < targetMargin ? "text-red-400" : "text-emerald-400";
+                        })()
                       }`}>
-                        {(((parseFloat(selectedItem.price) - (calculateTotalCost() / calculatedPortions)) / parseFloat(selectedItem.price)) * 100).toFixed(1)}%
+                        {(() => {
+                          const sellPriceNum = parseFloat(sellingPrice) || 0;
+                          const costPerPortion = calculateTotalCost() / calculatedPortions;
+                          const currentMarginVal = sellPriceNum > 0 ? (sellPriceNum - costPerPortion) / sellPriceNum : 0;
+                          return (currentMarginVal * 100).toFixed(1);
+                        })()}%
                       </span>
                     </div>
                   </div>

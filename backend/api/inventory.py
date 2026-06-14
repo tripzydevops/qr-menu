@@ -121,6 +121,10 @@ def update_ingredient(id: str, ing_in: schemas.IngredientBase, db: Session = Dep
     
     verify_inventory_gating(db_ing.venueId, db)
     
+    # Track whether cost changed for logging & cascade
+    cost_changed = False
+    old_cost = Decimal(str(db_ing.weightedCost))
+    
     db_ing.name = ing_in.name
     db_ing.unit = ing_in.unit
     db_ing.reorderLevel = Decimal(str(ing_in.reorderLevel)) if ing_in.reorderLevel is not None else None
@@ -128,8 +132,26 @@ def update_ingredient(id: str, ing_in: schemas.IngredientBase, db: Session = Dep
     if ing_in.lastBrand is not None:
         db_ing.lastBrand = ing_in.lastBrand
     if ing_in.weightedCost is not None:
-        db_ing.weightedCost = Decimal(str(ing_in.weightedCost))
+        new_cost = Decimal(str(ing_in.weightedCost))
+        if new_cost != old_cost:
+            db_ing.weightedCost = new_cost
+            cost_changed = True
+            # Log manual cost change
+            cost_log = models.IngredientCostLog(
+                id=str(uuid.uuid4()),
+                ingredientId=db_ing.id,
+                oldCost=old_cost,
+                newCost=new_cost,
+                reason="manual_adjustment",
+            )
+            db.add(cost_log)
     db_ing.updatedAt = datetime.datetime.utcnow()
+    
+    db.flush()
+    
+    # Cascade recipe recalculations if cost changed
+    if cost_changed:
+        costing.recalculate_affected_recipes(db, db_ing.id)
     
     db.commit()
     db.refresh(db_ing)
@@ -926,3 +948,55 @@ def sync_prices(req: schemas.PriceSyncRequest, venueId: str, db: Session = Depen
         print(f"Failed to update synced item embeddings: {e}")
 
     return results
+
+
+# ---------------------------------------------------------------------------
+# Cost Reset Endpoints
+# ---------------------------------------------------------------------------
+
+@router.get("/ingredients/unverified-costs", response_model=schemas.UnverifiedCostPreview)
+def preview_unverified_costs(venueId: str, db: Session = Depends(get_db)):
+    """Preview which ingredients would have their cost reset to 0."""
+    verify_inventory_gating(venueId, db)
+    
+    total = db.query(models.Ingredient).filter(
+        models.Ingredient.venueId == venueId
+    ).count()
+    
+    unverified = costing.get_unverified_ingredients(db, venueId)
+    verified_count = total - len(unverified)
+    
+    items = [
+        schemas.UnverifiedCostItem(
+            ingredientId=ing.id,
+            ingredientName=ing.name,
+            unit=ing.unit,
+            currentWeightedCost=Decimal(str(ing.weightedCost)),
+        )
+        for ing in unverified
+    ]
+    
+    return schemas.UnverifiedCostPreview(
+        venueId=venueId,
+        totalIngredients=total,
+        verifiedCount=verified_count,
+        unverifiedCount=len(unverified),
+        unverifiedIngredients=items,
+    )
+
+
+@router.post("/ingredients/reset-unverified-costs", response_model=schemas.CostResetResult)
+def reset_unverified_costs_endpoint(venueId: str, db: Session = Depends(get_db)):
+    """Reset weightedCost to 0 for ingredients with no invoice/log history."""
+    verify_inventory_gating(venueId, db)
+    
+    result = costing.reset_unverified_costs(db, venueId)
+    
+    return schemas.CostResetResult(
+        venueId=venueId,
+        resetCount=result["resetCount"],
+        resetIngredients=[
+            schemas.UnverifiedCostItem(**item) for item in result["resetIngredients"]
+        ],
+        affectedRecipeCount=result["affectedRecipeCount"],
+    )
