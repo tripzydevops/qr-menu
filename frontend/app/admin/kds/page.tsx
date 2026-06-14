@@ -1,6 +1,7 @@
 "use client";
 
 import { DEFAULT_VENUE_ID } from "@/lib/config";
+import { supabase } from "@/lib/supabase";
 
 import React, { useEffect, useState } from "react";
 import Link from "next/link";
@@ -109,30 +110,24 @@ export default function KitchenDisplaySystemPage() {
     fetchPermissions();
   }, []);
 
-  // 3. Poll active orders
+  // 3. Listen to active orders via Realtime
   useEffect(() => {
     if (!kdsEnabled) return;
 
     async function fetchKdsOrders() {
       try {
-        // Fetch all orders
         const res = await fetch(`${apiUrl}/api/admin/orders?venueId=${venueId}`);
         if (res.ok) {
           const data: Order[] = await res.json();
-          // Filter only active orders for the kitchen (pending & preparing)
           const activeKds = data.filter(o => o.status === "pending" || o.status === "preparing");
           
-          // Check for new orders to trigger chime
           let hasNewPending = false;
-          const currentIds = new Set(activeKds.map(o => o.id));
-          
           activeKds.forEach(order => {
             if (!seenOrderIds.has(order.id) && order.status === "pending") {
               hasNewPending = true;
             }
           });
 
-          // Update state
           setOrders(activeKds);
           setSeenOrderIds(prev => {
             const next = new Set(prev);
@@ -155,9 +150,35 @@ export default function KitchenDisplaySystemPage() {
     }
 
     fetchKdsOrders();
-    const interval = setInterval(fetchKdsOrders, 5000);
-    return () => clearInterval(interval);
-  }, [kdsEnabled, seenOrderIds, refreshKey, loading]);
+
+    // Subscribe to supabase database changes on "Order" table where venueId matches
+    const channel = supabase
+      .channel('kds-orders')
+      .on(
+        'postgres_changes',
+        {
+          event: '*',
+          schema: 'public',
+          table: 'Order',
+          filter: `venueId=eq.${venueId}`
+        },
+        (payload) => {
+          console.log('Realtime change received for KDS:', payload);
+          fetchKdsOrders();
+        }
+      )
+      .subscribe((status) => {
+        if (status === 'SUBSCRIBED') {
+          setIsOnline(true);
+        } else if (status === 'CLOSED' || status === 'CHANNEL_ERROR') {
+          setIsOnline(false);
+        }
+      });
+
+    return () => {
+      supabase.removeChannel(channel);
+    };
+  }, [kdsEnabled, seenOrderIds, refreshKey, loading, venueId]);
 
   // 4. Update order status
   const handleUpdateStatus = async (orderId: string, status: string) => {

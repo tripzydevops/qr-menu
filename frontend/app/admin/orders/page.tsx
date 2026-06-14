@@ -1,6 +1,7 @@
 "use client";
 
 import { DEFAULT_VENUE_ID } from "@/lib/config";
+import { supabase } from "@/lib/supabase";
 
 import React, { useEffect, useState } from "react";
 import { ClipboardList, Bell, Receipt, CheckCircle2, Clock, Check, X, ShieldAlert, Sparkles, Printer } from "lucide-react";
@@ -64,7 +65,7 @@ export default function AdminOrdersPage() {
     fetchSettings();
   }, []);
 
-  // Poll for new orders/requests every 6 seconds
+  // Listen for new orders/requests via Realtime
   useEffect(() => {
     async function fetchData() {
       try {
@@ -87,9 +88,46 @@ export default function AdminOrdersPage() {
     }
 
     fetchData();
-    const interval = setInterval(fetchData, 6000);
-    return () => clearInterval(interval);
-  }, [refreshKey, showArchived]);
+
+    // Subscribe to supabase database changes on "Order" table where venueId matches
+    const ordersChannel = supabase
+      .channel('admin-orders')
+      .on(
+        'postgres_changes',
+        {
+          event: '*',
+          schema: 'public',
+          table: 'Order',
+          filter: `venueId=eq.${venueId}`
+        },
+        () => {
+          fetchData();
+        }
+      )
+      .subscribe();
+
+    // Subscribe to supabase database changes on "WaiterRequest" table where venueId matches
+    const requestsChannel = supabase
+      .channel('admin-requests')
+      .on(
+        'postgres_changes',
+        {
+          event: '*',
+          schema: 'public',
+          table: 'WaiterRequest',
+          filter: `venueId=eq.${venueId}`
+        },
+        () => {
+          fetchData();
+        }
+      )
+      .subscribe();
+
+    return () => {
+      supabase.removeChannel(ordersChannel);
+      supabase.removeChannel(requestsChannel);
+    };
+  }, [refreshKey, showArchived, venueId]);
 
   const handleUpdateOrderStatus = async (orderId: string, status: string) => {
     try {

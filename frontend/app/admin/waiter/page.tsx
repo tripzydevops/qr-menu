@@ -1,6 +1,7 @@
 "use client";
 
 import { DEFAULT_VENUE_ID } from "@/lib/config";
+import { supabase } from "@/lib/supabase";
 
 import React, { useEffect, useState, useRef } from "react";
 import Link from "next/link";
@@ -219,7 +220,7 @@ export default function WaiterConsolePage() {
     }
   };
 
-  // Poll waiter requests and active orders
+  // Listen to waiter requests and active orders via Realtime
   useEffect(() => {
     async function fetchWaiterData() {
       try {
@@ -292,9 +293,54 @@ export default function WaiterConsolePage() {
     }
 
     fetchWaiterData();
-    const interval = setInterval(fetchWaiterData, 5000);
-    return () => clearInterval(interval);
-  }, [refreshKey, loading]);
+
+    // Subscribe to supabase database changes on "WaiterRequest" table where venueId matches
+    const callsChannel = supabase
+      .channel('waiter-calls')
+      .on(
+        'postgres_changes',
+        {
+          event: '*',
+          schema: 'public',
+          table: 'WaiterRequest',
+          filter: `venueId=eq.${venueId}`
+        },
+        (payload) => {
+          console.log('Realtime change received for WaiterRequests:', payload);
+          fetchWaiterData();
+        }
+      )
+      .subscribe((status) => {
+        if (status === 'SUBSCRIBED') {
+          setIsOnline(true);
+        } else if (status === 'CLOSED' || status === 'CHANNEL_ERROR') {
+          setIsOnline(false);
+        }
+      });
+
+    // Subscribe to supabase database changes on "Order" table where venueId matches
+    const ordersChannel = supabase
+      .channel('waiter-orders')
+      .on(
+        'postgres_changes',
+        {
+          event: '*',
+          schema: 'public',
+          table: 'Order',
+          filter: `venueId=eq.${venueId}`
+        },
+        (payload) => {
+          console.log('Realtime change received for Waiter Orders:', payload);
+          fetchWaiterData();
+        }
+      )
+      .subscribe();
+
+    return () => {
+      supabase.removeChannel(callsChannel);
+      supabase.removeChannel(ordersChannel);
+    };
+  }, [refreshKey, loading, venueId]);
 
   // Handle call resolution
   const handleResolveCall = async (requestId: string) => {

@@ -1,6 +1,7 @@
 "use client";
 
 import { DEFAULT_VENUE_ID } from "@/lib/config";
+import { supabase } from "@/lib/supabase";
 
 import React, { useEffect, useState } from "react";
 import { 
@@ -129,7 +130,7 @@ export default function CashierConsolePage() {
     fetchSettings();
   }, []);
 
-  // Fetch cashier data (polling every 5 seconds)
+  // Fetch cashier data and listen to changes via Realtime
   useEffect(() => {
     async function fetchCashierData() {
       try {
@@ -222,9 +223,29 @@ export default function CashierConsolePage() {
     }
 
     fetchCashierData();
-    const interval = setInterval(fetchCashierData, 5000);
-    return () => clearInterval(interval);
-  }, [refreshKey, selectedTable?.tableId]);
+
+    // Subscribe to supabase database changes on "Order" table where venueId matches
+    const channel = supabase
+      .channel('cashier-orders')
+      .on(
+        'postgres_changes',
+        {
+          event: '*',
+          schema: 'public',
+          table: 'Order',
+          filter: `venueId=eq.${venueId}`
+        },
+        (payload) => {
+          console.log('Realtime change received for Cashier:', payload);
+          fetchCashierData();
+        }
+      )
+      .subscribe();
+
+    return () => {
+      supabase.removeChannel(channel);
+    };
+  }, [refreshKey, selectedTable?.tableId, venueId]);
 
   // Handle Cash/Card payment
   const handleProcessPayment = async (tableId: string, paymentMethod: "cash" | "card") => {
