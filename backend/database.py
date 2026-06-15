@@ -12,15 +12,17 @@ if not DATABASE_URL:
     # Fallback to local dev database if DATABASE_URL is not set
     DATABASE_URL = "postgresql://postgres:postgres@localhost:5432/qrmenu"
 
-# Remove pgbouncer query parameter since psycopg2/SQLAlchemy doesn't support it
-if "pgbouncer=" in DATABASE_URL:
-    if "?" in DATABASE_URL:
-        base_url, query_str = DATABASE_URL.split("?", 1)
-        params = [p for p in query_str.split("&") if not p.startswith("pgbouncer=")]
-        if params:
-            DATABASE_URL = f"{base_url}?{'&'.join(params)}"
-        else:
-            DATABASE_URL = base_url
+# Remove pgbouncer and connection_limit query parameters since psycopg2/SQLAlchemy don't support them
+if "?" in DATABASE_URL:
+    base_url, query_str = DATABASE_URL.split("?", 1)
+    params = [
+        p for p in query_str.split("&") 
+        if not p.startswith("pgbouncer=") and not p.startswith("connection_limit=")
+    ]
+    if params:
+        DATABASE_URL = f"{base_url}?{'&'.join(params)}"
+    else:
+        DATABASE_URL = base_url
 
 # Create engine
 engine = create_engine(
