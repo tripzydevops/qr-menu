@@ -38,7 +38,7 @@ def _dec(value) -> Decimal:
 # 1. process_invoice
 # ---------------------------------------------------------------------------
 
-def process_invoice(db: Session, invoice_id: str) -> models.Invoice:
+def process_invoice(db: Session, invoice_id: str, run_cascade: bool = True) -> models.Invoice:
     """
     Process a pending invoice:
     1. For each InvoiceItem, compute WAC and update Ingredient stock / cost.
@@ -106,8 +106,9 @@ def process_invoice(db: Session, invoice_id: str) -> models.Invoice:
     db.flush()
 
     # Cascade to recipes
-    for ingredient_id in affected_ingredient_ids:
-        recalculate_affected_recipes(db, ingredient_id)
+    if run_cascade:
+        for ingredient_id in affected_ingredient_ids:
+            recalculate_affected_recipes(db, ingredient_id)
 
     db.commit()
     db.refresh(invoice)
@@ -118,7 +119,7 @@ def process_invoice(db: Session, invoice_id: str) -> models.Invoice:
 # 1.1. revert_invoice_items
 # ---------------------------------------------------------------------------
 
-def revert_invoice_items(db: Session, invoice_id: str) -> None:
+def revert_invoice_items(db: Session, invoice_id: str, run_cascade: bool = True) -> None:
     """
     Revert the stock and WAC changes caused by a processed invoice.
     1. For each InvoiceItem, subtract quantity from Ingredient stock,
@@ -184,8 +185,9 @@ def revert_invoice_items(db: Session, invoice_id: str) -> None:
     db.flush()
 
     # Cascade to recipes
-    for ingredient_id in affected_ingredient_ids:
-        recalculate_affected_recipes(db, ingredient_id)
+    if run_cascade:
+        for ingredient_id in affected_ingredient_ids:
+            recalculate_affected_recipes(db, ingredient_id)
 
 
 # ---------------------------------------------------------------------------

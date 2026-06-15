@@ -1,5 +1,5 @@
-from fastapi import APIRouter, Depends, HTTPException, status, UploadFile, File, Request
-from sqlalchemy.orm import Session
+from fastapi import APIRouter, Depends, HTTPException, status, UploadFile, File, Request, BackgroundTasks
+from sqlalchemy.orm import Session, joinedload, selectinload
 from typing import List, Optional, Dict
 from decimal import Decimal
 import uuid
@@ -9,11 +9,11 @@ import json
 import httpx
 
 try:
-    from ..database import get_db
+    from ..database import get_db, SessionLocal
     from .. import models, schemas
     from ..services import costing, invoice_ocr, recipe_ocr
 except ImportError:
-    from database import get_db
+    from database import get_db, SessionLocal
     import models
     import schemas
     from services import costing, invoice_ocr, recipe_ocr
@@ -24,10 +24,12 @@ router = APIRouter(prefix="/api/admin/inventory", tags=["inventory"])
 # Helper: Verify Feature Flag Gating
 # ---------------------------------------------------------------------------
 def verify_inventory_gating(venue_id: str, db: Session) -> models.Venue:
-    venue = db.query(models.Venue).filter(models.Venue.id == venue_id).first()
+    venue = db.query(models.Venue).options(
+        joinedload(models.Venue.organization)
+    ).filter(models.Venue.id == venue_id).first()
     if not venue:
         raise HTTPException(status_code=404, detail="Venue not found")
-    org = db.query(models.Organization).filter(models.Organization.id == venue.organizationId).first()
+    org = venue.organization
     if not org:
         raise HTTPException(status_code=404, detail="Organization not found")
     if not org.inventoryEnabled:
@@ -36,6 +38,28 @@ def verify_inventory_gating(venue_id: str, db: Session) -> models.Venue:
             detail="Inventory and Costing module is not enabled for this organization"
         )
     return venue
+
+# ---------------------------------------------------------------------------
+# Helper: Background Task for Recipe Cost Recalculation
+# ---------------------------------------------------------------------------
+def recalculate_costs_task(ingredient_ids: List[str]):
+    """
+    Background task to recalculate recipe costs and check margin alerts
+    for a list of affected ingredient IDs.
+    """
+    db = SessionLocal()
+    try:
+        # Deduplicate ingredient IDs
+        unique_ids = list(set(ingredient_ids))
+        for ing_id in unique_ids:
+            if ing_id:
+                costing.recalculate_affected_recipes(db, ing_id)
+        db.commit()
+    except Exception as e:
+        db.rollback()
+        print(f"[Background Recalculation Error]: {e}")
+    finally:
+        db.close()
 
 # ---------------------------------------------------------------------------
 # 1. Ingredients Endpoints
@@ -77,7 +101,7 @@ async def suggest_density(name: str):
 @router.get("/ingredients", response_model=List[schemas.IngredientSchema])
 def list_ingredients(venueId: str, db: Session = Depends(get_db)):
     venue = verify_inventory_gating(venueId, db)
-    org = db.query(models.Organization).filter(models.Organization.id == venue.organizationId).first()
+    org = venue.organization
     
     if org and org.sharedInventory:
         return db.query(models.Ingredient).filter(models.Ingredient.organizationId == org.id).order_by(models.Ingredient.name.asc()).all()
@@ -114,7 +138,7 @@ def create_ingredient(ing_in: schemas.IngredientCreate, db: Session = Depends(ge
     return db_ing
 
 @router.put("/ingredients/{id}", response_model=schemas.IngredientSchema)
-def update_ingredient(id: str, ing_in: schemas.IngredientBase, db: Session = Depends(get_db)):
+def update_ingredient(id: str, ing_in: schemas.IngredientBase, background_tasks: BackgroundTasks, db: Session = Depends(get_db)):
     db_ing = db.query(models.Ingredient).filter(models.Ingredient.id == id).first()
     if not db_ing:
         raise HTTPException(status_code=404, detail="Ingredient not found")
@@ -149,12 +173,13 @@ def update_ingredient(id: str, ing_in: schemas.IngredientBase, db: Session = Dep
     
     db.flush()
     
-    # Cascade recipe recalculations if cost changed
-    if cost_changed:
-        costing.recalculate_affected_recipes(db, db_ing.id)
-    
     db.commit()
     db.refresh(db_ing)
+    
+    # Cascade recipe recalculations if cost changed (run in background task)
+    if cost_changed:
+        background_tasks.add_task(recalculate_costs_task, [db_ing.id])
+        
     return db_ing
 
 @router.delete("/ingredients/{id}", status_code=status.HTTP_204_NO_CONTENT)
@@ -224,7 +249,10 @@ def delete_supplier(id: str, db: Session = Depends(get_db)):
 @router.get("/invoices", response_model=List[schemas.InvoiceSchema])
 def list_invoices(venueId: str, includeArchived: bool = False, db: Session = Depends(get_db)):
     verify_inventory_gating(venueId, db)
-    query = db.query(models.Invoice).filter(models.Invoice.venueId == venueId)
+    query = db.query(models.Invoice).options(
+        joinedload(models.Invoice.supplier),
+        selectinload(models.Invoice.items).joinedload(models.InvoiceItem.ingredient)
+    ).filter(models.Invoice.venueId == venueId)
     if not includeArchived:
         query = query.filter(models.Invoice.isArchived == False)
     invoices = query.order_by(models.Invoice.invoiceDate.desc()).all()
@@ -240,7 +268,7 @@ def list_invoices(venueId: str, includeArchived: bool = False, db: Session = Dep
     return invoices
 
 @router.post("/invoices", response_model=schemas.InvoiceSchema, status_code=status.HTTP_201_CREATED)
-def create_invoice(inv_in: schemas.InvoiceCreate, db: Session = Depends(get_db)):
+def create_invoice(inv_in: schemas.InvoiceCreate, background_tasks: BackgroundTasks, db: Session = Depends(get_db)):
     verify_inventory_gating(inv_in.venueId, db)
     
     # Calculate total amount
@@ -276,8 +304,12 @@ def create_invoice(inv_in: schemas.InvoiceCreate, db: Session = Depends(get_db))
     db.commit()
     db.refresh(db_invoice)
 
-    # Process WAC automatically
-    processed = costing.process_invoice(db, db_invoice.id)
+    # Process WAC automatically (run_cascade=False, handled in background instead)
+    processed = costing.process_invoice(db, db_invoice.id, run_cascade=False)
+    
+    # Enqueue recalculation in the background
+    affected_ids = [item.ingredientId for item in inv_in.items]
+    background_tasks.add_task(recalculate_costs_task, affected_ids)
     
     # Decorate supplier name
     if processed.supplier:
@@ -306,16 +338,19 @@ def get_invoice(id: str, db: Session = Depends(get_db)):
     return inv
 
 @router.put("/invoices/{id}", response_model=schemas.InvoiceSchema)
-def update_invoice(id: str, inv_in: schemas.InvoiceCreate, db: Session = Depends(get_db)):
+def update_invoice(id: str, inv_in: schemas.InvoiceCreate, background_tasks: BackgroundTasks, db: Session = Depends(get_db)):
     inv = db.query(models.Invoice).filter(models.Invoice.id == id).first()
     if not inv:
         raise HTTPException(status_code=404, detail="Invoice not found")
     
     verify_inventory_gating(inv.venueId, db)
     
-    # Revert WAC and stock changes from the original items if it was processed
+    # Track originally affected ingredient IDs before reverting
+    original_ing_ids = [item.ingredientId for item in inv.items]
+    
+    # Revert WAC and stock changes from the original items (run_cascade=False)
     if inv.status == "processed":
-        costing.revert_invoice_items(db, inv.id)
+        costing.revert_invoice_items(db, inv.id, run_cascade=False)
     
     # Delete original InvoiceItems
     db.query(models.InvoiceItem).filter(models.InvoiceItem.invoiceId == id).delete()
@@ -351,8 +386,13 @@ def update_invoice(id: str, inv_in: schemas.InvoiceCreate, db: Session = Depends
     db.commit()
     db.refresh(inv)
     
-    # Re-process the invoice automatically
-    processed = costing.process_invoice(db, inv.id)
+    # Re-process the invoice automatically (run_cascade=False)
+    processed = costing.process_invoice(db, inv.id, run_cascade=False)
+    
+    # Enqueue recalculation in the background (union of original and new ingredient IDs)
+    new_ing_ids = [item.ingredientId for item in inv_in.items]
+    all_affected_ids = list(set(original_ing_ids + new_ing_ids))
+    background_tasks.add_task(recalculate_costs_task, all_affected_ids)
     
     if processed.supplier:
         processed.supplierName = processed.supplier.name
@@ -364,21 +404,27 @@ def update_invoice(id: str, inv_in: schemas.InvoiceCreate, db: Session = Depends
     return processed
 
 @router.delete("/invoices/{id}", response_model=schemas.InvoiceSchema)
-def void_invoice(id: str, db: Session = Depends(get_db)):
+def void_invoice(id: str, background_tasks: BackgroundTasks, db: Session = Depends(get_db)):
     inv = db.query(models.Invoice).filter(models.Invoice.id == id).first()
     if not inv:
         raise HTTPException(status_code=404, detail="Invoice not found")
     
     verify_inventory_gating(inv.venueId, db)
     
-    # Revert WAC and stock changes before marking status as "void"
+    # Track affected ingredient IDs for reversion
+    affected_ids = [item.ingredientId for item in inv.items]
+    
+    # Revert WAC and stock changes before marking status as "void" (run_cascade=False)
     if inv.status == "processed":
-        costing.revert_invoice_items(db, inv.id)
+        costing.revert_invoice_items(db, inv.id, run_cascade=False)
         
     inv.status = "void"
     inv.updatedAt = datetime.datetime.utcnow()
     db.commit()
     db.refresh(inv)
+    
+    # Enqueue recalculation in the background
+    background_tasks.add_task(recalculate_costs_task, affected_ids)
     
     if inv.supplier:
         inv.supplierName = inv.supplier.name
@@ -627,7 +673,10 @@ def list_recipes(venueId: str, request: Request, db: Session = Depends(get_db)):
     show_deleted = user_role == "SUPER_ADMIN"
     
     # Get all menu items with their recipes in this venue
-    query = db.query(models.Recipe).join(
+    query = db.query(models.Recipe).options(
+        joinedload(models.Recipe.menuItem),
+        selectinload(models.Recipe.ingredients).joinedload(models.RecipeIngredient.ingredient)
+    ).join(
         models.MenuItem, models.Recipe.menuItemId == models.MenuItem.id
     ).join(
         models.Category, models.MenuItem.categoryId == models.Category.id
@@ -849,7 +898,9 @@ def get_profitability(venueId: str, db: Session = Depends(get_db)):
 @router.get("/alerts", response_model=List[schemas.PricingAlertSchema])
 def list_alerts(venueId: str, db: Session = Depends(get_db)):
     verify_inventory_gating(venueId, db)
-    alerts = db.query(models.PricingAlert).filter(
+    alerts = db.query(models.PricingAlert).options(
+        joinedload(models.PricingAlert.menuItem)
+    ).filter(
         models.PricingAlert.venueId == venueId,
         models.PricingAlert.isResolved == False
     ).order_by(models.PricingAlert.createdAt.desc()).all()
@@ -861,7 +912,9 @@ def list_alerts(venueId: str, db: Session = Depends(get_db)):
 
 @router.put("/alerts/{id}/resolve", response_model=schemas.PricingAlertSchema)
 def resolve_alert(id: str, db: Session = Depends(get_db)):
-    alert = db.query(models.PricingAlert).filter(models.PricingAlert.id == id).first()
+    alert = db.query(models.PricingAlert).options(
+        joinedload(models.PricingAlert.menuItem)
+    ).filter(models.PricingAlert.id == id).first()
     if not alert:
         raise HTTPException(status_code=404, detail="Alert not found")
     
