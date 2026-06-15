@@ -2,6 +2,8 @@
 
 import React, { useEffect, useState } from "react";
 import { DEFAULT_VENUE_ID } from "@/lib/config";
+import useSWR from "swr";
+import { fetcher } from "@/lib/fetcher";
 
 import { 
   FileText, 
@@ -105,28 +107,50 @@ export default function AdminInvoicesPage() {
   const [openDropdownIndex, setOpenDropdownIndex] = useState<number | null>(null);
   const [ingSearchTerm, setIngSearchTerm] = useState("");
 
+  const { data: rawInvoices, mutate: mutateInvoices } = useSWR(
+    `${apiUrl}/api/admin/inventory/invoices?venueId=${venueId}&includeArchived=${showArchived}`,
+    fetcher
+  );
+  const { data: rawIngredients, mutate: mutateIngredients } = useSWR(
+    `${apiUrl}/api/admin/inventory/ingredients?venueId=${venueId}`,
+    fetcher
+  );
+  const { data: rawSuppliers, mutate: mutateSuppliers } = useSWR(
+    `${apiUrl}/api/admin/inventory/suppliers?venueId=${venueId}`,
+    fetcher
+  );
+
   const fetchData = async () => {
     try {
-      setLoading(true);
-      const [invRes, ingRes, supRes] = await Promise.all([
-        fetch(`${apiUrl}/api/admin/inventory/invoices?venueId=${venueId}&includeArchived=${showArchived}`),
-        fetch(`${apiUrl}/api/admin/inventory/ingredients?venueId=${venueId}`),
-        fetch(`${apiUrl}/api/admin/inventory/suppliers?venueId=${venueId}`)
+      await Promise.all([
+        mutateInvoices(),
+        mutateIngredients(),
+        mutateSuppliers()
       ]);
-
-      if (invRes.ok) setInvoices(await invRes.json());
-      if (ingRes.ok) setIngredients(await ingRes.json());
-      if (supRes.ok) setSuppliers(await supRes.json());
     } catch (e) {
-      console.error(e);
-    } finally {
-      setLoading(false);
+      console.error("Failed to revalidate SWR cache", e);
     }
   };
 
   useEffect(() => {
-    fetchData();
-  }, [showArchived]);
+    if (rawInvoices) setInvoices(rawInvoices);
+  }, [rawInvoices]);
+
+  useEffect(() => {
+    if (rawIngredients) setIngredients(rawIngredients);
+  }, [rawIngredients]);
+
+  useEffect(() => {
+    if (rawSuppliers) setSuppliers(rawSuppliers);
+  }, [rawSuppliers]);
+
+  useEffect(() => {
+    if (rawInvoices && rawIngredients && rawSuppliers) {
+      setLoading(false);
+    } else {
+      setLoading(true);
+    }
+  }, [rawInvoices, rawIngredients, rawSuppliers]);
 
   const handleAddLineItem = () => {
     setLineItems([

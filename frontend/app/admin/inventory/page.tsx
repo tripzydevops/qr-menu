@@ -1,6 +1,8 @@
 "use client";
 
 import { DEFAULT_VENUE_ID } from "@/lib/config";
+import useSWR from "swr";
+import { fetcher } from "@/lib/fetcher";
 
 import React, { useEffect, useState } from "react";
 import { 
@@ -64,29 +66,47 @@ export default function AdminInventoryPage() {
   // Form errors
   const [errors, setErrors] = useState<Record<string, string>>({});
 
+  const { data: rawIngredients, mutate: mutateIngredients } = useSWR(
+    `${apiUrl}/api/admin/inventory/ingredients?venueId=${venueId}`,
+    fetcher
+  );
+  const { data: rawSuppliers, mutate: mutateSuppliers } = useSWR(
+    `${apiUrl}/api/admin/inventory/suppliers?venueId=${venueId}`,
+    fetcher
+  );
+
   const fetchData = async () => {
     try {
-      setLoading(true);
-      const endpoint = activeTab === "ingredients" ? "ingredients" : "suppliers";
-      const res = await fetch(`${apiUrl}/api/admin/inventory/${endpoint}?venueId=${venueId}`);
-      if (res.ok) {
-        const data = await res.json();
-        if (activeTab === "ingredients") {
-          setIngredients(data);
-        } else {
-          setSuppliers(data);
-        }
-      }
+      await Promise.all([
+        mutateIngredients(),
+        mutateSuppliers()
+      ]);
     } catch (e) {
-      console.error(e);
-    } finally {
-      setLoading(false);
+      console.error("Failed to revalidate SWR cache", e);
     }
   };
 
   useEffect(() => {
-    fetchData();
-  }, [activeTab]);
+    if (rawIngredients) {
+      setIngredients(rawIngredients);
+    }
+  }, [rawIngredients]);
+
+  useEffect(() => {
+    if (rawSuppliers) {
+      setSuppliers(rawSuppliers);
+    }
+  }, [rawSuppliers]);
+
+  useEffect(() => {
+    if (activeTab === "ingredients" && rawIngredients) {
+      setLoading(false);
+    } else if (activeTab === "suppliers" && rawSuppliers) {
+      setLoading(false);
+    } else {
+      setLoading(true);
+    }
+  }, [activeTab, rawIngredients, rawSuppliers]);
 
   const handleSaveIngredient = async () => {
     const newErrors: Record<string, string> = {};

@@ -1,6 +1,8 @@
 "use client";
 
 import { DEFAULT_VENUE_ID } from "@/lib/config";
+import useSWR from "swr";
+import { fetcher } from "@/lib/fetcher";
 
 import React, { useEffect, useState } from "react";
 import { 
@@ -190,61 +192,66 @@ export default function AdminRecipesPage() {
   // Form errors
   const [errors, setErrors] = useState<string | null>(null);
 
+  const { data: rawCategories, mutate: mutateCategories } = useSWR(
+    `${apiUrl}/api/admin/categories?venueId=${venueId}`,
+    fetcher
+  );
+  const { data: rawIngredients, mutate: mutateIngredients } = useSWR(
+    `${apiUrl}/api/admin/inventory/ingredients?venueId=${venueId}`,
+    fetcher
+  );
+  const { data: rawRecipes, mutate: mutateRecipes } = useSWR(
+    `${apiUrl}/api/admin/inventory/recipes?venueId=${venueId}`,
+    fetcher
+  );
+
   const fetchData = async () => {
     try {
-      setLoading(true);
-      const [itemsRes, ingRes, recipesRes] = await Promise.all([
-        fetch(`${apiUrl}/api/admin/categories?venueId=${venueId}`), // Load categories + menu items
-        fetch(`${apiUrl}/api/admin/inventory/ingredients?venueId=${venueId}`), // Load ingredients
-        fetch(`${apiUrl}/api/admin/inventory/recipes?venueId=${venueId}`) // Load recipes
+      await Promise.all([
+        mutateCategories(),
+        mutateIngredients(),
+        mutateRecipes()
       ]);
-
-      if (itemsRes.ok && ingRes.ok) {
-        const categoriesData = await itemsRes.json();
-        const ingredientsData = await ingRes.json();
-        const recipesList = recipesRes.ok ? await recipesRes.json() : [];
-
-        setIngredients(ingredientsData);
-        setCategories(categoriesData);
-
-        // Flatten menu items with category names
-        const flattenedItems: MenuItem[] = [];
-        const recipesMap = new Map(recipesList.map((r: any) => [r.menuItemId, r]));
-
-        categoriesData.forEach((cat: any) => {
-          if (cat.items && Array.isArray(cat.items)) {
-            cat.items.forEach((item: any) => {
-              const matchedRecipe: any = recipesMap.get(item.id);
-              flattenedItems.push({
-                ...item,
-                categoryName: cat.nameTr,
-                recipe: matchedRecipe ? {
-                  id: matchedRecipe.id,
-                  targetMargin: matchedRecipe.targetMargin,
-                  currentCost: matchedRecipe.currentCost,
-                  yieldQuantity: matchedRecipe.yieldQuantity,
-                  yieldUnit: matchedRecipe.yieldUnit,
-                  portionSize: matchedRecipe.portionSize,
-                  totalYield: matchedRecipe.totalYield,
-                  ingredients: matchedRecipe.ingredients
-                } : null
-              });
-            });
-          }
-        });
-
-        setMenuItems(flattenedItems);
-      }
     } catch (e) {
-      console.error(e);
-    } finally {
-      setLoading(false);
+      console.error("Failed to revalidate SWR cache", e);
     }
   };
 
   useEffect(() => {
-    fetchData();
-  }, []);
+    if (rawCategories && rawIngredients && rawRecipes) {
+      setIngredients(rawIngredients);
+      setCategories(rawCategories);
+
+      // Flatten menu items with category names
+      const flattenedItems: MenuItem[] = [];
+      const recipesMap = new Map(rawRecipes.map((r: any) => [r.menuItemId, r]));
+
+      rawCategories.forEach((cat: any) => {
+        if (cat.items && Array.isArray(cat.items)) {
+          cat.items.forEach((item: any) => {
+            const matchedRecipe: any = recipesMap.get(item.id);
+            flattenedItems.push({
+              ...item,
+              categoryName: cat.nameTr,
+              recipe: matchedRecipe ? {
+                id: matchedRecipe.id,
+                targetMargin: matchedRecipe.targetMargin,
+                currentCost: matchedRecipe.currentCost,
+                yieldQuantity: matchedRecipe.yieldQuantity,
+                yieldUnit: matchedRecipe.yieldUnit,
+                portionSize: matchedRecipe.portionSize,
+                totalYield: matchedRecipe.totalYield,
+                ingredients: matchedRecipe.ingredients
+              } : null
+            });
+          });
+        }
+      });
+
+      setMenuItems(flattenedItems);
+      setLoading(false);
+    }
+  }, [rawCategories, rawIngredients, rawRecipes]);
 
   const openBuilderModal = (item: MenuItem) => {
     setErrors(null);
