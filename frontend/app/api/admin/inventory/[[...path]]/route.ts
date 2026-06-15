@@ -49,6 +49,14 @@ async function proxyRequest(request: NextRequest, segments: string[]) {
       }
     });
 
+    // Handle 204 No Content and 205 Reset Content responses
+    if (res.status === 204 || res.status === 205) {
+      return new NextResponse(null, {
+        status: res.status,
+        headers: responseHeaders,
+      });
+    }
+
     // Handle response content-type
     const resContentType = res.headers.get("content-type") || "";
     if (resContentType.includes("application/json")) {
