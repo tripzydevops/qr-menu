@@ -192,6 +192,42 @@ def delete_ingredient(id: str, db: Session = Depends(get_db)):
     db.delete(db_ing)
     db.commit()
 
+@router.get("/ingredients/{id}/purchases", response_model=List[schemas.IngredientPurchaseSchema])
+def get_ingredient_purchases(id: str, db: Session = Depends(get_db)):
+    ingredient = db.query(models.Ingredient).filter(models.Ingredient.id == id).first()
+    if not ingredient:
+        raise HTTPException(status_code=404, detail="Ingredient not found")
+    
+    verify_inventory_gating(ingredient.venueId, db)
+
+    items = (
+        db.query(models.InvoiceItem)
+        .join(models.Invoice, models.InvoiceItem.invoiceId == models.Invoice.id)
+        .options(joinedload(models.InvoiceItem.invoice).joinedload(models.Invoice.supplier))
+        .filter(models.InvoiceItem.ingredientId == id)
+        .filter(models.Invoice.status == "processed")
+        .order_by(models.Invoice.invoiceDate.desc())
+        .limit(5)
+        .all()
+    )
+
+    purchases = []
+    for item in items:
+        purchases.append(
+            schemas.IngredientPurchaseSchema(
+                invoiceId=item.invoiceId,
+                invoiceNumber=item.invoice.invoiceNumber,
+                invoiceDate=item.invoice.invoiceDate,
+                supplierId=item.invoice.supplierId,
+                supplierName=item.invoice.supplier.name,
+                quantity=item.quantity,
+                unitCost=item.unitCost,
+                totalCost=item.totalCost,
+                brand=item.brand
+            )
+        )
+    return purchases
+
 # ---------------------------------------------------------------------------
 # 2. Suppliers Endpoints
 # ---------------------------------------------------------------------------

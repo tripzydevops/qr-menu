@@ -2,7 +2,7 @@ import os
 import httpx
 import hashlib
 import random
-from typing import List
+from typing import List, Optional
 
 def get_mock_embedding(text: str) -> List[float]:
     """
@@ -21,24 +21,24 @@ def get_mock_embedding(text: str) -> List[float]:
         vec = [x / magnitude for x in vec]
     return vec
 
-async def get_embedding(text: str) -> List[float]:
+async def get_embedding(text: str) -> Optional[List[float]]:
     """
     Generate a 768-dimension embedding vector for a given text using
-    Google's Gemini text-embedding-004 model. Falls back to deterministic mock.
+    Google's Gemini gemini-embedding-001 model. Returns None if call fails.
     """
     api_key = os.environ.get("GEMINI_API_KEY")
     if not api_key:
-        # Avoid spamming stdout, but notify on first load if running locally
-        return get_mock_embedding(text)
+        return None
 
-    url = f"https://generativelanguage.googleapis.com/v1beta/models/text-embedding-004:embedContent?key={api_key}"
+    url = f"https://generativelanguage.googleapis.com/v1beta/models/gemini-embedding-001:embedContent?key={api_key}"
     payload = {
-        "model": "models/text-embedding-004",
+        "model": "models/gemini-embedding-001",
         "content": {
             "parts": [
                 {"text": text}
             ]
-        }
+        },
+        "outputDimensionality": 768
     }
 
     try:
@@ -52,26 +52,27 @@ async def get_embedding(text: str) -> List[float]:
     except Exception as e:
         print(f"[Embeddings] Exception calling Gemini embeddings API: {e}")
 
-    # Fallback if call failed
-    return get_mock_embedding(text)
+    # Return None if call failed to trigger standard search fallback
+    return None
 
-def get_embedding_sync(text: str) -> List[float]:
+def get_embedding_sync(text: str) -> Optional[List[float]]:
     """
     Generate a 768-dimension embedding vector for a given text using
-    Google's Gemini text-embedding-004 model. Synchronous version.
+    Google's Gemini gemini-embedding-001 model. Synchronous version. Returns None if call fails.
     """
     api_key = os.environ.get("GEMINI_API_KEY")
     if not api_key:
-        return get_mock_embedding(text)
+        return None
 
-    url = f"https://generativelanguage.googleapis.com/v1beta/models/text-embedding-004:embedContent?key={api_key}"
+    url = f"https://generativelanguage.googleapis.com/v1beta/models/gemini-embedding-001:embedContent?key={api_key}"
     payload = {
-        "model": "models/text-embedding-004",
+        "model": "models/gemini-embedding-001",
         "content": {
             "parts": [
                 {"text": text}
             ]
-        }
+        },
+        "outputDimensionality": 768
     }
 
     try:
@@ -85,4 +86,4 @@ def get_embedding_sync(text: str) -> List[float]:
     except Exception as e:
         print(f"[Embeddings] Exception calling Gemini embeddings API: {e}")
 
-    return get_mock_embedding(text)
+    return None

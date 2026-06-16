@@ -33,15 +33,16 @@ export async function GET(
     if (apiKey) {
       // 2. Perform Real Semantic Search using Gemini Embeddings + pgvector
       try {
-        const embedUrl = `https://generativelanguage.googleapis.com/v1beta/models/text-embedding-004:embedContent?key=${apiKey}`;
+        const embedUrl = `https://generativelanguage.googleapis.com/v1beta/models/gemini-embedding-001:embedContent?key=${apiKey}`;
         const embedRes = await fetch(embedUrl, {
           method: "POST",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({
-            model: "models/text-embedding-004",
+            model: "models/gemini-embedding-001",
             content: {
               parts: [{ text: query }],
             },
+            outputDimensionality: 768,
           }),
         });
 

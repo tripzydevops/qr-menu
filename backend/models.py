@@ -67,6 +67,7 @@ class Venue(Base):
     payments = relationship("Payment", back_populates="venue", cascade="all, delete-orphan")
     coupons = relationship("Coupon", back_populates="venue", cascade="all, delete-orphan")
     loyaltyAccounts = relationship("LoyaltyAccount", back_populates="venue", cascade="all, delete-orphan")
+    registerSessions = relationship("RegisterSession", back_populates="venue", cascade="all, delete-orphan")
 
 
 class Table(Base):
@@ -308,10 +309,12 @@ class Payment(Base):
     label = Column(String, nullable=True)
     orderIds = Column(ARRAY(String), nullable=False)
     orderItemIds = Column(ARRAY(String), default=[])
+    registerSessionId = Column(String, ForeignKey("RegisterSession.id", ondelete="SET NULL"), nullable=True)
     createdAt = Column(DateTime, default=datetime.datetime.utcnow)
 
     venue = relationship("Venue", back_populates="payments")
     table = relationship("Table", back_populates="payments")
+    registerSession = relationship("RegisterSession", back_populates="payments")
 
 class UserSignal(Base):
     __tablename__ = "UserSignal"
@@ -538,5 +541,25 @@ class LoyaltyHistory(Base):
     createdAt = Column(DateTime, default=datetime.datetime.utcnow)
 
     loyaltyAccount = relationship("LoyaltyAccount", back_populates="histories")
+
+
+class RegisterSession(Base):
+    __tablename__ = "RegisterSession"
+
+    id = Column(String, primary_key=True, index=True)
+    venueId = Column(String, ForeignKey("Venue.id", ondelete="CASCADE"), nullable=False)
+    openedById = Column(String, ForeignKey("User.id", ondelete="SET NULL"), nullable=True)
+    closedById = Column(String, ForeignKey("User.id", ondelete="SET NULL"), nullable=True)
+    openingCash = Column(Numeric(10, 2), nullable=False)
+    closingCash = Column(Numeric(10, 2), nullable=True)
+    expectedRevenue = Column(Numeric(10, 2), nullable=True)
+    actualRevenue = Column(Numeric(10, 2), nullable=True)
+    discrepancy = Column(Numeric(10, 2), nullable=True)
+    status = Column(String, default="open")  # "open", "closed"
+    openedAt = Column(DateTime, default=datetime.datetime.utcnow)
+    closedAt = Column(DateTime, nullable=True)
+
+    venue = relationship("Venue", back_populates="registerSessions")
+    payments = relationship("Payment", back_populates="registerSession")
 
 

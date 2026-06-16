@@ -17,7 +17,8 @@ import {
   Mail,
   Phone,
   Settings,
-  Sparkles
+  Sparkles,
+  History
 } from "lucide-react";
 
 interface Ingredient {
@@ -65,6 +66,42 @@ export default function AdminInventoryPage() {
 
   // Form errors
   const [errors, setErrors] = useState<Record<string, string>>({});
+
+  // Purchases history modal state
+  interface PurchaseRecord {
+    invoiceId: string;
+    invoiceNumber: string | null;
+    invoiceDate: string;
+    supplierId: string;
+    supplierName: string;
+    quantity: number;
+    unitCost: number;
+    totalCost: number;
+    brand: string | null;
+  }
+
+  const [purchasesModalOpen, setPurchasesModalOpen] = useState(false);
+  const [selectedIngForPurchases, setSelectedIngForPurchases] = useState<Ingredient | null>(null);
+  const [purchases, setPurchases] = useState<PurchaseRecord[]>([]);
+  const [purchasesLoading, setPurchasesLoading] = useState(false);
+
+  const handleOpenPurchases = async (ing: Ingredient) => {
+    setSelectedIngForPurchases(ing);
+    setPurchasesModalOpen(true);
+    setPurchasesLoading(true);
+    setPurchases([]);
+    try {
+      const res = await fetch(`${apiUrl}/api/admin/inventory/ingredients/${ing.id}/purchases`);
+      if (res.ok) {
+        const data = await res.json();
+        setPurchases(data);
+      }
+    } catch (e) {
+      console.error("Failed to fetch purchases", e);
+    } finally {
+      setPurchasesLoading(false);
+    }
+  };
 
   const { data: rawIngredients, mutate: mutateIngredients } = useSWR(
     `${apiUrl}/api/admin/inventory/ingredients?venueId=${venueId}`,
@@ -408,9 +445,15 @@ export default function AdminInventoryPage() {
                     const isLowStock = reorder !== null && stock <= reorder;
 
                     return (
-                      <tr key={ing.id} className="hover:bg-[#2A2A3D]/10 transition-colors">
-                        <td className="px-6 py-4">
-                          <div className="font-semibold text-white">{ing.name}</div>
+                      <tr key={ing.id} className="hover:bg-[#2A2A3D]/10 transition-colors group">
+                        <td 
+                          onClick={() => handleOpenPurchases(ing)}
+                          className="px-6 py-4 cursor-pointer"
+                        >
+                          <div className="font-semibold text-white group-hover:text-[#C9A84C] transition-colors flex items-center space-x-1.5">
+                            <span>{ing.name}</span>
+                            <History className="h-3 w-3 text-gray-500 opacity-0 group-hover:opacity-100 transition-opacity" />
+                          </div>
                           {ing.lastBrand && (
                             <div className="text-[10px] mt-0.5 flex items-center">
                               <span className="bg-[#2A2A3D]/60 border border-gray-850 px-1.5 py-0.5 rounded text-[9px] text-[#C9A84C] font-normal font-sans">
@@ -419,7 +462,10 @@ export default function AdminInventoryPage() {
                             </div>
                           )}
                         </td>
-                        <td className="px-6 py-4">
+                        <td 
+                          onClick={() => handleOpenPurchases(ing)}
+                          className="px-6 py-4 cursor-pointer"
+                        >
                           <div className="flex items-center space-x-2">
                             <span className={`font-mono font-bold ${isLowStock ? "text-red-400" : "text-gray-300"}`}>
                               {stock.toFixed(2)} {ing.unit}
@@ -432,10 +478,16 @@ export default function AdminInventoryPage() {
                             )}
                           </div>
                         </td>
-                        <td className="px-6 py-4 font-mono text-[#C9A84C] font-semibold">
+                        <td 
+                          onClick={() => handleOpenPurchases(ing)}
+                          className="px-6 py-4 font-mono text-[#C9A84C] font-semibold cursor-pointer"
+                        >
                           ₺{parseFloat(ing.weightedCost).toFixed(4)} / {ing.unit}
                         </td>
-                        <td className="px-6 py-4 font-mono text-gray-400">
+                        <td 
+                          onClick={() => handleOpenPurchases(ing)}
+                          className="px-6 py-4 font-mono text-gray-400 cursor-pointer"
+                        >
                           {reorder !== null ? `${reorder.toFixed(2)} ${ing.unit}` : "-"}
                         </td>
                         <td className="px-6 py-4 text-right">
@@ -714,6 +766,99 @@ export default function AdminInventoryPage() {
                 className="px-4 py-2 rounded-xl bg-[#722F37] text-xs font-bold text-white hover:bg-[#8B3E48]"
               >
                 Kaydet
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Ingredient Purchases History Modal */}
+      {purchasesModalOpen && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+          <div className="absolute inset-0 bg-black/75 backdrop-blur-sm" onClick={() => setPurchasesModalOpen(false)} />
+          <div className="relative w-full max-w-2xl bg-[#16213E] border border-gray-800 rounded-2xl p-6 shadow-2xl space-y-4 flex flex-col max-h-[85vh]">
+            <div className="flex justify-between items-center flex-shrink-0">
+              <h3 className="font-serif text-lg font-bold text-white flex items-center space-x-2">
+                <History className="h-5 w-5 text-[#C9A84C]" />
+                <span>Satın Alma Geçmişi: {selectedIngForPurchases?.name}</span>
+              </h3>
+              <button
+                onClick={() => setPurchasesModalOpen(false)}
+                className="text-gray-400 hover:text-white text-sm font-semibold transition-colors"
+              >
+                ✕
+              </button>
+            </div>
+
+            <div className="overflow-y-auto flex-grow pr-1">
+              {purchasesLoading ? (
+                <div className="min-h-[200px] flex flex-col items-center justify-center space-y-2">
+                  <Loader2 className="h-8 w-8 text-[#C9A84C] animate-spin" />
+                  <p className="text-xs text-gray-400">Yükleniyor...</p>
+                </div>
+              ) : purchases.length > 0 ? (
+                <div className="border border-gray-800/60 rounded-xl overflow-hidden font-sans">
+                  <table className="w-full text-left border-collapse text-xs">
+                    <thead>
+                      <tr className="bg-[#1C1C28]/80 border-b border-gray-800/40 text-[10px] text-gray-400 uppercase tracking-wider font-semibold">
+                        <th className="px-4 py-3">Tarih</th>
+                        <th className="px-4 py-3">Tedarikçi</th>
+                        <th className="px-4 py-3">Birim Fiyat</th>
+                        <th className="px-4 py-3">Miktar</th>
+                        <th className="px-4 py-3 text-right">Toplam Tutar</th>
+                      </tr>
+                    </thead>
+                    <tbody className="divide-y divide-gray-800/20">
+                      {purchases.map((purchase, index) => (
+                        <tr key={index} className="hover:bg-[#2A2A3D]/10 transition-colors">
+                          <td className="px-4 py-3.5 text-gray-300 font-mono">
+                            {new Date(purchase.invoiceDate).toLocaleDateString("tr-TR")}
+                          </td>
+                          <td className="px-4 py-3.5">
+                            <div className="font-semibold text-white">{purchase.supplierName}</div>
+                            {purchase.brand && (
+                              <div className="mt-0.5">
+                                <span className="text-[9px] text-gray-400 bg-[#2A2A3D]/60 border border-gray-800 px-1.5 py-0.5 rounded font-normal font-sans">
+                                  Marka: {purchase.brand}
+                                </span>
+                              </div>
+                            )}
+                            {purchase.invoiceNumber && (
+                              <div className="text-[9px] text-gray-500 font-mono mt-0.5">
+                                Fatura: {purchase.invoiceNumber}
+                              </div>
+                            )}
+                          </td>
+                          <td className="px-4 py-3.5 font-mono text-gray-300">
+                            ₺{parseFloat(purchase.unitCost.toString()).toFixed(4)} / {selectedIngForPurchases?.unit}
+                          </td>
+                          <td className="px-4 py-3.5 font-mono text-gray-300">
+                            {parseFloat(purchase.quantity.toString()).toFixed(2)} {selectedIngForPurchases?.unit}
+                          </td>
+                          <td className="px-4 py-3.5 text-right font-mono text-[#C9A84C] font-semibold">
+                            ₺{parseFloat(purchase.totalCost.toString()).toFixed(2)}
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              ) : (
+                <div className="min-h-[200px] flex flex-col items-center justify-center text-center p-6 space-y-2 border border-dashed border-gray-800 rounded-xl">
+                  <p className="text-sm text-gray-400 font-semibold">Henüz Satın Alma Kaydı Yok</p>
+                  <p className="text-xs text-gray-500 max-w-xs font-sans">
+                    Bu malzeme için işlenmiş bir fatura bulunmamaktadır. Faturalar sekmesinden fatura girişi yapabilirsiniz.
+                  </p>
+                </div>
+              )}
+            </div>
+
+            <div className="flex justify-end pt-4 border-t border-gray-800/40 flex-shrink-0">
+              <button
+                onClick={() => setPurchasesModalOpen(false)}
+                className="px-5 py-2.5 rounded-xl bg-gray-800 text-xs font-bold hover:bg-gray-700 text-white transition-all"
+              >
+                Kapat
               </button>
             </div>
           </div>

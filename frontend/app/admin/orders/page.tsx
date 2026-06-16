@@ -46,6 +46,9 @@ export default function AdminOrdersPage() {
   const [activePrintOrder, setActivePrintOrder] = useState<Order | null>(null);
   const [orgName, setOrgName] = useState("Karaköy Lokantası");
   const [showArchived, setShowArchived] = useState(false);
+  const [filterDate, setFilterDate] = useState("");
+  const [filterSessionId, setFilterSessionId] = useState("");
+  const [sessions, setSessions] = useState<any[]>([]);
 
   // Load organization settings
   useEffect(() => {
@@ -65,6 +68,23 @@ export default function AdminOrdersPage() {
     fetchSettings();
   }, []);
 
+  // Fetch register session history
+  useEffect(() => {
+    async function fetchSessions() {
+      try {
+        const apiUrl = process.env.NEXT_PUBLIC_API_URL || "";
+        const res = await fetch(`${apiUrl}/api/admin/cashier/session/history?venueId=${venueId}`);
+        if (res.ok) {
+          const data = await res.json();
+          setSessions(data);
+        }
+      } catch (err) {
+        console.error("Failed to fetch sessions history", err);
+      }
+    }
+    fetchSessions();
+  }, [venueId]);
+
   // Listen for new orders/requests via Realtime
   useEffect(() => {
     async function fetchData() {
@@ -72,7 +92,14 @@ export default function AdminOrdersPage() {
         const apiUrl = process.env.NEXT_PUBLIC_API_URL || "";
         
         // Fetch all orders
-        const ordersRes = await fetch(`${apiUrl}/api/admin/orders?venueId=${venueId}&includeArchived=${showArchived}`);
+        let ordersUrl = `${apiUrl}/api/admin/orders?venueId=${venueId}&includeArchived=${showArchived}`;
+        if (filterDate) {
+          ordersUrl += `&date=${filterDate}`;
+        }
+        if (filterSessionId) {
+          ordersUrl += `&sessionId=${filterSessionId}`;
+        }
+        const ordersRes = await fetch(ordersUrl);
         const ordersData = await ordersRes.json();
         
         // Fetch pending waiter requests
@@ -127,7 +154,7 @@ export default function AdminOrdersPage() {
       supabase.removeChannel(ordersChannel);
       supabase.removeChannel(requestsChannel);
     };
-  }, [refreshKey, showArchived, venueId]);
+  }, [refreshKey, showArchived, venueId, filterDate, filterSessionId]);
 
   const handleUpdateOrderStatus = async (orderId: string, status: string) => {
     try {
@@ -489,19 +516,49 @@ export default function AdminOrdersPage() {
           {/* History Tab */}
           {activeTab === "history" && (
             <div className="space-y-4">
-              <div className="flex justify-between items-center bg-[#16213E]/20 border border-gray-800/40 px-5 py-3.5 rounded-2xl gap-4">
+              <div className="flex flex-col md:flex-row md:items-center justify-between bg-[#16213E]/20 border border-gray-800/40 px-5 py-3.5 rounded-2xl gap-4">
                 <span className="text-xs text-gray-400">
                   {showArchived ? "Arşivlenmiş geçmiş siparişler listelenmektedir." : "Kapatılmış ve iptal edilmiş güncel siparişler listelenmektedir."}
                 </span>
-                <label className="flex items-center space-x-2.5 cursor-pointer select-none">
-                  <input
-                    type="checkbox"
-                    checked={showArchived}
-                    onChange={(e) => setShowArchived(e.target.checked)}
-                    className="rounded bg-[#1C1C28] border-gray-800 text-[#722F37] focus:ring-0 focus:ring-offset-0 h-4.5 w-4.5 cursor-pointer"
-                  />
-                  <span className="text-xs text-gray-300 font-bold">Arşivi Göster</span>
-                </label>
+                <div className="flex flex-wrap items-center gap-4">
+                  {/* Date Filter */}
+                  <div className="flex items-center space-x-1.5">
+                    <span className="text-[11px] text-gray-400 font-semibold">Tarih:</span>
+                    <input
+                      type="date"
+                      value={filterDate}
+                      onChange={(e) => setFilterDate(e.target.value)}
+                      className="bg-[#1C1C28] border border-gray-850 text-gray-200 text-[11px] px-2 py-1 rounded-xl focus:outline-none focus:border-[#C9A84C]/50 cursor-pointer"
+                    />
+                  </div>
+
+                  {/* Session Filter */}
+                  <div className="flex items-center space-x-1.5">
+                    <span className="text-[11px] text-gray-400 font-semibold">Oturum:</span>
+                    <select
+                      value={filterSessionId}
+                      onChange={(e) => setFilterSessionId(e.target.value)}
+                      className="bg-[#1C1C28] border border-gray-850 text-gray-200 text-[11px] px-2 py-1 rounded-xl focus:outline-none focus:border-[#C9A84C]/50 cursor-pointer"
+                    >
+                      <option value="">Tümü / All</option>
+                      {sessions.map((s) => (
+                        <option key={s.id} value={s.id}>
+                          Oturum #{s.id.slice(0, 6)} ({new Date(s.openedAt).toLocaleDateString('tr-TR')})
+                        </option>
+                      ))}
+                    </select>
+                  </div>
+
+                  <label className="flex items-center space-x-2.5 cursor-pointer select-none">
+                    <input
+                      type="checkbox"
+                      checked={showArchived}
+                      onChange={(e) => setShowArchived(e.target.checked)}
+                      className="rounded bg-[#1C1C28] border-gray-800 text-[#722F37] focus:ring-0 focus:ring-offset-0 h-4.5 w-4.5 cursor-pointer"
+                    />
+                    <span className="text-xs text-gray-300 font-bold">Arşivi Göster</span>
+                  </label>
+                </div>
               </div>
 
               {pastOrders.length === 0 ? (

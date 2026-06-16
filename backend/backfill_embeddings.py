@@ -6,7 +6,7 @@ sys.path.append(os.path.dirname(os.path.abspath(__file__)))
 
 from database import SessionLocal
 import models
-from services.embeddings import get_embedding_sync
+from services.embeddings import get_embedding_sync, get_mock_embedding
 
 def backfill_embeddings():
     db = SessionLocal()
@@ -30,6 +30,9 @@ def backfill_embeddings():
             
             print(f"Generating embedding for '{item.nameEn}'...")
             vector = get_embedding_sync(text_to_embed)
+            if vector is None:
+                print(f"[Backfill] API call failed for '{item.nameEn}', falling back to mock embedding.")
+                vector = get_mock_embedding(text_to_embed)
             vector_str = "[" + ",".join(map(str, vector)) + "]"
             
             db.execute(

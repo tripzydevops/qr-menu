@@ -2,7 +2,7 @@
 
 import { useEffect, useState, useRef, Suspense } from "react";
 import { useSearchParams, useRouter } from "next/navigation";
-import { Globe, ShieldAlert, Coffee, ArrowLeft, ShoppingBag, Bell, Receipt, CheckCircle, Home, Search, User, Wine, Sun, Moon, X } from "lucide-react";
+import { Globe, ShieldAlert, Coffee, ArrowLeft, ShoppingBag, Bell, Receipt, CheckCircle, Home, Search, User, Wine, Sun, Moon, X, Sparkles } from "lucide-react";
 import Link from "next/link";
 
 import { useLocale } from "../../i18n/useLocale";
@@ -95,6 +95,10 @@ function MenuContent() {
   const [theme, setTheme] = useState<"dark" | "light">("dark");
   const [semanticResults, setSemanticResults] = useState<MenuItem[]>([]);
   const [searching, setSearching] = useState<boolean>(false);
+  
+  // AI Recommendations
+  const [aiRecommendations, setAiRecommendations] = useState<any[]>([]);
+  const [loadingRecommendations, setLoadingRecommendations] = useState(false);
 
   useEffect(() => {
     if (!searchQuery.trim()) {
@@ -125,6 +129,49 @@ function MenuContent() {
   // Custom User Signal Collection & Cold Start Personalization Hooks
   const signalCollector = useSignalCollector(menu?.venueId, token);
   const preferenceResolver = usePreferenceResolver();
+
+  // Fetch AI Recommendations
+  useEffect(() => {
+    if (!menu || !menu.venueId) return;
+
+    const controller = new AbortController();
+    async function fetchRecommendations() {
+      try {
+        setLoadingRecommendations(true);
+        const apiUrl = process.env.NEXT_PUBLIC_API_URL || "";
+        const res = await fetch(`${apiUrl}/api/menu/${token}/recommendations`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            preferenceProfile: preferenceResolver.profile,
+            currentItemId: selectedItem?.id || null
+          }),
+          signal: controller.signal
+        });
+        if (res.ok) {
+          const data = await res.json();
+          setAiRecommendations(data);
+        }
+      } catch (err: any) {
+        if (err.name !== 'AbortError') {
+          console.error("Failed to fetch AI recommendations", err);
+        }
+      } finally {
+        setLoadingRecommendations(false);
+      }
+    }
+
+    const hasInteractions = Object.values(preferenceResolver.profile).some(val => val > 0);
+    if (hasInteractions) {
+      const timeoutId = setTimeout(fetchRecommendations, 1000);
+      return () => {
+        clearTimeout(timeoutId);
+        controller.abort();
+      };
+    } else {
+      fetchRecommendations();
+    }
+  }, [preferenceResolver.profile, selectedItem?.id, menu, token]);
 
   // Track detail sheet views & implicit reading duration
   const openTimeRef = useRef<number>(0);
@@ -634,6 +681,102 @@ function MenuContent() {
       </div>
 
       <main className={`px-4 max-w-2xl mx-auto w-full flex-grow ${showPremium ? 'space-y-14' : 'space-y-10'}`}>
+        {/* Yapay Zeka Önerileri (AI Recommendations) */}
+        {!searchQuery && aiRecommendations.length > 0 && (
+          <div className="space-y-4 mb-8">
+            <div className="flex items-center justify-between border-b pb-2" style={{ borderColor: theme === "dark" ? "rgba(255,255,255,0.08)" : "rgba(0,0,0,0.08)" }}>
+              <div className="flex items-center space-x-2">
+                <Sparkles className={`h-4 w-4 animate-pulse ${theme === "dark" ? "text-amber-400" : "text-[#5C1D24]"}`} />
+                <h3 className={`font-serif text-[13px] font-bold tracking-wider uppercase ${theme === "dark" ? "text-white" : "text-[#1E1214]"}`}>
+                  {locale === 'en' ? 'AI Sommelier & Waiter Suggests' : 'Yapay Zeka Garson & Sommelier Öneriyor'}
+                </h3>
+              </div>
+              <span className="text-[8px] font-mono tracking-widest text-gray-500 uppercase">
+                {locale === 'en' ? 'Personalized' : 'Kişiselleştirilmiş'}
+              </span>
+            </div>
+            
+            <div className="flex flex-col gap-4">
+              {aiRecommendations.map((rec) => {
+                let fullItem: any = null;
+                for (const cat of menu.categories) {
+                  const found = cat.items.find((i: any) => i.id === rec.id);
+                  if (found) {
+                    fullItem = found;
+                    break;
+                  }
+                }
+                
+                if (!fullItem) return null;
+                
+                return (
+                  <div 
+                    key={rec.id}
+                    className={`border p-4 rounded-2xl relative overflow-hidden flex flex-col md:flex-row gap-4 transition-all hover:scale-[1.01] ${
+                      theme === "dark"
+                        ? "premium-glass-card border-white/[0.04] bg-white/[0.01]"
+                        : "bg-[#FFFDF8] border-black/[0.05] shadow-md shadow-[#C9A84C]/5"
+                    }`}
+                  >
+                    <div className="flex-grow flex gap-4">
+                      {fullItem.imageUrl && (
+                        <div className="w-16 h-16 rounded-xl overflow-hidden shrink-0 border border-gray-800/10">
+                          <img src={fullItem.imageUrl} alt={locale === 'en' ? fullItem.nameEn : fullItem.nameTr} className="w-full h-full object-cover" />
+                        </div>
+                      )}
+                      
+                      <div className="flex-grow">
+                        <div className="flex items-center gap-2 mb-1">
+                          <h4 className={`font-serif text-[13px] font-bold ${theme === "dark" ? "text-white" : "text-[#1E1214]"}`}>
+                            {locale === 'en' ? fullItem.nameEn : fullItem.nameTr}
+                          </h4>
+                          <span className={`text-[10px] px-2 py-0.5 rounded-full font-bold uppercase tracking-wider ${
+                            theme === "dark" ? "bg-amber-500/10 text-amber-400" : "bg-[#5C1D24]/10 text-[#5C1D24]"
+                          }`}>
+                            {fullItem.price} ₺
+                          </span>
+                        </div>
+                        
+                        <p className={`text-[10.5px] leading-relaxed font-semibold italic flex items-center gap-1.5 ${
+                          theme === "dark" ? "text-amber-300" : "text-[#722F37]"
+                        }`}>
+                          <Sparkles className="h-3.5 w-3.5 inline shrink-0" />
+                          <span>{locale === 'en' ? rec.reasonEn : rec.reasonTr}</span>
+                        </p>
+                        
+                        <p className={`text-[10px] leading-relaxed font-light mt-1.5 line-clamp-2 ${
+                          theme === "dark" ? "text-gray-400" : "text-gray-600"
+                        }`}>
+                          {locale === 'en' ? fullItem.descriptionEn : fullItem.descriptionTr}
+                        </p>
+                      </div>
+                    </div>
+                    
+                    <div className="flex items-center justify-end gap-2 mt-2 md:mt-0 md:self-center shrink-0">
+                      <button
+                        onClick={() => setSelectedItem(fullItem)}
+                        className={`px-3 py-1.5 rounded-xl text-[10.5px] font-bold border transition-all ${
+                          theme === "dark"
+                            ? "border-gray-800 text-gray-300 hover:bg-white/5"
+                            : "border-gray-200 text-gray-700 hover:bg-black/5"
+                        }`}
+                      >
+                        {locale === 'en' ? 'Details' : 'Detaylar'}
+                      </button>
+                      <button
+                        onClick={() => handleAddToOrder(fullItem, 1, "")}
+                        className="px-3 py-1.5 rounded-xl text-[10.5px] font-bold bg-[#C9A84C] text-[#1a120b] hover:bg-[#C9A84C]/95 hover:scale-105 active:scale-95 transition-all shadow-md shadow-[#C9A84C]/10"
+                      >
+                        {locale === 'en' ? 'Add' : 'Ekle'}
+                      </button>
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          </div>
+        )}
+
         {searchQuery ? (
           <div className="space-y-6">
             {/* Search Header */}

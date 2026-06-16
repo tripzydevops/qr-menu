@@ -19,6 +19,7 @@ try:
     from .api.inventory import router as inventory_router
     from .services.costing import deduct_stock_from_order
     from .services.signal_bridge import emit_order_signals, export_lifestyle_signals
+    from .services.recommendation import get_ai_recommendations
 except ImportError:
     from database import get_db, engine, Base
     import models
@@ -29,6 +30,7 @@ except ImportError:
     from api.inventory import router as inventory_router
     from services.costing import deduct_stock_from_order
     from services.signal_bridge import emit_order_signals, export_lifestyle_signals
+    from services.recommendation import get_ai_recommendations
 
 # Create database tables if they do not exist
 Base.metadata.create_all(bind=engine)
@@ -305,6 +307,31 @@ async def search_menu_items(qr_token: str, q: str, db: Session = Depends(get_db)
     items.sort(key=lambda x: id_to_index.get(x.id, 999))
     
     return items
+
+
+@app.post("/api/menu/{qr_token}/recommendations")
+async def get_menu_recommendations(
+    qr_token: str,
+    payload: Dict[str, Any],
+    db: Session = Depends(get_db)
+):
+    """
+    Get personalized AI-driven menu recommendations based on user preference profile.
+    """
+    table = db.query(models.Table).filter(models.Table.qrToken == qr_token).first()
+    if not table:
+        raise HTTPException(status_code=404, detail="Table not found")
+        
+    preference_profile = payload.get("preferenceProfile", {})
+    current_item_id = payload.get("currentItemId")
+    
+    recommendations = await get_ai_recommendations(
+        db=db,
+        venue_id=table.venueId,
+        preference_profile=preference_profile,
+        current_item_id=current_item_id
+    )
+    return recommendations
 
 
 # --- ANALYTICS VIEW LOGGING ---
@@ -994,12 +1021,35 @@ def save_system_settings(settings_data: Dict[str, Any], db: Session = Depends(ge
 # --- ORDERS & SERVICE REQUESTS (ADMIN) ---
 
 @app.get("/api/admin/orders", response_model=List[schemas.OrderSchema])
-def list_orders(venueId: str, status: Optional[str] = None, includeArchived: bool = False, db: Session = Depends(get_db)):
+def list_orders(
+    venueId: str, 
+    status: Optional[str] = None, 
+    includeArchived: bool = False, 
+    date: Optional[str] = None,
+    sessionId: Optional[str] = None,
+    db: Session = Depends(get_db)
+):
     query = db.query(models.Order).filter(models.Order.venueId == venueId)
     if not includeArchived:
         query = query.filter(models.Order.isArchived == False)
     if status:
         query = query.filter(models.Order.status == status)
+        
+    if date:
+        try:
+            parsed_date = datetime.datetime.strptime(date, "%Y-%m-%d")
+            start_time = parsed_date.replace(hour=0, minute=0, second=0, microsecond=0)
+            end_time = start_time + datetime.timedelta(days=1)
+            query = query.filter(models.Order.createdAt >= start_time, models.Order.createdAt < end_time)
+        except ValueError:
+            pass
+            
+    if sessionId:
+        session = db.query(models.RegisterSession).filter(models.RegisterSession.id == sessionId).first()
+        if session:
+            end_time = session.closedAt or datetime.datetime.utcnow()
+            query = query.filter(models.Order.createdAt >= session.openedAt, models.Order.createdAt < end_time)
+
     orders = query.order_by(models.Order.createdAt.desc()).all()
     
     # Populate tableName for display
@@ -1162,6 +1212,12 @@ def receive_order_payment(id: str, payment_data: Dict[str, str], db: Session = D
     db.commit()
     db.refresh(order)
 
+    # Find active session
+    active_session = db.query(models.RegisterSession).filter(
+        models.RegisterSession.venueId == order.venueId,
+        models.RegisterSession.status == "open"
+    ).first()
+
     # Create a Payment record for consistent reporting
     db_payment = models.Payment(
         id=str(uuid.uuid4()),
@@ -1172,7 +1228,8 @@ def receive_order_payment(id: str, payment_data: Dict[str, str], db: Session = D
         splitMode="full",
         label=None,
         orderIds=[order.id],
-        orderItemIds=[]
+        orderItemIds=[],
+        registerSessionId=active_session.id if active_session else None
     )
     db.add(db_payment)
     db.commit()
@@ -1481,6 +1538,12 @@ def pay_all_table_orders(table_id: str, payment_data: Dict[str, Any], db: Sessio
 
     order_ids = [order.id for order in active_orders]
     if active_orders:
+        # Find active session
+        active_session = db.query(models.RegisterSession).filter(
+            models.RegisterSession.venueId == active_orders[0].venueId,
+            models.RegisterSession.status == "open"
+        ).first()
+
         db_payment = models.Payment(
             id=str(uuid.uuid4()),
             venueId=active_orders[0].venueId,
@@ -1490,7 +1553,8 @@ def pay_all_table_orders(table_id: str, payment_data: Dict[str, Any], db: Sessio
             splitMode="full",
             label=None,
             orderIds=order_ids,
-            orderItemIds=[]
+            orderItemIds=[],
+            registerSessionId=active_session.id if active_session else None
         )
         db.add(db_payment)
         db.commit()
@@ -1611,6 +1675,12 @@ def split_pay_table_orders(table_id: str, split_in: schemas.SplitPaymentCreate, 
                 if active_item.quantity == 0:
                     db.delete(active_item)
                     
+            # Find active session
+            active_session = db.query(models.RegisterSession).filter(
+                models.RegisterSession.venueId == venue_id,
+                models.RegisterSession.status == "open"
+            ).first()
+
             # Create the Payment record associated with the completed order
             db_payment = models.Payment(
                 id=str(uuid.uuid4()),
@@ -1621,7 +1691,8 @@ def split_pay_table_orders(table_id: str, split_in: schemas.SplitPaymentCreate, 
                 splitMode=split_in.splitMode,
                 label=p.label,
                 orderIds=[db_order.id],
-                orderItemIds=order_item_ids_recorded
+                orderItemIds=order_item_ids_recorded,
+                registerSessionId=active_session.id if active_session else None
             )
             db.add(db_payment)
             created_payments.append(db_payment)
@@ -1659,6 +1730,12 @@ def split_pay_table_orders(table_id: str, split_in: schemas.SplitPaymentCreate, 
     else:
         # Full settle logic (sum of payments matches bill)
         order_ids = [order.id for order in active_orders]
+        # Find active session
+        active_session = db.query(models.RegisterSession).filter(
+            models.RegisterSession.venueId == venue_id,
+            models.RegisterSession.status == "open"
+        ).first()
+
         for p in split_in.payments:
             db_payment = models.Payment(
                 id=str(uuid.uuid4()),
@@ -1669,7 +1746,8 @@ def split_pay_table_orders(table_id: str, split_in: schemas.SplitPaymentCreate, 
                 splitMode=split_in.splitMode,
                 label=p.label,
                 orderIds=order_ids,
-                orderItemIds=p.orderItemIds or []
+                orderItemIds=p.orderItemIds or [],
+                registerSessionId=active_session.id if active_session else None
             )
             db.add(db_payment)
             created_payments.append(db_payment)
@@ -1746,37 +1824,87 @@ def get_table_payments(table_id: str, db: Session = Depends(get_db)):
 
 
 @app.get("/api/admin/cashier/summary")
-def get_cashier_summary(venueId: str, db: Session = Depends(get_db)):
-    # Calculate start of today in UTC
-    today_start = datetime.datetime.utcnow().replace(hour=0, minute=0, second=0, microsecond=0)
-    
-    # Completed orders today
-    completed_orders = db.query(models.Order).filter(
+def get_cashier_summary(
+    venueId: str, 
+    sessionId: Optional[str] = None, 
+    date: Optional[str] = None, 
+    db: Session = Depends(get_db)
+):
+    # Determine timeframe
+    start_time = None
+    end_time = None
+
+    if sessionId:
+        session = db.query(models.RegisterSession).filter(models.RegisterSession.id == sessionId).first()
+        if session:
+            start_time = session.openedAt
+            end_time = session.closedAt or datetime.datetime.utcnow()
+    elif date:
+        try:
+            parsed_date = datetime.datetime.strptime(date, "%Y-%m-%d")
+            start_time = parsed_date.replace(hour=0, minute=0, second=0, microsecond=0)
+            end_time = start_time + datetime.timedelta(days=1)
+        except ValueError:
+            pass
+
+    if not start_time:
+        active_sess = db.query(models.RegisterSession).filter(
+            models.RegisterSession.venueId == venueId,
+            models.RegisterSession.status == "open"
+        ).first()
+        if active_sess:
+            start_time = active_sess.openedAt
+            end_time = datetime.datetime.utcnow()
+        else:
+            start_time = datetime.datetime.utcnow().replace(hour=0, minute=0, second=0, microsecond=0)
+            end_time = start_time + datetime.timedelta(days=1)
+
+    completed_query = db.query(models.Order).filter(
         models.Order.venueId == venueId,
-        models.Order.status == "completed",
-        models.Order.paidAt >= today_start
-    ).all()
+        models.Order.status == "completed"
+    )
+    if end_time:
+        completed_query = completed_query.filter(
+            models.Order.paidAt >= start_time,
+            models.Order.paidAt < end_time
+        )
+    else:
+        completed_query = completed_query.filter(
+            models.Order.paidAt >= start_time
+        )
+    completed_orders = completed_query.all()
     
     total_revenue = sum(float(order.totalAmount) for order in completed_orders)
     order_count = len(completed_orders)
     
-    # Query payments today for method breakdown (both full and split payments)
-    payments_today = db.query(models.Payment).filter(
-        models.Payment.venueId == venueId,
-        models.Payment.createdAt >= today_start
-    ).all()
+    payments_query = db.query(models.Payment).filter(
+        models.Payment.venueId == venueId
+    )
+    if sessionId:
+        payments_query = payments_query.filter(
+            (models.Payment.registerSessionId == sessionId) | 
+            ((models.Payment.createdAt >= start_time) & (models.Payment.createdAt < end_time))
+        )
+    elif end_time:
+        payments_query = payments_query.filter(
+            models.Payment.createdAt >= start_time,
+            models.Payment.createdAt < end_time
+        )
+    else:
+        payments_query = payments_query.filter(
+            models.Payment.createdAt >= start_time
+        )
+    payments_timeframe = payments_query.all()
     
-    cash_payments = sum(float(p.amount) for p in payments_today if p.paymentMethod == "cash")
-    card_payments = sum(float(p.amount) for p in payments_today if p.paymentMethod == "card")
-    online_payments = sum(float(p.amount) for p in payments_today if p.paymentMethod == "online")
+    cash_payments = sum(float(p.amount) for p in payments_timeframe if p.paymentMethod == "cash")
+    card_payments = sum(float(p.amount) for p in payments_timeframe if p.paymentMethod == "card")
+    online_payments = sum(float(p.amount) for p in payments_timeframe if p.paymentMethod == "online")
     
-    # Active orders count (pending, preparing, ready, served)
     active_orders_count = db.query(models.Order).filter(
         models.Order.venueId == venueId,
         models.Order.status.in_(["pending", "preparing", "ready", "served"])
     ).count()
     
-    # Top selling items today
     order_ids = [order.id for order in completed_orders]
     top_items = []
     if order_ids:
@@ -1812,8 +1940,93 @@ def get_cashier_summary(venueId: str, db: Session = Depends(get_db)):
         "activeOrdersCount": active_orders_count,
         "splitRevenue": sum(float(order.totalAmount) for order in completed_orders if order.paymentMethod == "split"),
         "splitOrderCount": sum(1 for order in completed_orders if order.paymentMethod == "split"),
-        "topItems": top_items
+        "topItems": top_items,
+        "timeframe": {
+            "start": start_time.isoformat(),
+            "end": end_time.isoformat() if end_time else None,
+            "sessionId": sessionId,
+            "date": date
+        }
     }
+
+
+# --- REGISTER SESSION ENDPOINTS (CASHIER SHIFTS) ---
+
+@app.post("/api/admin/cashier/session/open", response_model=schemas.RegisterSessionSchema)
+def open_register_session(session_in: schemas.RegisterSessionCreate, db: Session = Depends(get_db)):
+    active = db.query(models.RegisterSession).filter(
+        models.RegisterSession.venueId == session_in.venueId,
+        models.RegisterSession.status == "open"
+    ).first()
+    if active:
+        raise HTTPException(status_code=400, detail="There is already an active open shift session for this venue.")
+
+    db_session = models.RegisterSession(
+        id=str(uuid.uuid4()),
+        venueId=session_in.venueId,
+        openedById=session_in.openedById,
+        openingCash=session_in.openingCash,
+        status="open",
+        openedAt=datetime.datetime.utcnow()
+    )
+    db.add(db_session)
+    db.commit()
+    db.refresh(db_session)
+    return db_session
+
+
+@app.post("/api/admin/cashier/session/close", response_model=schemas.RegisterSessionSchema)
+def close_register_session(session_close: schemas.RegisterSessionClose, venueId: str, db: Session = Depends(get_db)):
+    active = db.query(models.RegisterSession).filter(
+        models.RegisterSession.venueId == venueId,
+        models.RegisterSession.status == "open"
+    ).first()
+    if not active:
+        raise HTTPException(status_code=404, detail="No active open shift session found for this venue.")
+
+    payments = db.query(models.Payment).filter(
+        (models.Payment.registerSessionId == active.id) | 
+        ((models.Payment.venueId == venueId) & (models.Payment.createdAt >= active.openedAt))
+    ).all()
+
+    expected_revenue = sum(p.amount for p in payments if p.paymentMethod in ["cash", "card"])
+    expected_cash_payments = sum(p.amount for p in payments if p.paymentMethod == "cash")
+    expected_cash_total = Decimal(str(active.openingCash)) + expected_cash_payments
+    discrepancy = Decimal(str(session_close.closingCash)) - expected_cash_total
+
+    active.closingCash = session_close.closingCash
+    active.expectedRevenue = expected_revenue
+    active.actualRevenue = expected_cash_payments
+    active.discrepancy = discrepancy
+    active.status = "closed"
+    active.closedById = session_close.closedById
+    active.closedAt = datetime.datetime.utcnow()
+
+    for p in payments:
+        if not p.registerSessionId:
+            p.registerSessionId = active.id
+
+    db.commit()
+    db.refresh(active)
+    return active
+
+
+@app.get("/api/admin/cashier/session/active", response_model=Optional[schemas.RegisterSessionSchema])
+def get_active_session(venueId: str, db: Session = Depends(get_db)):
+    active = db.query(models.RegisterSession).filter(
+        models.RegisterSession.venueId == venueId,
+        models.RegisterSession.status == "open"
+    ).first()
+    return active
+
+
+@app.get("/api/admin/cashier/session/history", response_model=List[schemas.RegisterSessionSchema])
+def get_session_history(venueId: str, db: Session = Depends(get_db)):
+    history = db.query(models.RegisterSession).filter(
+        models.RegisterSession.venueId == venueId,
+        models.RegisterSession.status == "closed"
+    ).order_by(models.RegisterSession.openedAt.desc()).all()
+    return history
 
 
 # --- MENU IMPORT ENDPOINTS ---

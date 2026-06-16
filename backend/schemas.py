@@ -429,6 +429,7 @@ class PaymentSchema(BaseModel):
     label: Optional[str] = None
     orderIds: List[str] = []
     orderItemIds: List[str] = []
+    registerSessionId: Optional[str] = None
     createdAt: datetime
 
     class Config:
@@ -509,6 +510,21 @@ class SupplierSchema(SupplierBase):
     venueId: str
     createdAt: datetime
     updatedAt: datetime
+    class Config:
+        from_attributes = True
+
+# Ingredient Purchase History
+class IngredientPurchaseSchema(BaseModel):
+    invoiceId: str
+    invoiceNumber: Optional[str] = None
+    invoiceDate: datetime
+    supplierId: str
+    supplierName: str
+    quantity: Decimal
+    unitCost: Decimal
+    totalCost: Decimal
+    brand: Optional[str] = None
+
     class Config:
         from_attributes = True
 
@@ -771,3 +787,34 @@ class CostResetResult(BaseModel):
     resetCount: int
     resetIngredients: List[UnverifiedCostItem]
     affectedRecipeCount: int
+
+
+# --- REGISTER SESSION SCHEMAS ---
+
+class RegisterSessionBase(BaseModel):
+    venueId: str
+    openingCash: Decimal
+
+class RegisterSessionCreate(RegisterSessionBase):
+    openedById: Optional[str] = None
+
+class RegisterSessionClose(BaseModel):
+    closingCash: Decimal
+    closedById: Optional[str] = None
+
+class RegisterSessionSchema(BaseModel):
+    id: str
+    venueId: str
+    openedById: Optional[str] = None
+    closedById: Optional[str] = None
+    openingCash: Decimal
+    closingCash: Optional[Decimal] = None
+    expectedRevenue: Optional[Decimal] = None
+    actualRevenue: Optional[Decimal] = None
+    discrepancy: Optional[Decimal] = None
+    status: str
+    openedAt: datetime
+    closedAt: Optional[datetime] = None
+
+    class Config:
+        from_attributes = True
