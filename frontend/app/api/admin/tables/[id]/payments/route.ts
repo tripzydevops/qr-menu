@@ -1,7 +1,8 @@
 export const dynamic = "force-dynamic";
 
 import { NextRequest, NextResponse } from "next/server";
-import { prisma } from "@/lib/prisma";
+
+const BACKEND_URL = process.env.NEXT_PUBLIC_API_URL || process.env.BACKEND_URL || "http://localhost:8000";
 
 export async function GET(
   request: NextRequest,
@@ -10,34 +11,30 @@ export async function GET(
   try {
     const tableId = params.id;
 
-    const payments = await prisma.payment.findMany({
-      where: {
-        tableId,
-      },
-      orderBy: {
-        createdAt: "desc",
+    const targetUrl = `${BACKEND_URL}/api/admin/tables/${tableId}/payments`;
+    console.log(`[Proxy] Routing GET request to: ${targetUrl}`);
+
+    const res = await fetch(targetUrl, {
+      method: "GET",
+      headers: {
+        "Content-Type": "application/json",
       },
     });
 
-    // Map Decimal values to numbers for JSON serialization
-    const mappedPayments = payments.map((payment) => ({
-      id: payment.id,
-      venueId: payment.venueId,
-      tableId: payment.tableId,
-      amount: Number(payment.amount),
-      paymentMethod: payment.paymentMethod,
-      splitMode: payment.splitMode,
-      label: payment.label || null,
-      orderIds: payment.orderIds,
-      orderItemIds: payment.orderItemIds,
-      createdAt: payment.createdAt.toISOString(),
-    }));
+    if (!res.ok) {
+      const errorText = await res.text();
+      return NextResponse.json(
+        { detail: errorText || `Backend returned error ${res.status}` },
+        { status: res.status }
+      );
+    }
 
-    return NextResponse.json(mappedPayments);
+    const data = await res.json();
+    return NextResponse.json(data);
   } catch (error: any) {
-    console.error("Error fetching table payments: ", error);
+    console.error("[Proxy] Error fetching table payments: ", error);
     return NextResponse.json(
-      { detail: error.message || "Internal Server Error" },
+      { detail: "Internal Server Error", error: error.message },
       { status: 500 }
     );
   }

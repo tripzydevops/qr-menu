@@ -6,13 +6,13 @@ const BACKEND_URL = process.env.NEXT_PUBLIC_API_URL || process.env.BACKEND_URL |
 
 export async function POST(
   request: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: { qr_token: string } }
 ) {
   try {
-    const tableId = params.id;
+    const qrToken = params.qr_token;
     const body = await request.json();
 
-    const targetUrl = `${BACKEND_URL}/api/admin/tables/${tableId}/pay`;
+    const targetUrl = `${BACKEND_URL}/api/menu/${qrToken}/recommendations`;
     console.log(`[Proxy] Routing POST request to: ${targetUrl}`);
 
     const res = await fetch(targetUrl, {
@@ -34,7 +34,7 @@ export async function POST(
     const data = await res.json();
     return NextResponse.json(data);
   } catch (error: any) {
-    console.error("[Proxy] Error processing table payment: ", error);
+    console.error("[Proxy] Error getting AI recommendations: ", error);
     return NextResponse.json(
       { detail: "Internal Server Error", error: error.message },
       { status: 500 }

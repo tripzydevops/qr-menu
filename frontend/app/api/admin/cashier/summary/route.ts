@@ -1,12 +1,15 @@
 export const dynamic = "force-dynamic";
 
 import { NextRequest, NextResponse } from "next/server";
-import { prisma } from "@/lib/prisma";
+
+const BACKEND_URL = process.env.NEXT_PUBLIC_API_URL || process.env.BACKEND_URL || "http://localhost:8000";
 
 export async function GET(request: NextRequest) {
   try {
     const { searchParams } = new URL(request.url);
     const venueId = searchParams.get("venueId");
+    const sessionId = searchParams.get("sessionId") || "";
+    const date = searchParams.get("date") || "";
 
     if (!venueId) {
       return NextResponse.json(
@@ -15,124 +18,31 @@ export async function GET(request: NextRequest) {
       );
     }
 
-    // Calculate start of today in UTC (equivalent to python's utcnow().replace(hour=0, minute=0, second=0, microsecond=0))
-    const todayStart = new Date();
-    todayStart.setUTCHours(0, 0, 0, 0);
+    let targetUrl = `${BACKEND_URL}/api/admin/cashier/summary?venueId=${venueId}`;
+    if (sessionId) targetUrl += `&sessionId=${sessionId}`;
+    if (date) targetUrl += `&date=${date}`;
 
-    // Completed orders today (handle null paidAt using createdAt fallback)
-    const completedOrders = await prisma.order.findMany({
-      where: {
-        venueId,
-        status: "completed",
-        OR: [
-          {
-            paidAt: {
-              gte: todayStart,
-            },
-          },
-          {
-            paidAt: null,
-            createdAt: {
-              gte: todayStart,
-            },
-          },
-        ],
-      },
-      include: {
-        items: {
-          include: {
-            menuItem: true,
-          },
-        },
+    console.log(`[Proxy] Routing GET request to: ${targetUrl}`);
+
+    const res = await fetch(targetUrl, {
+      method: "GET",
+      headers: {
+        "Content-Type": "application/json",
       },
     });
 
-    const totalRevenue = completedOrders.reduce(
-      (sum, order) => sum + Number(order.totalAmount),
-      0
-    );
-    const orderCount = completedOrders.length;
-
-    // Query payments today for method breakdown (both full and split payments)
-    const paymentsToday = await prisma.payment.findMany({
-      where: {
-        venueId,
-        createdAt: {
-          gte: todayStart,
-        },
-      },
-    });
-
-    const cashRevenue = paymentsToday
-      .filter((p) => p.paymentMethod === "cash")
-      .reduce((sum, p) => sum + Number(p.amount), 0);
-
-    const cardRevenue = paymentsToday
-      .filter((p) => p.paymentMethod === "card")
-      .reduce((sum, p) => sum + Number(p.amount), 0);
-
-    const onlineRevenue = paymentsToday
-      .filter((p) => p.paymentMethod === "online")
-      .reduce((sum, p) => sum + Number(p.amount), 0);
-
-    const splitRevenue = completedOrders
-      .filter((o) => o.paymentMethod === "split")
-      .reduce((sum, o) => sum + Number(o.totalAmount), 0);
-
-    const splitOrderCount = completedOrders.filter((o) => o.paymentMethod === "split").length;
-
-    // Active orders count (pending, preparing, ready, served)
-    const activeOrdersCount = await prisma.order.count({
-      where: {
-        venueId,
-        status: {
-          in: ["pending", "preparing", "ready", "served"],
-        },
-      },
-    });
-
-    // Top selling items today
-    const itemMap: Record<
-      string,
-      { id: string; nameTr: string; nameEn: string; quantity: number; price: number }
-    > = {};
-
-    for (const order of completedOrders) {
-      for (const item of order.items) {
-        const id = item.menuItemId;
-        const quantity = item.quantity;
-        const price = Number(item.price);
-        if (itemMap[id]) {
-          itemMap[id].quantity += quantity;
-        } else {
-          itemMap[id] = {
-            id,
-            nameTr: item.menuItem?.nameTr || "Ürün",
-            nameEn: item.menuItem?.nameEn || "Item",
-            quantity,
-            price,
-          };
-        }
-      }
+    if (!res.ok) {
+      const errorText = await res.text();
+      return NextResponse.json(
+        { detail: errorText || `Backend returned error ${res.status}` },
+        { status: res.status }
+      );
     }
 
-    const topItems = Object.values(itemMap)
-      .sort((a, b) => b.quantity - a.quantity)
-      .slice(0, 5);
-
-    return NextResponse.json({
-      totalRevenue,
-      orderCount,
-      cashRevenue,
-      cardRevenue,
-      onlineRevenue,
-      splitRevenue,
-      splitOrderCount,
-      activeOrdersCount,
-      topItems,
-    });
+    const data = await res.json();
+    return NextResponse.json(data);
   } catch (error: any) {
-    console.error("Error fetching cashier summary: ", error);
+    console.error("[Proxy] Error getting cashier summary: ", error);
     return NextResponse.json(
       { detail: "Internal Server Error", error: error.message },
       { status: 500 }

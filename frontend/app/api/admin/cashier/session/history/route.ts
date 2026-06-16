@@ -4,23 +4,26 @@ import { NextRequest, NextResponse } from "next/server";
 
 const BACKEND_URL = process.env.NEXT_PUBLIC_API_URL || process.env.BACKEND_URL || "http://localhost:8000";
 
-export async function POST(
-  request: NextRequest,
-  { params }: { params: { id: string } }
-) {
+export async function GET(request: NextRequest) {
   try {
-    const tableId = params.id;
-    const body = await request.json();
+    const { searchParams } = new URL(request.url);
+    const venueId = searchParams.get("venueId");
 
-    const targetUrl = `${BACKEND_URL}/api/admin/tables/${tableId}/pay`;
-    console.log(`[Proxy] Routing POST request to: ${targetUrl}`);
+    if (!venueId) {
+      return NextResponse.json(
+        { detail: "venueId query param is required" },
+        { status: 400 }
+      );
+    }
+
+    const targetUrl = `${BACKEND_URL}/api/admin/cashier/session/history?venueId=${venueId}`;
+    console.log(`[Proxy] Routing GET request to: ${targetUrl}`);
 
     const res = await fetch(targetUrl, {
-      method: "POST",
+      method: "GET",
       headers: {
         "Content-Type": "application/json",
       },
-      body: JSON.stringify(body),
     });
 
     if (!res.ok) {
@@ -34,7 +37,7 @@ export async function POST(
     const data = await res.json();
     return NextResponse.json(data);
   } catch (error: any) {
-    console.error("[Proxy] Error processing table payment: ", error);
+    console.error("[Proxy] Error getting sessions history: ", error);
     return NextResponse.json(
       { detail: "Internal Server Error", error: error.message },
       { status: 500 }
