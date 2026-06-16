@@ -14,7 +14,7 @@ try:
     from .database import get_db, engine, Base
     from . import models, schemas
     from .services.storage import upload_image
-    from .services.analytics import log_view, get_analytics_summary
+    from .services.analytics import log_view, get_analytics_summary, get_sales_analytics
     from .services.embeddings import get_embedding_sync, get_embedding
     from .api.inventory import router as inventory_router
     from .services.costing import deduct_stock_from_order
@@ -24,7 +24,7 @@ except ImportError:
     import models
     import schemas
     from services.storage import upload_image
-    from services.analytics import log_view, get_analytics_summary
+    from services.analytics import log_view, get_analytics_summary, get_sales_analytics
     from services.embeddings import get_embedding_sync, get_embedding
     from api.inventory import router as inventory_router
     from services.costing import deduct_stock_from_order
@@ -264,6 +264,8 @@ async def search_menu_items(qr_token: str, q: str, db: Session = Depends(get_db)
     try:
         # 2. Get query embedding
         query_vector = await get_embedding(q)
+        if query_vector is None:
+            raise Exception("Gemini embedding API call failed (returned None)")
         vector_str = "[" + ",".join(map(str, query_vector)) + "]"
         
         # 3. Query closest items using cosine distance (<=>)
@@ -722,6 +724,14 @@ async def upload_file(file: UploadFile = File(...)):
 def get_venue_analytics(venueId: str, db: Session = Depends(get_db)):
     try:
         return get_analytics_summary(db, venueId)
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+# Sales Analytics & Menu Engineering endpoint
+@app.get("/api/admin/analytics/sales")
+def get_sales_venue_analytics(venueId: str, days: int = 30, db: Session = Depends(get_db)):
+    try:
+        return get_sales_analytics(db, venueId, days)
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
 
